@@ -1,0 +1,26 @@
+{
+  "name": "cifras-capela",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Minha Biblioteca de Cifras — biblioteca pessoal de cifras musicais: rápida, offline, PWA, com transposição robusta.",
+  "type": "module",
+  "workspaces": [
+    "frontend",
+    "worker"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "preview": "npm run preview --workspace=frontend",
+    "test": "npm run test --workspace=frontend",
+    "test:watch": "npm run test:watch --workspace=frontend",
+    "lint": "npm run lint --workspace=frontend",
+    "format": "prettier --write \"frontend/src/**/*.{ts,tsx,css}\" \"frontend/tests/**/*.{ts,tsx}\" \"worker/src/**/*.ts\"",
+    "build:index": "npm run build:index --workspace=frontend",
+    "worker:dev": "npm run dev --workspace=worker",
+    "worker:deploy": "npm run deploy --workspace=worker"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

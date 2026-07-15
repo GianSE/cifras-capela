@@ -1,0 +1,341 @@
+@import 'tailwindcss';
+
+/* =============================================================================
+   Minha Biblioteca de Cifras — Design System "Sonic Structure"
+   Dark-first (Stage), com tema claro derivado. Material-3 tonal.
+   Primary: Electric Indigo #3E5CFF · Chords: Stage Amber #FFB800
+   Fonts: Inter (UI/letra) · JetBrains Mono (acordes)
+   ============================================================================= */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* -----------------------------------------------------------------------------
+   Tema ESCURO (padrão) — escala crua Sonic Structure + tokens semânticos shadcn
+   ----------------------------------------------------------------------------- */
+:root {
+  color-scheme: dark;
+
+  /* Escala de superfícies (tonal, sem sombras) */
+  --color-surface: #0e141a;
+  --color-surface-dim: #0b1015;
+  --color-surface-bright: #333a40;
+  --color-surface-container-lowest: #080f14;
+  --color-surface-container-low: #161c22;
+  --color-surface-container: #1a2026;
+  --color-surface-container-high: #242b31;
+  --color-surface-container-highest: #2f353c;
+  --color-surface-elevated: #1a2026;
+  --color-surface-hover: rgba(255, 255, 255, 0.05);
+
+  /* Texto */
+  --color-on-primary: #ffffff;
+  --color-text-primary: #dde3eb;
+  --color-text-secondary: #c4c5d9;
+  --color-text-muted: #8e8fa2;
+  --color-text-disabled: #444656;
+
+  /* Contornos */
+  --color-outline: #444656;
+  --color-outline-variant: #2b3137;
+
+  /* Tokens semânticos (shadcn) — nomes "planos", expostos via @theme inline */
+  --background: #0e141a;
+  --foreground: #dde3eb;
+  --card: #161c22;
+  --card-foreground: #dde3eb;
+  --popover: #1a2026;
+  --popover-foreground: #dde3eb;
+  --primary: #3e5cff;
+  --primary-foreground: #ffffff;
+  --secondary: #242b31;
+  --secondary-foreground: #dde3eb;
+  --muted: #242b31;
+  --muted-foreground: #8e8fa2;
+  --accent: #ffb800; /* Stage Amber — cor dos acordes */
+  --accent-foreground: #412d00;
+  --destructive: #ff5449;
+  --destructive-foreground: #ffffff;
+  --border: #2b3137;
+  --input: #2b3137;
+  --ring: #3e5cff;
+}
+
+/* -----------------------------------------------------------------------------
+   Tema CLARO — sobrescreve apenas os valores de cor
+   ----------------------------------------------------------------------------- */
+.light {
+  color-scheme: light;
+
+  --color-surface: #ffffff;
+  --color-surface-dim: #eceff3;
+  --color-surface-bright: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f6f8fa;
+  --color-surface-container: #eef1f5;
+  --color-surface-container-high: #e7ebf0;
+  --color-surface-container-highest: #dfe4ea;
+  --color-surface-elevated: #ffffff;
+  --color-surface-hover: rgba(15, 23, 42, 0.045);
+
+  --color-on-primary: #ffffff;
+  --color-text-primary: #0e141a;
+  --color-text-secondary: #3f4b57;
+  --color-text-muted: #6b7684;
+  --color-text-disabled: #b3bcc7;
+
+  --color-outline: #c4ccd6;
+  --color-outline-variant: #e2e7ee;
+
+  --background: #f7f9fb;
+  --foreground: #0e141a;
+  --card: #ffffff;
+  --card-foreground: #0e141a;
+  --popover: #ffffff;
+  --popover-foreground: #0e141a;
+  --primary: #2f4bff;
+  --primary-foreground: #ffffff;
+  --secondary: #e7ebf0;
+  --secondary-foreground: #0e141a;
+  --muted: #eef1f5;
+  --muted-foreground: #6b7684;
+  --accent: #a86400; /* âmbar mais escuro p/ contraste em fundo claro */
+  --accent-foreground: #ffffff;
+  --destructive: #ba1a1a;
+  --destructive-foreground: #ffffff;
+  --border: #e2e7ee;
+  --input: #e2e7ee;
+  --ring: #2f4bff;
+}
+
+/* -----------------------------------------------------------------------------
+   Mapeamento para utilitários Tailwind v4 + shadcn (theme-aware via inline)
+   ----------------------------------------------------------------------------- */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-full: 9999px;
+}
+
+/* -----------------------------------------------------------------------------
+   Escalas auxiliares (não-cor): z-index e transições
+   ----------------------------------------------------------------------------- */
+:root {
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* =============================================================================
+   Base
+   ============================================================================= */
+* {
+  box-sizing: border-box;
+  border-color: var(--color-outline-variant);
+}
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  background-color: var(--background);
+  color: var(--foreground);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
+}
+
+/* Scrollbar minimalista */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-container-highest);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-outline);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* =============================================================================
+   Utilitários de cifra (chord-over-lyric)
+   ============================================================================= */
+@layer utilities {
+  .font-lyrics {
+    font-family: var(--font-sans);
+  }
+
+  /* Acorde: âmbar, monoespaçado, com tracking p/ distinguir C# de Cm à distância */
+  .chord-badge {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    padding: 0 2px;
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  /* Linha = fileira de segmentos (coluna acorde/letra) alinhados pela base */
+  .song-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-bottom: 0.5rem;
+    min-height: 2rem;
+  }
+  .song-segment {
+    display: flex;
+    flex-direction: column;
+  }
+  .song-segment-lyric {
+    white-space: pre;
+    line-height: 1.5;
+    color: var(--color-text-primary);
+  }
+
+  /* Seções com barra de acento colorida */
+  .section-chorus {
+    border-left: 2px solid var(--primary);
+    padding-left: 1rem;
+    margin-left: -1rem;
+    background-color: var(--color-surface-container-low);
+    border-radius: var(--radius-sm);
+  }
+  .section-bridge {
+    border-left: 2px solid var(--color-text-muted);
+    padding-left: 1rem;
+    margin-left: -1rem;
+  }
+
+  .glass-panel {
+    background: color-mix(in srgb, var(--card) 88%, transparent);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+  }
+
+  .master-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    height: 100dvh;
+  }
+  @media (min-width: 768px) {
+    .master-detail-grid {
+      grid-template-columns: 340px 1fr;
+    }
+  }
+  @media (min-width: 1024px) {
+    .master-detail-grid {
+      grid-template-columns: 400px 1fr;
+    }
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+/* =============================================================================
+   Modo apresentação / palco
+   ============================================================================= */
+.stage-mode .song-segment-lyric {
+  line-height: 1.6;
+}
+.stage-mode .chord-badge {
+  padding: 2px 6px;
+}
+
+/* =============================================================================
+   Animações
+   ============================================================================= */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-fade-in {
+  animation: fadeIn var(--transition-normal) ease-out;
+}
+.animate-scale-in {
+  animation: scaleIn var(--transition-normal) ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

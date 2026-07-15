@@ -1,0 +1,79 @@
+[
+  {
+    "id": "corinhos/alegria-no-caminho",
+    "title": "Alegria no Caminho",
+    "filename": "alegria-no-caminho.cho",
+    "artist": "Domínio Público",
+    "key": "C",
+    "categories": [
+      "corinhos",
+      "jovens"
+    ],
+    "tags": [
+      "alegre",
+      "animado"
+    ],
+    "language": "pt",
+    "tempo": 120,
+    "lyrics": "Vou seguir com alegria no caminho, cada passo é uma nova canção. Mesmo quando o vento sopra contra, guardo a paz aqui no coração. Canta, canta, minha alma, a esperança não se vai. Canta, canta, minha alma, nova aurora sempre vem."
+  },
+  {
+    "id": "natal/estrela-da-manha",
+    "title": "Estrela da Manhã",
+    "filename": "estrela-da-manha.cho",
+    "artist": "Domínio Público",
+    "key": "G",
+    "categories": [
+      "natal",
+      "culto"
+    ],
+    "tags": [
+      "natal",
+      "adoração"
+    ],
+    "language": "pt",
+    "tempo": 84,
+    "lyrics": "Brilha no céu a estrela da manhã, anunciando um novo dia a chegar. Sobre o vale desceu tão suave a luz, guiando os passos para encontrar. Glória, glória nas alturas, paz na terra a florescer. Glória, glória nas alturas, hoje o amor veio nascer."
+  },
+  {
+    "id": "harpa-crista/grandioso-es-tu",
+    "title": "Grandioso És Tu",
+    "filename": "grandioso-es-tu.cho",
+    "artist": "Harpa Cristã",
+    "key": "A",
+    "categories": [
+      "hinos"
+    ],
+    "lyrics": "Senhor meu Deus, quando eu maravilhado Fico a pensar nas obras de Tuas mãos No céu azul de estrelas pontilhado O Teu poder, mostrando a criação Então min'alma canta a Ti, Senhor Grandioso és Tu, grandioso és Tu Então min'alma canta a Ti, Senhor Grandioso és Tu, grandioso és Tu!"
+  },
+  {
+    "id": "culto/maos-ao-alto",
+    "title": "Mãos ao Alto",
+    "filename": "maos-ao-alto.cho",
+    "artist": "Domínio Público",
+    "key": "D",
+    "categories": [
+      "culto",
+      "santa ceia"
+    ],
+    "tags": [
+      "adoração",
+      "lento"
+    ],
+    "language": "pt",
+    "tempo": 72,
+    "lyrics": "Ergo minhas mãos ao alto, entrego a Ti meu coração. No silêncio deste encontro, encho-me da Tua paz. Santo, santo, santo, digno de toda adoração. A Ti, Senhor, meu louvor, em cada dia, cada hora. A Ti, Senhor, meu louvor, agora e sempre meu."
+  },
+  {
+    "id": "harpa-crista/porque-ele-vive",
+    "title": "Porque Ele Vive",
+    "filename": "porque-ele-vive.cho",
+    "artist": "Harpa Cristã",
+    "key": "G",
+    "categories": [
+      "hinos"
+    ],
+    "tempo": 72,
+    "lyrics": "Deus enviou Seu Filho amado Para perdoar, para me salvar Na cruz morreu por meu pecado Mas ressurgiu e vivo com o Pai está Porque Ele vive Posso crer no amanhã Porque Ele vive Temor não há Mas eu bem sei, eu sei Que a minha vida Está nas mãos do meu Jesus Que vivo está"
+  }
+]
