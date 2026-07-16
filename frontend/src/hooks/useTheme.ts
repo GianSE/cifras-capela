@@ -54,9 +54,5 @@ export function useTheme() {
     preferencesStorage.update({ theme: next });
   }, []);
 
-  const toggle = useCallback(() => {
-    preferencesStorage.update({ theme: resolvedTheme === 'dark' ? 'light' : 'dark' });
-  }, [resolvedTheme]);
-
-  return { theme, resolvedTheme, setTheme, toggle };
+  return { theme, resolvedTheme, setTheme };
 }

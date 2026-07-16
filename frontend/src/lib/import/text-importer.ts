@@ -7,11 +7,11 @@ import { isChordLine } from './chord-detection';
 import { mergeChordLine, chordOnlyToInline } from './positional';
 import type { ImportedSong } from './types';
 
-const KEY_RE = /(?:tom|key|tonalidade|cifra em)\s*[:\-]?\s*([A-G][#b]?m?)\b/i;
-const ARTIST_RE = /(?:artista|int[eé]rprete|banda|autor[a]?)\s*[:\-]\s*(.+)/i;
-const TITLE_RE = /(?:t[ií]tulo|title|m[uú]sica)\s*[:\-]\s*(.+)/i;
-const TEMPO_RE = /(?:bpm|tempo|andamento)\s*[:\-]?\s*(\d{2,3})\b/i;
-const CAPO_RE = /(?:capo|capotraste)\s*[:\-]?\s*(\d{1,2})\b/i;
+const KEY_RE = /(?:tom|key|tonalidade|cifra em)\s*[:-]?\s*([A-G][#b]?m?)\b/i;
+const ARTIST_RE = /(?:artista|int[eé]rprete|banda|autor[a]?)\s*[:-]\s*(.+)/i;
+const TITLE_RE = /(?:t[ií]tulo|title|m[uú]sica)\s*[:-]\s*(.+)/i;
+const TEMPO_RE = /(?:bpm|tempo|andamento)\s*[:-]?\s*(\d{2,3})\b/i;
+const CAPO_RE = /(?:capo|capotraste)\s*[:-]?\s*(\d{1,2})\b/i;
 
 /** Converte um bloco de texto em uma música importada (corpo ChordPro inline). */
 export function importPlainText(raw: string): ImportedSong {

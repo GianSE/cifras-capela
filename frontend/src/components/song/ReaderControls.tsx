@@ -35,7 +35,6 @@ export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: Re
           currentKey={transpose.currentKey}
           onUp={transpose.transposeUp}
           onDown={transpose.transposeDown}
-          onReset={transpose.reset}
         />
 
         <FontSizeControl
@@ -76,7 +75,6 @@ export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: Re
                   currentKey={transpose.currentKey}
                   onUp={transpose.transposeUp}
                   onDown={transpose.transposeDown}
-                  onReset={transpose.reset}
                 />
                 <div className="flex overflow-hidden rounded-lg border border-border">
                   <button

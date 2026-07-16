@@ -30,7 +30,7 @@ const VALID_NOTES: ReadonlySet<string> = new Set<string>([
  * só toca em raiz/baixo, qualquer sufixo é preservado verbatim.
  */
 const CHORD_REGEX =
-  /^(?<root>[A-G])(?<accidental>[#b])?(?<quality>maj|min|dim|aug|sus|m|M|\+|°|ø|Δ)?(?<extensions>(?:\d+|add\d+|sus\d+|no\d+|maj\d+|[#b]\d+|\([\w#b,+\-]+\))*)?(?:\/(?<bassRoot>[A-G])(?<bassAccidental>[#b])?)?$/;
+  /^(?<root>[A-G])(?<accidental>[#b])?(?<quality>maj|min|dim|aug|sus|m|M|\+|°|ø|Δ)?(?<extensions>(?:\d+|add\d+|sus\d+|no\d+|maj\d+|[#b]\d+|\([-\w#b,+]+\))*)?(?:\/(?<bassRoot>[A-G])(?<bassAccidental>[#b])?)?$/;
 
 /**
  * Analisa uma string de acorde e retorna uma representação estruturada.

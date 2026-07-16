@@ -65,7 +65,6 @@ export function StageMode({ song, title, transpose, font, onExit }: StageModePro
           currentKey={transpose.currentKey}
           onUp={transpose.transposeUp}
           onDown={transpose.transposeDown}
-          onReset={transpose.reset}
         />
         <div className="flex items-center gap-1 rounded-xl border border-border bg-[var(--color-surface-container-high)] p-1">
           <Button variant="ghost" size="icon-sm" onClick={font.decrease} aria-label="Diminuir fonte">

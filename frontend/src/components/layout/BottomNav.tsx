@@ -1,10 +1,10 @@
 import { NavLink } from 'react-router';
-import { Library, Heart, PenLine, Settings } from 'lucide-react';
+import { Library, ListMusic, PenLine, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { to: '/', icon: Library, label: 'Biblioteca', end: true },
-  { to: '/favoritos', icon: Heart, label: 'Favoritos', end: false },
+  { to: '/playlists', icon: ListMusic, label: 'Playlists', end: false },
   { to: '/editor', icon: PenLine, label: 'Editor', end: false },
   { to: '/config', icon: Settings, label: 'Config', end: false },
 ] as const;

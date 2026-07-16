@@ -8,7 +8,6 @@ import { FilterChips } from '@/components/library/FilterChips';
 import { SongListItem } from '@/components/library/SongListItem';
 import { SongCard } from '@/components/library/SongCard';
 import { EmptyState } from '@/components/library/EmptyState';
-import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Button } from '@/components/ui/button';
 
 export function HomePage() {
@@ -51,7 +50,6 @@ export function HomePage() {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <ThemeToggle />
           <Button asChild size="sm" className="gap-1.5">
             <Link to="/editor">
               <Plus className="size-4" /> <span className="hidden sm:inline">Nova</span>

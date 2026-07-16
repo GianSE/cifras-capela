@@ -1,52 +1,70 @@
+/**
+ * @module services/song-service
+ * @description Ponto único de acesso às músicas.
+ *
+ * Escolhe o repositório conforme a configuração: Supabase (CRUD sincronizado)
+ * quando há credenciais, senão o estático (arquivos do Git, somente leitura).
+ * O resto do app não precisa saber qual está ativo.
+ */
+
+import { isSupabaseEnabled } from '@/lib/supabase/client';
 import type { SongIndexEntry } from '@/types/library';
+import type { SaveSongInput, SongRepository } from './song-repository';
+import { staticRepository } from './static-repository';
+import { supabaseRepository } from './supabase-repository';
+
+const repository: SongRepository = isSupabaseEnabled ? supabaseRepository : staticRepository;
 
 class SongService {
-  private indexCache: SongIndexEntry[] | null = null;
-  private fetchPromise: Promise<SongIndexEntry[]> | null = null;
+  /** `true` quando dá para criar/editar/excluir pelo app. */
+  readonly canWrite = repository.canWrite;
+
+  private sourceCache = new Map<string, string>();
+  private readonly listeners = new Set<() => void>();
 
   /**
-   * Fetches the global song index generated at build time.
-   * Results are cached in memory for the lifetime of the session.
+   * Assina mudanças na biblioteca (música criada, editada ou excluída).
+   * Retorna a função de cancelamento.
    */
-  async getSongIndex(): Promise<SongIndexEntry[]> {
-    if (this.indexCache) {
-      return this.indexCache;
-    }
+  readonly subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
 
-    if (this.fetchPromise) {
-      return this.fetchPromise;
-    }
-
-    this.fetchPromise = fetch('/songs/index.json')
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch song index');
-        return res.json() as Promise<SongIndexEntry[]>;
-      })
-      .then((index) => {
-        this.indexCache = index;
-        return index;
-      })
-      .catch((err) => {
-        console.error('Error fetching song index:', err);
-        return [];
-      })
-      .finally(() => {
-        this.fetchPromise = null;
-      });
-
-    return this.fetchPromise;
+  private notify(): void {
+    for (const listener of this.listeners) listener();
   }
 
-  /**
-   * Fetches the raw ChordPro text for a given song ID.
-   * @param id The song ID (e.g. 'harpa-crista/porque-ele-vive')
-   */
+  /** Metadados de todas as músicas (para listar e buscar). */
+  async getSongIndex(): Promise<SongIndexEntry[]> {
+    return repository.listSongs();
+  }
+
+  /** O `.cho` completo de uma música (com cache em memória por sessão). */
   async getSongContent(id: string): Promise<string> {
-    const response = await fetch(`/songs/${id}.cho`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch song content for ID: ${id}`);
-    }
-    return await response.text();
+    const cached = this.sourceCache.get(id);
+    if (cached !== undefined) return cached;
+
+    const source = await repository.getSource(id);
+    this.sourceCache.set(id, source);
+    return source;
+  }
+
+  /** Cria ou atualiza uma música. */
+  async saveSong(input: SaveSongInput): Promise<void> {
+    await repository.saveSong(input);
+    // O conteúdo mudou: atualiza o cache da sessão e avisa a biblioteca.
+    this.sourceCache.set(input.id, input.source);
+    this.notify();
+  }
+
+  /** Exclui uma música. */
+  async deleteSong(id: string): Promise<void> {
+    await repository.deleteSong(id);
+    this.sourceCache.delete(id);
+    this.notify();
   }
 }
 

@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router';
-import { ChevronLeft, Heart, AlertCircle } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router';
+import { ChevronLeft, ChevronRight, AlertCircle, PenLine } from 'lucide-react';
 import { useSong } from '@/hooks/useSong';
 import { useTranspose } from '@/hooks/useTranspose';
 import { useFontSize } from '@/hooks/useFontSize';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
-import { useFavorites } from '@/hooks/useFavorites';
 import { useHistory } from '@/hooks/useHistory';
 import { usePreferences } from '@/hooks/usePreferences';
+import { usePlaylistNav } from '@/hooks/usePlaylistNav';
 import { SongHeader } from '@/components/song/SongHeader';
 import { SongRenderer } from '@/components/song/SongRenderer';
 import { ReaderControls } from '@/components/song/ReaderControls';
 import { StageMode } from '@/components/song/StageMode';
+import { AddToPlaylist } from '@/components/playlist/AddToPlaylist';
 import { Button } from '@/components/ui/button';
 import { songService } from '@/services/song-service';
-import { cn } from '@/lib/utils';
 
 export function SongPage() {
   const params = useParams();
@@ -26,14 +26,15 @@ export function SongPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [stageOpen, setStageOpen] = useState(false);
 
-  const transpose = useTranspose(song);
+  // Passar o songId faz o tom ser salvo e restaurado por música.
+  const transpose = useTranspose(song, songId);
   const font = useFontSize();
   const { autoScrollSpeed } = usePreferences();
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScroll = useAutoScroll(scrollRef, autoScrollSpeed);
 
-  const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const { record } = useHistory();
+  const playlistNav = usePlaylistNav(songId);
 
   // Carrega e parseia a música
   useEffect(() => {
@@ -97,8 +98,6 @@ export function SongPage() {
   }
 
   const { transposedSong } = transpose;
-  const favorite = isFavorite(songId);
-
   return (
     <div className="flex h-dvh flex-col bg-background">
       {/* Barra superior */}
@@ -110,20 +109,29 @@ export function SongPage() {
           <p className="truncate text-sm font-semibold text-foreground">
             {transposedSong.metadata.title}
           </p>
-          {transposedSong.metadata.artist && (
-            <p className="truncate text-xs text-muted-foreground">
-              {transposedSong.metadata.artist}
+          {playlistNav ? (
+            <p className="truncate text-xs text-primary">
+              {playlistNav.playlistName} · {playlistNav.position}/{playlistNav.total}
             </p>
+          ) : (
+            transposedSong.metadata.artist && (
+              <p className="truncate text-xs text-muted-foreground">
+                {transposedSong.metadata.artist}
+              </p>
+            )
           )}
         </div>
+        <AddToPlaylist songId={songId} />
+
+        {/* Atalho para corrigir a cifra (o editor carrega pelo id da URL). */}
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => toggleFavorite(songId)}
-          aria-label={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-          aria-pressed={favorite}
+          onClick={() => navigate(`/editor/${songId}`)}
+          aria-label="Corrigir esta cifra no editor"
+          title="Corrigir esta cifra"
         >
-          <Heart className={cn('transition-colors', favorite && 'fill-destructive text-destructive')} />
+          <PenLine />
         </Button>
       </header>
 
@@ -136,6 +144,32 @@ export function SongPage() {
             capo={transpose.capo}
           />
           <SongRenderer song={transposedSong} fontSize={font.fontSize} />
+
+          {/* Navegação do setlist */}
+          {playlistNav && (
+            <nav className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-5">
+              {playlistNav.prevHref ? (
+                <Button asChild variant="secondary" className="gap-1.5">
+                  <Link to={playlistNav.prevHref}>
+                    <ChevronLeft className="size-4" /> Anterior
+                  </Link>
+                </Button>
+              ) : (
+                <span />
+              )}
+              {playlistNav.nextHref ? (
+                <Button asChild className="gap-1.5">
+                  <Link to={playlistNav.nextHref}>
+                    Próxima <ChevronRight className="size-4" />
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild variant="secondary">
+                  <Link to={`/playlists/${playlistNav.playlistId}`}>Fim do setlist</Link>
+                </Button>
+              )}
+            </nav>
+          )}
         </div>
       </div>
 

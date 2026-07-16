@@ -1,7 +1,23 @@
-import { Settings, Sun, Moon, Monitor, Trash2, Info } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router';
+import {
+  Settings,
+  Sun,
+  Moon,
+  Monitor,
+  Trash2,
+  Info,
+  ListMusic,
+  LogIn,
+  LogOut,
+} from 'lucide-react';
 import { usePreferences } from '@/hooks/usePreferences';
+import { usePlaylists } from '@/hooks/usePlaylists';
+import { useAuth } from '@/hooks/useAuth';
+import { songService } from '@/services/song-service';
 import { preferencesStorage, type ThemePreference } from '@/lib/storage/preferences';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
@@ -15,6 +31,8 @@ const THEMES: Array<{ value: ThemePreference; label: string; icon: typeof Sun }>
 
 export function SettingsPage() {
   const prefs = usePreferences();
+  const playlists = usePlaylists();
+  const transposedCount = Object.keys(prefs.transpositions).length;
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-4 md:px-8 md:py-6">
@@ -81,14 +99,33 @@ export function SettingsPage() {
           </Row>
         </Section>
 
+        {/* Conta — só faz sentido quando o Supabase está configurado */}
+        <Section title="Conta">
+          <AccountRow />
+        </Section>
+
         {/* Dados */}
         <Section title="Dados locais">
-          <Row label="Favoritos" hint={`${prefs.favorites.length} salvos`}>
+          <Row
+            label="Playlists"
+            hint={`${playlists.length} ${playlists.length === 1 ? 'playlist' : 'playlists'}`}
+          >
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link to="/playlists">
+                <ListMusic className="size-4" /> Gerenciar
+              </Link>
+            </Button>
+          </Row>
+          <Separator />
+          <Row
+            label="Tons salvos"
+            hint={`${transposedCount} ${transposedCount === 1 ? 'música transposta' : 'músicas transpostas'}`}
+          >
             <Button
               variant="outline"
               size="sm"
-              onClick={() => preferencesStorage.update({ favorites: [] })}
-              disabled={prefs.favorites.length === 0}
+              onClick={() => preferencesStorage.clearTranspositions()}
+              disabled={transposedCount === 0}
               className="gap-1.5"
             >
               <Trash2 className="size-4" /> Limpar
@@ -113,12 +150,100 @@ export function SettingsPage() {
           <Info className="mt-0.5 size-4 shrink-0" />
           <p>
             <strong className="text-foreground">Minha Biblioteca de Cifras</strong> — funciona
-            offline, seus dados ficam apenas neste dispositivo. As músicas vivem em arquivos{' '}
-            <code className="font-mono">.cho</code> versionados no Git.
+            offline. Preferências, playlists e tons ficam neste dispositivo.{' '}
+            {songService.canWrite
+              ? 'As músicas são sincronizadas na sua conta.'
+              : 'As músicas vivem em arquivos .cho versionados no Git.'}
           </p>
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Login por magic link. Só aparece quando o Supabase está configurado —
+ * é ele que autoriza criar/editar músicas (ler é público).
+ */
+function AccountRow() {
+  const { isEnabled, isSignedIn, session, signIn, signOut, isLoading } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  if (!isEnabled) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Biblioteca somente leitura. Configure o Supabase (veja{' '}
+        <code className="font-mono text-xs">frontend/.env.example</code>) para criar e editar
+        músicas pelo app, sincronizadas entre o celular e o PC.
+      </p>
+    );
+  }
+
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Carregando…</p>;
+  }
+
+  if (isSignedIn) {
+    return (
+      <Row label="Conectado" hint={session?.user.email ?? undefined}>
+        <Button variant="outline" size="sm" onClick={() => void signOut()} className="gap-1.5">
+          <LogOut className="size-4" /> Sair
+        </Button>
+      </Row>
+    );
+  }
+
+  const handleSignIn = async () => {
+    if (!email.trim() || !password) return;
+    setStatus('sending');
+    setMessage('');
+    try {
+      await signIn(email.trim(), password);
+      setPassword('');
+      setStatus('idle');
+    } catch (e) {
+      setStatus('error');
+      setMessage(e instanceof Error ? e.message : 'Não foi possível entrar.');
+    }
+  };
+
+  return (
+    <form
+      className="flex flex-col gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void handleSignIn();
+      }}
+    >
+      <p className="text-sm text-muted-foreground">Entre para criar e editar músicas.</p>
+      <Input
+        type="email"
+        autoComplete="username"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="seu@email.com"
+      />
+      <div className="flex gap-2">
+        <Input
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Senha"
+        />
+        <Button
+          type="submit"
+          disabled={status === 'sending' || !email.trim() || !password}
+          className="shrink-0 gap-1.5"
+        >
+          <LogIn className="size-4" /> {status === 'sending' ? 'Entrando…' : 'Entrar'}
+        </Button>
+      </div>
+      {message && <p className="text-xs text-destructive">{message}</p>}
+    </form>
   );
 }
 

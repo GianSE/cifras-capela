@@ -1,4 +1,4 @@
-import { Minus, Plus, RotateCcw } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -8,20 +8,21 @@ interface TransposeControlProps {
   currentKey?: string;
   onUp: () => void;
   onDown: () => void;
-  onReset: () => void;
   className?: string;
 }
 
 /**
  * Controle segmentado de transposição: `[ − ]  Tom / ±n  [ + ]`.
  * Toca todos os acordes; a letra permanece igual.
+ *
+ * O centro é apenas leitura: mostra o tom atual e o quanto você subiu/desceu
+ * (ex.: `+2`), que é a dica para voltar ao original fazendo o inverso.
  */
 export function TransposeControl({
   semitones,
   currentKey,
   onUp,
   onDown,
-  onReset,
   className,
 }: TransposeControlProps) {
   const label = semitones === 0 ? '0' : semitones > 0 ? `+${semitones}` : `${semitones}`;
@@ -43,24 +44,12 @@ export function TransposeControl({
         <Minus />
       </Button>
 
-      <button
-        type="button"
-        onClick={onReset}
-        title="Voltar ao tom original"
-        className="flex min-w-16 flex-col items-center px-2 leading-none"
-      >
-        <span className="font-mono text-lg font-semibold tracking-wide text-accent">
-          {currentKey ?? label}
+      <div className="flex min-w-16 flex-col items-center px-2 leading-none">
+        <span className="font-mono text-lg font-semibold text-accent">{currentKey ?? label}</span>
+        <span className="mt-0.5 text-[10px] font-medium text-muted-foreground">
+          {semitones === 0 ? 'tom' : label}
         </span>
-        <span className="mt-0.5 flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-          {semitones !== 0 && (
-            <>
-              <RotateCcw className="size-2.5" /> {label}
-            </>
-          )}
-          {semitones === 0 && 'tom'}
-        </span>
-      </button>
+      </div>
 
       <Button
         variant="ghost"

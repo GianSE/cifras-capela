@@ -217,12 +217,15 @@ body {
     font-family: var(--font-sans);
   }
 
-  /* Acorde: âmbar, monoespaçado, com tracking p/ distinguir C# de Cm à distância */
+  /* Acorde: âmbar, monoespaçado e semibold.
+     Sem tracking extra: a fonte mono já separa bem os glifos, e o espaçamento
+     adicional afastava demais o número da letra ("D 7"). O `padding` lateral
+     é o que garante respiro entre acordes vizinhos. */
   .chord-badge {
     color: var(--accent);
     font-family: var(--font-mono);
     font-weight: 600;
-    letter-spacing: 0.05em;
+    letter-spacing: 0;
     padding: 0 2px;
     display: inline-block;
     white-space: nowrap;

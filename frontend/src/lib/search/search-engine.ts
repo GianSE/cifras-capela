@@ -3,7 +3,6 @@ import type { SongIndexEntry } from '@/types/library';
 
 export class SearchEngine {
   private miniSearch: MiniSearch<SongIndexEntry>;
-  private isInitialized = false;
 
   constructor() {
     this.miniSearch = new MiniSearch({
@@ -28,12 +27,15 @@ export class SearchEngine {
   }
 
   /**
-   * Initializes the search engine with the song index.
+   * (Re)indexa a biblioteca inteira.
+   *
+   * Substitui o índice em vez de ignorar chamadas seguintes: a biblioteca muda
+   * quando uma música é criada, editada ou excluída, e a busca precisa
+   * refletir isso na hora.
    */
   init(songs: SongIndexEntry[]) {
-    if (this.isInitialized) return;
+    this.miniSearch.removeAll();
     this.miniSearch.addAll(songs);
-    this.isInitialized = true;
   }
 
   /**

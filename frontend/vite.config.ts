@@ -71,9 +71,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Isola a lib de PDF (grande) num chunk sob demanda.
-          react: ['react', 'react-dom', 'react-router'],
+        // Isola o núcleo do React num chunk próprio (cacheável entre deploys).
+        manualChunks(id) {
+          if (/node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/.test(id)) {
+            return 'react';
+          }
+          return undefined;
         },
       },
     },

@@ -6,8 +6,11 @@ import { useTheme } from '@/hooks/useTheme';
 import { HomePage } from '@/pages/HomePage';
 
 // Rotas pesadas carregadas sob demanda (code-splitting).
-const FavoritesPage = lazy(() =>
-  import('@/pages/FavoritesPage').then((m) => ({ default: m.FavoritesPage })),
+const PlaylistsPage = lazy(() =>
+  import('@/pages/PlaylistsPage').then((m) => ({ default: m.PlaylistsPage })),
+);
+const PlaylistPage = lazy(() =>
+  import('@/pages/PlaylistPage').then((m) => ({ default: m.PlaylistPage })),
 );
 const SongPage = lazy(() => import('@/pages/SongPage').then((m) => ({ default: m.SongPage })));
 const EditorPage = lazy(() =>
@@ -39,8 +42,10 @@ export function App() {
           {/* Rotas com a "casca" do app (sidebar + navegação inferior) */}
           <Route element={<AppShell />}>
             <Route index element={<HomePage />} />
-            <Route path="favoritos" element={<FavoritesPage />} />
-            <Route path="editor" element={<EditorPage />} />
+            <Route path="playlists" element={<PlaylistsPage />} />
+            <Route path="playlists/:id" element={<PlaylistPage />} />
+            {/* `editor/*` aceita ids com barra: /editor/harpa-crista/porque-ele-vive */}
+            <Route path="editor/*" element={<EditorPage />} />
             <Route path="importar" element={<ImportPage />} />
             <Route path="config" element={<SettingsPage />} />
           </Route>

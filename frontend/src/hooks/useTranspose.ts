@@ -24,8 +24,6 @@ export interface UseTransposeResult {
   readonly transposeDown: () => void;
   /** Define diretamente a quantidade de semitons. */
   readonly setSemitones: (value: number) => void;
-  /** Volta à tonalidade original. */
-  readonly reset: () => void;
   /** Preferência atual por bemóis. */
   readonly preferFlats: boolean;
   /** Alterna entre sustenidos e bemóis (persistido globalmente). */
@@ -35,23 +33,31 @@ export interface UseTransposeResult {
 /**
  * Gerencia o estado de transposição de uma música.
  *
- * A preferência sustenidos/bemóis é **global e persistida** (localStorage);
- * a quantidade de semitons é local à sessão de leitura e reinicia ao abrir
- * outra música.
+ * A preferência sustenidos/bemóis é **global e persistida** (localStorage).
+ * Os semitons são salvos **por música**: ao reabrir a cifra, ela volta no tom
+ * em que você parou. Sem `songId`, a transposição é apenas da sessão.
+ *
+ * @param song - AST da música (a original, não a transposta).
+ * @param songId - ID da música; habilita salvar/restaurar o tom.
  */
-export function useTranspose(song: Song | null): UseTransposeResult {
+export function useTranspose(song: Song | null, songId?: string): UseTransposeResult {
   const { preferFlats } = usePreferences();
   const [semitones, setSemitonesState] = useState(0);
 
-  // Reinicia a transposição ao carregar uma nova música.
+  // Restaura o tom salvo ao abrir a música (0 se nunca foi transposta).
   useEffect(() => {
-    setSemitonesState(0);
-  }, [song]);
+    setSemitonesState(songId ? preferencesStorage.getTransposition(songId) : 0);
+  }, [song, songId]);
 
-  const setSemitones = useCallback((value: number) => {
-    const clamped = Math.max(-MAX_SEMITONES, Math.min(MAX_SEMITONES, value));
-    setSemitonesState(clamped);
-  }, []);
+  /** Aplica o limite e persiste o tom da música. */
+  const setSemitones = useCallback(
+    (value: number) => {
+      const clamped = Math.max(-MAX_SEMITONES, Math.min(MAX_SEMITONES, value));
+      setSemitonesState(clamped);
+      if (songId) preferencesStorage.setTransposition(songId, clamped);
+    },
+    [songId],
+  );
 
   const transposedSong = useMemo(() => {
     if (!song) return null;
@@ -70,15 +76,8 @@ export function useTranspose(song: Song | null): UseTransposeResult {
     [originalKey, currentKey],
   );
 
-  const transposeUp = useCallback(() => {
-    setSemitonesState((prev) => Math.min(MAX_SEMITONES, prev + 1));
-  }, []);
-
-  const transposeDown = useCallback(() => {
-    setSemitonesState((prev) => Math.max(-MAX_SEMITONES, prev - 1));
-  }, []);
-
-  const reset = useCallback(() => setSemitonesState(0), []);
+  const transposeUp = useCallback(() => setSemitones(semitones + 1), [setSemitones, semitones]);
+  const transposeDown = useCallback(() => setSemitones(semitones - 1), [setSemitones, semitones]);
 
   const toggleAccidentalPreference = useCallback(() => {
     preferencesStorage.update({ preferFlats: !preferencesStorage.getSnapshot().preferFlats });
@@ -93,7 +92,6 @@ export function useTranspose(song: Song | null): UseTransposeResult {
     transposeUp,
     transposeDown,
     setSemitones,
-    reset,
     preferFlats,
     toggleAccidentalPreference,
   };

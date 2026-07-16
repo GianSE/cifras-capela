@@ -1,31 +1,19 @@
 import type { Chord } from '@/types/song';
+import { cn } from '@/lib/utils';
 
 interface ChordBadgeProps {
   chord: Chord;
   className?: string;
 }
 
-export function ChordBadge({ chord, className = '' }: ChordBadgeProps) {
-  // Format the bass note if it exists (e.g. /G)
-  const bassText = chord.bass
-    ? `/${chord.bass.root}${chord.bass.accidental || ''}`
-    : '';
-
-  return (
-    <span className={`chord-badge ${className}`}>
-      {chord.root}
-      {chord.accidental && (
-        <span className="text-[0.85em]">{chord.accidental}</span>
-      )}
-      {chord.quality}
-      {chord.extensions && (
-        <sup className="text-[0.75em] leading-[0] ml-[1px]">
-          {chord.extensions}
-        </sup>
-      )}
-      {bassText && (
-        <span className="opacity-90">{bassText}</span>
-      )}
-    </span>
-  );
+/**
+ * Exibe um acorde na cifra.
+ *
+ * Renderiza `chord.raw` — a forma canônica, reconstruída pela transposição —
+ * em **tamanho uniforme**, como manda a notação de cifra brasileira (`A7`,
+ * `Bm7(b5)`, `G/B`). Nada de sobrescrito: além de prejudicar a leitura à
+ * distância no palco, deixaria a tela diferente do PDF, que também usa `raw`.
+ */
+export function ChordBadge({ chord, className }: ChordBadgeProps) {
+  return <span className={cn('chord-badge', className)}>{chord.raw}</span>;
 }

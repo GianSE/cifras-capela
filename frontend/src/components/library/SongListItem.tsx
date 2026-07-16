@@ -1,18 +1,14 @@
 import { Link } from 'react-router';
-import { Heart, Music4 } from 'lucide-react';
+import { Music4 } from 'lucide-react';
 import type { SongIndexEntry } from '@/types/library';
-import { useFavorites } from '@/hooks/useFavorites';
-import { cn } from '@/lib/utils';
+import { AddToPlaylist } from '@/components/playlist/AddToPlaylist';
 
 interface SongListItemProps {
   song: SongIndexEntry;
 }
 
-/** Linha da lista de músicas: título, artista, tom e favoritar. */
+/** Linha da lista de músicas: título, artista, tom e adicionar à playlist. */
 export function SongListItem({ song }: SongListItemProps) {
-  const { isFavorite, toggle } = useFavorites();
-  const favorite = isFavorite(song.id);
-
   return (
     <Link
       to={`/musica/${song.id}`}
@@ -35,18 +31,14 @@ export function SongListItem({ song }: SongListItemProps) {
         </span>
       )}
 
-      <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          toggle(song.id);
-        }}
-        aria-label={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-        aria-pressed={favorite}
-        className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:text-foreground"
+      {/* Evita que abrir o diálogo navegue para a música. */}
+      <span
+        className="shrink-0"
+        onClick={(e) => e.preventDefault()}
+        role="presentation"
       >
-        <Heart className={cn('size-4', favorite && 'fill-destructive text-destructive')} />
-      </button>
+        <AddToPlaylist songId={song.id} />
+      </span>
     </Link>
   );
 }

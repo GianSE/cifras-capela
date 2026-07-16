@@ -55,7 +55,7 @@ async function buildSitemap(request: Request, env: Env): Promise<Response> {
     entries = [];
   }
 
-  const staticPaths = ['/', '/favoritos', '/buscar', '/categorias'];
+  const staticPaths = ['/', '/playlists', '/editor', '/importar'];
   const urls = [
     ...staticPaths.map((p) => `${origin}${p}`),
     ...entries.map((song) => `${origin}/musica/${encodeURI(song.id)}`),

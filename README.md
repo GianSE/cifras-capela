@@ -1,8 +1,8 @@
 # 🎵 Minha Biblioteca de Cifras
 
 Biblioteca pessoal de cifras musicais — **rápida, offline, instalável (PWA)**, com
-transposição robusta, busca instantânea, favoritos, histórico, modo apresentação,
-auto-scroll, editor e importação.
+transposição robusta, busca instantânea, playlists (setlists), histórico, modo
+apresentação, auto-scroll, editor e importação.
 
 As músicas ficam em **arquivos versionados no Git** (sem banco de dados). Hospedada no
 **Cloudflare Pages/Workers**.
@@ -18,10 +18,14 @@ As músicas ficam em **arquivos versionados no Git** (sem banco de dados). Hospe
 - **Capotraste**: mostra tom original, tom exibido e a casa sugerida.
 - **Busca instantânea** por nome, artista, categoria, tag e **trechos da letra**.
 - **Filtros** por categoria (culto, santa ceia, natal, jovens, harpa, corinhos…).
-- **Favoritos** e **histórico** (localStorage).
+- **Playlists (setlists)**: monte o repertório do dia, **arraste os cards** para ordenar
+  (funciona no toque), passe as músicas no app com Anterior/Próxima e **exporte tudo num
+  PDF único** (com índice e uma música por página).
+- **Histórico** das músicas abertas recentemente (localStorage).
 - **Modo apresentação** (tela cheia, fonte grande, alto contraste, tela sempre acesa).
 - **Auto-scroll** com velocidade ajustável.
-- **Editor** interno com preview ao vivo e **importação** (TXT, MD, HTML, JSON, PDF).
+- **Editor** interno com preview ao vivo, **exportação em PDF** e **importação**
+  (TXT, MD, HTML, JSON, PDF).
 - **PWA offline**: instala no celular e funciona sem internet.
 - **Tema claro e escuro**.
 
@@ -85,7 +89,65 @@ npm run preview
 
 ---
 
+## 🗄️ Onde as músicas ficam (dois modos)
+
+O app funciona de dois jeitos, escolhidos automaticamente pela presença das
+credenciais do Supabase:
+
+| | **Modo estático** (padrão) | **Modo Supabase** |
+|---|---|---|
+| Fonte da verdade | arquivos `.cho` no Git | tabela `songs` no Postgres |
+| Criar/editar/excluir no app | ❌ somente leitura | ✅ CRUD completo |
+| Sincroniza celular ↔ PC | via commit + deploy | ✅ na hora |
+| Ler offline | ✅ (service worker) | ✅ (cache local) |
+| Precisa de login | — | só para **escrever** |
+
+### Ativando o modo Supabase (CRUD)
+
+1. Crie um projeto em [supabase.com](https://supabase.com).
+2. Abra [`supabase/schema.sql`](supabase/schema.sql), **troque `SEU-EMAIL-AQUI@exemplo.com`
+   pelo seu e-mail**, e execute o arquivo inteiro no **SQL Editor**. Isso cria a tabela
+   `songs`, a lista de `editors` e as políticas de RLS.
+3. **Project Settings → API**: copie a *Project URL* (`https://xxxx.supabase.co` — **não**
+   a URL do painel) e a chave *anon public* (ou *Publishable key*).
+4. Copie `frontend/.env.example` para `frontend/.env.local` e preencha:
+   ```bash
+   VITE_SUPABASE_URL=https://xxxx.supabase.co
+   VITE_SUPABASE_ANON_KEY=sb_publishable_...
+   ```
+5. **Crie seu usuário**: Authentication → Users → **Add user** → o mesmo e-mail do passo 2,
+   com uma senha, e marque *Auto Confirm User*.
+6. **Suba as músicas que já estão no Git** (uma vez só):
+   ```bash
+   npm run seed:sql --workspace=frontend   # gera supabase/seed.sql
+   ```
+   Cole o `supabase/seed.sql` no SQL Editor e execute. (É idempotente — rodar de novo só
+   atualiza. Usa o SQL Editor em vez da API justamente para nenhuma chave secreta
+   precisar sair do painel.)
+7. Reinicie o `npm run dev`. Em **/config → Conta**, entre com e-mail e senha. Pronto:
+   os botões **Salvar** e **Excluir** aparecem no editor e no importador.
+
+### Segurança — por que a lista de `editors`
+
+A anon key **vai no bundle do app** (é pública por design), então quem protege a escrita é
+o RLS. Só exigir "autenticado" **não basta**: o cadastro público do Supabase vem ligado por
+padrão, e qualquer pessoa poderia criar uma conta e editar sua biblioteca. Por isso as
+policies checam a tabela `editors` — mesmo com cadastro aberto, só os e-mails de lá
+escrevem. Leitura é pública (ninguém precisa entrar para ver as cifras).
+
+> Reforço opcional: Authentication → Providers → Email → desligue *Enable sign ups*.
+
+> No deploy do Cloudflare Pages, defina `VITE_SUPABASE_URL` e
+> `VITE_SUPABASE_ANON_KEY` nas variáveis de ambiente do projeto.
+
+---
+
 ## ➕ Como adicionar músicas
+
+**Com o Supabase ativo:** use o **Editor** (menu → Editor) ou o **Importar**, e
+clique em **Salvar**. A música aparece na hora em todos os seus dispositivos.
+
+**No modo estático**, crie o arquivo à mão:
 
 1. Crie um arquivo `.cho` em `frontend/public/songs/<coleção>/<slug>.cho`.
 2. Use o **formato híbrido** (frontmatter YAML + corpo ChordPro):

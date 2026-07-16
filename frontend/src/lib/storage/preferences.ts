@@ -1,7 +1,9 @@
 /**
  * @module lib/storage/preferences
  * @description Persistência de preferências do usuário em localStorage
- * (favoritos, histórico, tema, tamanho de fonte, sustenidos/bemóis).
+ * (histórico, tema, tamanho de fonte, sustenidos/bemóis).
+ *
+ * As playlists moram em `playlists.ts` (dados maiores e com estrutura própria).
  *
  * Expõe um store observável (`subscribe`/`getSnapshot`) compatível com
  * `useSyncExternalStore`, e sincroniza entre abas via evento `storage`.
@@ -14,23 +16,26 @@ export interface UserPreferences {
   readonly preferFlats: boolean;
   /** Tema da interface. */
   readonly theme: ThemePreference;
-  /** IDs das músicas favoritas. */
-  readonly favorites: readonly string[];
   /** IDs das músicas abertas recentemente (mais recente primeiro, máx. 30). */
   readonly recentSongs: readonly string[];
   /** Tamanho da fonte da letra (px). */
   readonly fontSize: number;
   /** Velocidade padrão do auto-scroll (0.25–3). */
   readonly autoScrollSpeed: number;
+  /**
+   * Tom em que cada música foi deixada: `id da música` → semitons.
+   * Só guarda quem foi transposto (0 = tom original é removido do mapa).
+   */
+  readonly transpositions: Readonly<Record<string, number>>;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   preferFlats: false,
   theme: 'dark',
-  favorites: [],
   recentSongs: [],
   fontSize: 18,
   autoScrollSpeed: 1,
+  transpositions: {},
 };
 
 const STORAGE_KEY = 'cifras-capela:preferences';
@@ -106,15 +111,27 @@ class PreferencesStorage {
     this.update({ recentSongs: [] });
   }
 
-  toggleFavorite(songId: string): void {
-    const favorites = this.prefs.favorites.includes(songId)
-      ? this.prefs.favorites.filter((id) => id !== songId)
-      : [...this.prefs.favorites, songId];
-    this.update({ favorites });
+  /** Semitons salvos para a música (0 se ela nunca foi transposta). */
+  getTransposition(songId: string): number {
+    return this.prefs.transpositions[songId] ?? 0;
   }
 
-  isFavorite(songId: string): boolean {
-    return this.prefs.favorites.includes(songId);
+  /**
+   * Salva o tom em que a música foi deixada. Voltar ao tom original (0) apaga
+   * a entrada, para o mapa não crescer com valores irrelevantes.
+   */
+  setTransposition(songId: string, semitones: number): void {
+    const transpositions = { ...this.prefs.transpositions };
+    if (semitones === 0) {
+      delete transpositions[songId];
+    } else {
+      transpositions[songId] = semitones;
+    }
+    this.update({ transpositions });
+  }
+
+  clearTranspositions(): void {
+    this.update({ transpositions: {} });
   }
 }
 

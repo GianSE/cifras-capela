@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Upload, FileText, AlertTriangle, ArrowRight, Download, Loader2 } from 'lucide-react';
+import { Upload, FileText, AlertTriangle, ArrowRight, Download, Loader2, Save } from 'lucide-react';
 import { importFile, importFromText, buildSource, type ImportedSong } from '@/lib/import';
 import { SongRenderer } from '@/components/song/SongRenderer';
 import { parse } from '@/lib/parser';
@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { downloadTextFile, slugify } from '@/lib/export/download';
+import { buildSongId } from '@/lib/library/derive';
+import { songService } from '@/services/song-service';
 
 interface Draft {
   title: string;
@@ -60,6 +62,8 @@ export function ImportPage() {
   const [pasteText, setPasteText] = useState('');
   const [pasteFormat, setPasteFormat] = useState('txt');
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleFile = async (file: File) => {
     setLoading(true);
@@ -86,6 +90,26 @@ export function ImportPage() {
     if (!draft) return;
     const name = slugify(draft.title || 'musica') || 'musica';
     downloadTextFile(`${name}.cho`, draftToSource(draft));
+  };
+
+  /** Salva direto na biblioteca e abre a música. */
+  const save = async () => {
+    if (!draft) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const categories = draft.categories
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean);
+      const id = buildSongId(draft.title, categories);
+      await songService.saveSong({ id, source: draftToSource(draft) });
+      navigate(`/musica/${id}`);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Não foi possível salvar.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -157,6 +181,9 @@ export function ImportPage() {
           onUpdate={update}
           onOpenEditor={openInEditor}
           onDownload={download}
+          onSave={save}
+          saving={saving}
+          saveError={saveError}
           onRestart={() => setDraft(null)}
         />
       )}
@@ -169,12 +196,18 @@ function ReviewForm({
   onUpdate,
   onOpenEditor,
   onDownload,
+  onSave,
+  saving,
+  saveError,
   onRestart,
 }: {
   draft: Draft;
   onUpdate: (patch: Partial<Draft>) => void;
   onOpenEditor: () => void;
   onDownload: () => void;
+  onSave: () => void;
+  saving: boolean;
+  saveError: string | null;
   onRestart: () => void;
 }) {
   const previewSong = parse(draftToSource(draft)).song;
@@ -184,6 +217,17 @@ function ReviewForm({
       <p className="text-sm text-muted-foreground">
         Revise os dados extraídos antes de salvar. Ajuste o que for necessário.
       </p>
+
+      {saveError && (
+        <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{saveError}</p>
+      )}
+      {!songService.canWrite && (
+        <p className="rounded-lg bg-[var(--color-surface-container)] p-3 text-xs text-muted-foreground">
+          Biblioteca somente leitura. Configure o Supabase para salvar pelo app — por enquanto,
+          baixe o <strong className="text-foreground">.cho</strong> e coloque em{' '}
+          <code>frontend/public/songs/</code>.
+        </p>
+      )}
 
       {draft.warnings.length > 0 && (
         <div className="flex flex-col gap-1 rounded-lg bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] p-3 text-xs text-foreground">
@@ -238,7 +282,13 @@ function ReviewForm({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button onClick={onOpenEditor} className="gap-1.5">
+        {songService.canWrite && (
+          <Button onClick={onSave} disabled={saving || !draft.title.trim()} className="gap-1.5">
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {saving ? 'Salvando…' : 'Salvar na biblioteca'}
+          </Button>
+        )}
+        <Button variant="secondary" onClick={onOpenEditor} className="gap-1.5">
           Abrir no editor <ArrowRight className="size-4" />
         </Button>
         <Button variant="secondary" onClick={onDownload} className="gap-1.5">
