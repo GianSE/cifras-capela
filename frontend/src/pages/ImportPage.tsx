@@ -11,8 +11,15 @@ import {
   SkipForward,
   Sparkles,
   Wand2,
+  Search,
 } from 'lucide-react';
-import { isAiFormatterAvailable, formatWithAI, generateWithAI } from '@/lib/import/ai';
+import {
+  isAiFormatterAvailable,
+  formatWithAI,
+  generateWithAI,
+  findSongCandidates,
+  type SongCandidate,
+} from '@/lib/import/ai';
 import {
   importFile,
   importFromText,
@@ -26,6 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import { downloadTextFile, slugify } from '@/lib/export/download';
 import { buildSongId } from '@/lib/library/derive';
 import { songService } from '@/services/song-service';
@@ -87,10 +95,12 @@ export function ImportPage() {
   const [aiAvailable, setAiAvailable] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  // Gerar música pela IA (pelo nome).
+  // Gerar música pela IA (pelo nome): buscar candidatas → escolher → gerar.
   const [genTitle, setGenTitle] = useState('');
   const [genArtist, setGenArtist] = useState('');
   const [genKey, setGenKey] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [candidates, setCandidates] = useState<SongCandidate[] | null>(null);
   const [genLoading, setGenLoading] = useState(false);
 
   // O formatador com IA só aparece se o Worker estiver configurado.
@@ -123,19 +133,34 @@ export function ImportPage() {
     }
   };
 
-  /** Pede a cifra de uma música à IA (pelo nome) e abre a revisão. */
-  const handleGenerateAI = async () => {
+  /** Busca as músicas que a IA conhece com esse nome (para você escolher). */
+  const handleSearchCandidates = async () => {
     if (!genTitle.trim()) return;
+    setSearchLoading(true);
+    setSaveError(null);
+    setCandidates(null);
+    try {
+      setCandidates(await findSongCandidates(genTitle, genArtist || undefined));
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Falha ao buscar músicas.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  /** Gera a cifra da candidata escolhida (usa a 1ª linha para não confundir). */
+  const handleGenerateCandidate = async (c: SongCandidate) => {
     setGenLoading(true);
     setSaveError(null);
     try {
       const { source, warnings, confidence } = await generateWithAI({
-        title: genTitle,
-        artist: genArtist || undefined,
-        key: genKey || undefined,
+        title: c.title,
+        artist: c.artist || genArtist || undefined,
+        key: genKey || c.key || undefined,
+        excerpt: c.firstLine || undefined,
       });
       if (!source.trim()) {
-        setSaveError('A IA não conhece essa música com segurança. Tente colar a letra.');
+        setSaveError('A IA não conseguiu escrever essa música. Tente colar a letra.');
         return;
       }
       // Confiança baixa/média vira um aviso em destaque na revisão.
@@ -313,7 +338,7 @@ export function ImportPage() {
             </div>
           </div>
 
-          {/* Gerar música pela IA (pelo nome) */}
+          {/* Gerar música pela IA (buscar → escolher → gerar) */}
           {aiAvailable && (
             <div className="rounded-2xl border border-border bg-card p-4">
               <div className="mb-1 flex items-center gap-2">
@@ -321,38 +346,94 @@ export function ImportPage() {
                 <Label>Ou peça a música à IA</Label>
               </div>
               <p className="mb-3 text-xs text-muted-foreground">
-                A IA escreve letra + cifra de músicas que conhece (funciona melhor com hinos).
-                Sempre revise antes de salvar — principalmente os acordes.
+                Digite o nome e a IA lista as músicas que conhece — você escolhe a certa pela
+                primeira linha. Funciona melhor com hinos; sempre revise os acordes.
               </p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
                 <Input
                   value={genTitle}
                   onChange={(e) => setGenTitle(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && void handleGenerateAI()}
+                  onKeyDown={(e) => e.key === 'Enter' && void handleSearchCandidates()}
                   placeholder="Nome da música *"
                 />
                 <Input
                   value={genArtist}
                   onChange={(e) => setGenArtist(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && void handleGenerateAI()}
+                  onKeyDown={(e) => e.key === 'Enter' && void handleSearchCandidates()}
                   placeholder="Artista (opcional)"
                 />
                 <Input
                   value={genKey}
                   onChange={(e) => setGenKey(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && void handleGenerateAI()}
                   placeholder="Tom (ex.: G)"
                   className="sm:w-24"
+                  title="Tom desejado para gerar (opcional)"
                 />
               </div>
               <Button
-                onClick={handleGenerateAI}
-                disabled={!genTitle.trim() || genLoading}
+                onClick={handleSearchCandidates}
+                disabled={!genTitle.trim() || searchLoading || genLoading}
                 className="mt-3 gap-1.5"
               >
-                {genLoading ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
-                {genLoading ? 'Gerando…' : 'Gerar música'}
+                {searchLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Search className="size-4" />
+                )}
+                {searchLoading ? 'Buscando…' : 'Buscar músicas'}
               </Button>
+
+              {/* Lista de candidatas */}
+              {candidates && (
+                <div className="mt-4">
+                  {candidates.length === 0 ? (
+                    <p className="rounded-lg bg-[var(--color-surface-container)] p-3 text-sm text-muted-foreground">
+                      A IA não conhece nenhuma música com esse nome com segurança. Tente colar a
+                      letra acima e usar <strong className="text-foreground">Formatar com IA</strong>.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">
+                        Escolha a sua (clique para gerar):
+                      </p>
+                      <ul className="flex flex-col gap-2">
+                        {candidates.map((c, i) => (
+                          <li key={i}>
+                            <button
+                              type="button"
+                              onClick={() => void handleGenerateCandidate(c)}
+                              disabled={genLoading}
+                              className="flex w-full items-start gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="flex flex-wrap items-center gap-x-2">
+                                  <span className="font-medium text-foreground">{c.title}</span>
+                                  {c.artist && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {c.artist}
+                                    </span>
+                                  )}
+                                </span>
+                                {c.firstLine && (
+                                  <span className="mt-0.5 block truncate text-sm italic text-muted-foreground">
+                                    “{c.firstLine}…”
+                                  </span>
+                                )}
+                              </span>
+                              <ConfidenceBadge level={c.confidence} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      {genLoading && (
+                        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Loader2 className="size-3.5 animate-spin" /> Gerando a cifra…
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -522,5 +603,19 @@ function Field({
       <Label className="mb-1 block text-xs text-muted-foreground">{label}</Label>
       {children}
     </div>
+  );
+}
+
+/** Selo de confiança da IA (verde/âmbar/vermelho). */
+function ConfidenceBadge({ level }: { level: 'alta' | 'media' | 'baixa' }) {
+  const map = {
+    alta: { label: 'alta', cls: 'bg-green-500/15 text-green-600 dark:text-green-400' },
+    media: { label: 'média', cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' },
+    baixa: { label: 'baixa', cls: 'bg-destructive/15 text-destructive' },
+  }[level];
+  return (
+    <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium', map.cls)}>
+      {map.label}
+    </span>
   );
 }

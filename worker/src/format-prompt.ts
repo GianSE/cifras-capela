@@ -8,8 +8,9 @@
 
 import FORMAT_SYSTEM from './prompts/format.md';
 import GENERATE_SYSTEM from './prompts/generate.md';
+import CANDIDATES_SYSTEM from './prompts/candidates.md';
 
-export { FORMAT_SYSTEM, GENERATE_SYSTEM };
+export { FORMAT_SYSTEM, GENERATE_SYSTEM, CANDIDATES_SYSTEM };
 
 /** Schema da formatação: texto bruto → .cho. */
 export const FORMAT_SCHEMA = {
@@ -59,4 +60,38 @@ export interface GenerateResult {
   source: string;
   confidence: 'alta' | 'media' | 'baixa';
   warnings: string[];
+}
+
+/** Schema da busca de candidatas: nome → lista de músicas conhecidas. */
+export const CANDIDATES_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    candidates: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          title: { type: 'STRING' },
+          artist: { type: 'STRING' },
+          firstLine: { type: 'STRING', description: 'Primeira linha da letra.' },
+          key: { type: 'STRING' },
+          confidence: { type: 'STRING', enum: ['alta', 'media', 'baixa'] },
+        },
+        required: ['title', 'firstLine', 'confidence'],
+      },
+    },
+  },
+  required: ['candidates'],
+} as const;
+
+export interface SongCandidate {
+  title: string;
+  artist?: string;
+  firstLine: string;
+  key?: string;
+  confidence: 'alta' | 'media' | 'baixa';
+}
+
+export interface CandidatesResult {
+  candidates: SongCandidate[];
 }

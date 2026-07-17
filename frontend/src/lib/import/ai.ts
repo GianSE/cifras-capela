@@ -44,9 +44,38 @@ export async function formatWithAI(text: string): Promise<AiFormatResult> {
   return { source: data.source ?? '', warnings: data.warnings ?? [] };
 }
 
+export type AiConfidence = 'alta' | 'media' | 'baixa';
+
 export interface AiGenerateResult extends AiFormatResult {
   /** Confiança da IA na letra/acordes gerados. */
-  readonly confidence: 'alta' | 'media' | 'baixa';
+  readonly confidence: AiConfidence;
+}
+
+export interface SongCandidate {
+  readonly title: string;
+  readonly artist?: string;
+  /** Primeira linha da letra — para reconhecer qual é. */
+  readonly firstLine: string;
+  readonly key?: string;
+  readonly confidence: AiConfidence;
+}
+
+/** Lista músicas que a IA conhece com esse nome, ordenadas por confiança. */
+export async function findSongCandidates(
+  title: string,
+  artist?: string,
+): Promise<SongCandidate[]> {
+  const res = await fetch('/api/song-candidates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, artist }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    candidates?: SongCandidate[];
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error ?? 'Não foi possível buscar músicas.');
+  return data.candidates ?? [];
 }
 
 /** Pede à IA a cifra de uma música conhecida (pelo nome). */
@@ -54,6 +83,8 @@ export async function generateWithAI(input: {
   title: string;
   artist?: string;
   key?: string;
+  /** Trecho da letra — ajuda a IA a identificar a música certa. */
+  excerpt?: string;
 }): Promise<AiGenerateResult> {
   const res = await fetch('/api/generate', {
     method: 'POST',
