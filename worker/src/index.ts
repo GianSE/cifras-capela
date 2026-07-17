@@ -9,7 +9,14 @@
  *  - Headers de segurança e cache.
  */
 
-import { FORMAT_SYSTEM, FORMAT_SCHEMA, type FormatResult } from './format-prompt';
+import {
+  FORMAT_SYSTEM,
+  FORMAT_SCHEMA,
+  GENERATE_SYSTEM,
+  GENERATE_SCHEMA,
+  type FormatResult,
+  type GenerateResult,
+} from './format-prompt';
 
 export interface Env {
   /** Binding para os assets estáticos (configurado em wrangler.toml). */
@@ -98,11 +105,58 @@ interface GeminiResponse {
   promptFeedback?: { blockReason?: string };
 }
 
-/** Converte texto bruto de cifra em ChordPro usando o Gemini. */
-async function formatWithAI(request: Request, env: Env): Promise<Response> {
-  if (!env.GEMINI_API_KEY) {
-    return json({ error: 'IA não configurada neste servidor.' }, 501);
+type GeminiCall =
+  | { ok: true; raw: string }
+  | { ok: false; status: number; error: string };
+
+/** Chamada única ao Gemini com saída estruturada (JSON pelo schema). */
+async function callGemini(
+  env: Env,
+  system: string,
+  schema: unknown,
+  userText: string,
+): Promise<GeminiCall> {
+  const endpoint =
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent` +
+    `?key=${encodeURIComponent(env.GEMINI_API_KEY!)}`;
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: schema,
+        temperature: 0.2,
+        maxOutputTokens: 4096,
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    console.error('Gemini erro HTTP', res.status, detail);
+    const error =
+      res.status === 429
+        ? 'Limite de uso da IA atingido. Tente daqui a pouco.'
+        : 'Não foi possível processar agora. Verifique a chave da IA.';
+    return { ok: false, status: 502, error };
   }
+
+  const data = (await res.json()) as GeminiResponse;
+  if (data.promptFeedback?.blockReason) {
+    return { ok: false, status: 422, error: 'A IA recusou processar este conteúdo.' };
+  }
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!raw) return { ok: false, status: 502, error: 'Resposta vazia da IA.' };
+  return { ok: true, raw };
+}
+
+/** Converte texto bruto de cifra em ChordPro. */
+async function formatWithAI(request: Request, env: Env): Promise<Response> {
+  if (!env.GEMINI_API_KEY) return json({ error: 'IA não configurada neste servidor.' }, 501);
 
   let text: string;
   try {
@@ -111,59 +165,52 @@ async function formatWithAI(request: Request, env: Env): Promise<Response> {
   } catch {
     return json({ error: 'Corpo inválido.' }, 400);
   }
-
   if (!text) return json({ error: 'Envie o texto da cifra.' }, 400);
   if (text.length > MAX_INPUT_CHARS) {
     return json({ error: 'Texto muito longo. Cole uma música por vez.' }, 413);
   }
 
-  const endpoint =
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent` +
-    `?key=${encodeURIComponent(env.GEMINI_API_KEY)}`;
-
   try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: FORMAT_SYSTEM }] },
-        contents: [{ role: 'user', parts: [{ text }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: FORMAT_SCHEMA,
-          temperature: 0.2,
-          maxOutputTokens: 4096,
-        },
-      }),
-    });
-
-    if (!res.ok) {
-      const detail = await res.text().catch(() => '');
-      console.error('Gemini erro HTTP', res.status, detail);
-      // 400 costuma ser chave inválida; 429 é limite de uso.
-      const msg =
-        res.status === 429
-          ? 'Limite de uso da IA atingido. Tente daqui a pouco.'
-          : 'Não foi possível formatar agora. Verifique a chave da IA.';
-      return json({ error: msg }, 502);
-    }
-
-    const data = (await res.json()) as GeminiResponse;
-
-    if (data.promptFeedback?.blockReason) {
-      return json({ error: 'A IA recusou processar este conteúdo.' }, 422);
-    }
-
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!raw) {
-      return json({ error: 'Resposta vazia da IA.' }, 502);
-    }
-
-    const result = JSON.parse(raw) as FormatResult;
-    return json(result);
+    const result = await callGemini(env, FORMAT_SYSTEM, FORMAT_SCHEMA, text);
+    if (!result.ok) return json({ error: result.error }, result.status);
+    return json(JSON.parse(result.raw) as FormatResult);
   } catch (err) {
     console.error('Falha ao formatar com IA:', err);
     return json({ error: 'Não foi possível formatar agora. Tente novamente.' }, 502);
+  }
+}
+
+/** Gera a cifra de uma música conhecida a partir do nome. */
+async function generateWithAI(request: Request, env: Env): Promise<Response> {
+  if (!env.GEMINI_API_KEY) return json({ error: 'IA não configurada neste servidor.' }, 501);
+
+  let title: string;
+  let artist: string;
+  let key: string;
+  try {
+    const payload = (await request.json()) as { title?: unknown; artist?: unknown; key?: unknown };
+    title = typeof payload.title === 'string' ? payload.title.trim() : '';
+    artist = typeof payload.artist === 'string' ? payload.artist.trim() : '';
+    key = typeof payload.key === 'string' ? payload.key.trim() : '';
+  } catch {
+    return json({ error: 'Corpo inválido.' }, 400);
+  }
+  if (!title) return json({ error: 'Informe o nome da música.' }, 400);
+  if (title.length > 200) return json({ error: 'Nome muito longo.' }, 413);
+
+  const userText = [
+    `Música: ${title}`,
+    `Artista: ${artist || '(não informado)'}`,
+    `Tom desejado: ${key || '(use o tom original)'}`,
+  ].join('\n');
+
+  try {
+    const result = await callGemini(env, GENERATE_SYSTEM, GENERATE_SCHEMA, userText);
+    if (!result.ok) return json({ error: result.error }, result.status);
+    return json(JSON.parse(result.raw) as GenerateResult);
+  } catch (err) {
+    console.error('Falha ao gerar com IA:', err);
+    return json({ error: 'Não foi possível gerar agora. Tente novamente.' }, 502);
   }
 }
 
@@ -182,6 +229,13 @@ export default {
       }
       if (request.method === 'POST') {
         return withSecurityHeaders(await formatWithAI(request, env));
+      }
+      return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
+    }
+
+    if (url.pathname === '/api/generate') {
+      if (request.method === 'POST') {
+        return withSecurityHeaders(await generateWithAI(request, env));
       }
       return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
     }

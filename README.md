@@ -230,6 +230,14 @@ GEMINI_API_KEY=AIza...
 - Como o Worker é quem chama o Gemini, a IA funciona no site publicado (ou em
   `wrangler dev`), não no `npm run dev` (que roda só o Vite).
 
+Também há **"Gerar música"**: você digita o nome (e opcionalmente artista/tom) e a
+IA escreve letra + cifra de músicas que conhece — ótimo para **hinos**. Tem trava
+**anti-alucinação**: se não conhecer a música com segurança, ela avisa (confiança
+baixa) em vez de inventar. **Sempre revise**, principalmente os acordes.
+
+Os *system prompts* da IA ficam em `worker/src/prompts/*.md` — fáceis de ajustar
+sem mexer em código.
+
 ---
 
 ## ☁️ Deploy no Cloudflare

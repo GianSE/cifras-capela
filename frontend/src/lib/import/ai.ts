@@ -43,3 +43,34 @@ export async function formatWithAI(text: string): Promise<AiFormatResult> {
   }
   return { source: data.source ?? '', warnings: data.warnings ?? [] };
 }
+
+export interface AiGenerateResult extends AiFormatResult {
+  /** Confiança da IA na letra/acordes gerados. */
+  readonly confidence: 'alta' | 'media' | 'baixa';
+}
+
+/** Pede à IA a cifra de uma música conhecida (pelo nome). */
+export async function generateWithAI(input: {
+  title: string;
+  artist?: string;
+  key?: string;
+}): Promise<AiGenerateResult> {
+  const res = await fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+
+  const data = (await res.json().catch(() => ({}))) as Partial<AiGenerateResult> & {
+    error?: string;
+  };
+
+  if (!res.ok) {
+    throw new Error(data.error ?? 'Não foi possível gerar com IA.');
+  }
+  return {
+    source: data.source ?? '',
+    warnings: data.warnings ?? [],
+    confidence: data.confidence ?? 'baixa',
+  };
+}

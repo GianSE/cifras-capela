@@ -10,8 +10,9 @@ import {
   Save,
   SkipForward,
   Sparkles,
+  Wand2,
 } from 'lucide-react';
-import { isAiFormatterAvailable, formatWithAI } from '@/lib/import/ai';
+import { isAiFormatterAvailable, formatWithAI, generateWithAI } from '@/lib/import/ai';
 import {
   importFile,
   importFromText,
@@ -86,6 +87,11 @@ export function ImportPage() {
   const [aiAvailable, setAiAvailable] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Gerar música pela IA (pelo nome).
+  const [genTitle, setGenTitle] = useState('');
+  const [genArtist, setGenArtist] = useState('');
+  const [genKey, setGenKey] = useState('');
+  const [genLoading, setGenLoading] = useState(false);
 
   // O formatador com IA só aparece se o Worker estiver configurado.
   useEffect(() => {
@@ -114,6 +120,43 @@ export function ImportPage() {
       setSaveError(e instanceof Error ? e.message : 'Falha ao formatar com IA.');
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  /** Pede a cifra de uma música à IA (pelo nome) e abre a revisão. */
+  const handleGenerateAI = async () => {
+    if (!genTitle.trim()) return;
+    setGenLoading(true);
+    setSaveError(null);
+    try {
+      const { source, warnings, confidence } = await generateWithAI({
+        title: genTitle,
+        artist: genArtist || undefined,
+        key: genKey || undefined,
+      });
+      if (!source.trim()) {
+        setSaveError('A IA não conhece essa música com segurança. Tente colar a letra.');
+        return;
+      }
+      // Confiança baixa/média vira um aviso em destaque na revisão.
+      const confNote =
+        confidence === 'alta'
+          ? []
+          : [
+              confidence === 'baixa'
+                ? '⚠ Confiança BAIXA — confira letra e acordes com muito cuidado.'
+                : '⚠ Confiança média — confira os acordes, podem variar entre versões.',
+            ];
+      const imported = importFromText(source, 'cho');
+      const draftFromAI = toDraft({
+        ...imported,
+        warnings: [...confNote, ...warnings, ...imported.warnings],
+      });
+      startBatch([draftFromAI]);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Falha ao gerar com IA.');
+    } finally {
+      setGenLoading(false);
     }
   };
 
@@ -269,6 +312,49 @@ export function ImportPage() {
               )}
             </div>
           </div>
+
+          {/* Gerar música pela IA (pelo nome) */}
+          {aiAvailable && (
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="mb-1 flex items-center gap-2">
+                <Wand2 className="size-4 text-primary" />
+                <Label>Ou peça a música à IA</Label>
+              </div>
+              <p className="mb-3 text-xs text-muted-foreground">
+                A IA escreve letra + cifra de músicas que conhece (funciona melhor com hinos).
+                Sempre revise antes de salvar — principalmente os acordes.
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <Input
+                  value={genTitle}
+                  onChange={(e) => setGenTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && void handleGenerateAI()}
+                  placeholder="Nome da música *"
+                />
+                <Input
+                  value={genArtist}
+                  onChange={(e) => setGenArtist(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && void handleGenerateAI()}
+                  placeholder="Artista (opcional)"
+                />
+                <Input
+                  value={genKey}
+                  onChange={(e) => setGenKey(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && void handleGenerateAI()}
+                  placeholder="Tom (ex.: G)"
+                  className="sm:w-24"
+                />
+              </div>
+              <Button
+                onClick={handleGenerateAI}
+                disabled={!genTitle.trim() || genLoading}
+                className="mt-3 gap-1.5"
+              >
+                {genLoading ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+                {genLoading ? 'Gerando…' : 'Gerar música'}
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <ReviewForm
