@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { Music, SearchX, Clock, Plus } from 'lucide-react';
+import { SearchX, Clock, Plus } from 'lucide-react';
 import { useLibrary } from '@/hooks/useLibrary';
 import { useHistory } from '@/hooks/useHistory';
 import { SearchBar } from '@/components/library/SearchBar';
@@ -37,8 +37,8 @@ export function HomePage() {
       {/* Cabeçalho */}
       <header className="mb-5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Music className="size-5" />
+          <div className="flex size-9 items-center justify-center overflow-hidden rounded-lg border border-border bg-white">
+            <img src="/logo.png" alt="" className="size-8 object-contain" />
           </div>
           <div>
             <h1 className="text-lg font-bold leading-tight tracking-tight text-foreground">

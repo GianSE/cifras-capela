@@ -11,7 +11,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons/icon.svg', 'icons/maskable.svg'],
+      includeAssets: ['favicon.png', 'favicon.svg', 'logo.png', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Minha Biblioteca de Cifras',
         short_name: 'Cifras',
@@ -19,25 +19,26 @@ export default defineConfig({
           'Biblioteca pessoal de cifras musicais: rápida, offline, com transposição perfeita.',
         lang: 'pt-BR',
         theme_color: '#0e141a',
-        background_color: '#0e141a',
+        background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
         scope: '/',
         categories: ['music', 'productivity'],
         icons: [
-          { src: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           {
-            src: '/icons/maskable.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/icons/maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'maskable',
           },
         ],
       },
       workbox: {
         // Pré-cacheia o app + todas as músicas (offline total).
-        globPatterns: ['**/*.{js,css,html,svg,woff,woff2,ttf,json,cho}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2,ttf,json,cho}'],
         navigateFallback: '/index.html',
         runtimeCaching: [
           {
