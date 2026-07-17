@@ -9,7 +9,7 @@ export function AppShell() {
       <Sidebar />
 
       {/* Área principal */}
-      <main className="relative flex h-full min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(76px+env(safe-area-inset-bottom))] md:pb-0">
+      <main className="relative flex h-full min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(76px_+_env(safe-area-inset-bottom))] md:pb-0">
         <Outlet />
       </main>
 
