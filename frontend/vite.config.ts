@@ -11,7 +11,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.png', 'favicon.svg', 'logo.png', 'icons/apple-touch-icon.png'],
+      includeAssets: ['favicon.png', 'favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Minha Biblioteca de Cifras',
         short_name: 'Cifras',
@@ -19,7 +19,7 @@ export default defineConfig({
           'Biblioteca pessoal de cifras musicais: rápida, offline, com transposição perfeita.',
         lang: 'pt-BR',
         theme_color: '#0e141a',
-        background_color: '#ffffff',
+        background_color: '#0e141a',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',

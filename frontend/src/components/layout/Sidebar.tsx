@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { ListMusic, PenLine, Settings, Library } from 'lucide-react';
+import { Music, ListMusic, PenLine, Settings, Library } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -42,8 +42,8 @@ export function Sidebar() {
         {/* Marca */}
         <div className="flex h-16 shrink-0 items-center border-b border-border px-3">
           <span className="grid size-11 shrink-0 place-items-center">
-            <span className="flex size-8 items-center justify-center overflow-hidden rounded-lg border border-border bg-white">
-              <img src="/logo.png" alt="Cifras" className="size-7 object-contain" />
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Music className="size-5" />
             </span>
           </span>
           <span className={cn(LABEL, 'font-bold tracking-tight text-foreground')}>Cifras</span>
