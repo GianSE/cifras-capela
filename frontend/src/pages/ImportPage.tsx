@@ -1,7 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Upload, FileText, AlertTriangle, ArrowRight, Download, Loader2, Save } from 'lucide-react';
-import { importFile, importFromText, buildSource, type ImportedSong } from '@/lib/import';
+import {
+  Upload,
+  FileText,
+  AlertTriangle,
+  ArrowRight,
+  Download,
+  Loader2,
+  Save,
+  SkipForward,
+  Sparkles,
+} from 'lucide-react';
+import { isAiFormatterAvailable, formatWithAI } from '@/lib/import/ai';
+import {
+  importFile,
+  importFromText,
+  buildSource,
+  splitPastedSongs,
+  type ImportedSong,
+} from '@/lib/import';
 import { SongRenderer } from '@/components/song/SongRenderer';
 import { parse } from '@/lib/parser';
 import { Button } from '@/components/ui/button';
@@ -59,16 +76,51 @@ function draftToSource(d: Draft): string {
 export function ImportPage() {
   const navigate = useNavigate();
   const [draft, setDraft] = useState<Draft | null>(null);
+  // Fila de músicas restantes quando o texto colado tem várias (separadas por ---).
+  const [queue, setQueue] = useState<Draft[]>([]);
+  const [total, setTotal] = useState(0);
   const [pasteText, setPasteText] = useState('');
   const [pasteFormat, setPasteFormat] = useState('txt');
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiAvailable, setAiAvailable] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // O formatador com IA só aparece se o Worker estiver configurado.
+  useEffect(() => {
+    isAiFormatterAvailable().then(setAiAvailable);
+  }, []);
+
+  /** Inicia a revisão de um lote (1 ou mais músicas). */
+  const startBatch = (drafts: Draft[]) => {
+    if (drafts.length === 0) return;
+    setDraft(drafts[0]!);
+    setQueue(drafts.slice(1));
+    setTotal(drafts.length);
+  };
+
+  /** Formata o texto colado com IA e abre a revisão. */
+  const handleFormatAI = async () => {
+    if (!pasteText.trim()) return;
+    setAiLoading(true);
+    setSaveError(null);
+    try {
+      const { source, warnings } = await formatWithAI(pasteText);
+      const imported = importFromText(source, 'cho');
+      const draftFromAI = toDraft({ ...imported, warnings: [...warnings, ...imported.warnings] });
+      startBatch([draftFromAI]);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Falha ao formatar com IA.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleFile = async (file: File) => {
     setLoading(true);
     try {
-      setDraft(toDraft(await importFile(file)));
+      startBatch([toDraft(await importFile(file))]);
     } finally {
       setLoading(false);
     }
@@ -76,10 +128,25 @@ export function ImportPage() {
 
   const handlePaste = () => {
     if (!pasteText.trim()) return;
-    setDraft(toDraft(importFromText(pasteText, pasteFormat)));
+    // Divide em várias músicas se houver separadores (---, ===).
+    const blocks = splitPastedSongs(pasteText);
+    startBatch(blocks.map((block) => toDraft(importFromText(block, pasteFormat))));
   };
 
   const update = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
+
+  /** Avança para a próxima da fila, ou encerra o lote. */
+  const advance = () => {
+    if (queue.length > 0) {
+      setDraft(queue[0]!);
+      setQueue((q) => q.slice(1));
+      setSaveError(null);
+    } else {
+      setDraft(null);
+      setTotal(0);
+      setPasteText('');
+    }
+  };
 
   const openInEditor = () => {
     if (!draft) return;
@@ -90,9 +157,10 @@ export function ImportPage() {
     if (!draft) return;
     const name = slugify(draft.title || 'musica') || 'musica';
     downloadTextFile(`${name}.cho`, draftToSource(draft));
+    advance();
   };
 
-  /** Salva direto na biblioteca e abre a música. */
+  /** Salva direto na biblioteca. Numa fila, avança; sozinha, abre a música. */
   const save = async () => {
     if (!draft) return;
     setSaving(true);
@@ -104,7 +172,11 @@ export function ImportPage() {
         .filter(Boolean);
       const id = buildSongId(draft.title, categories);
       await songService.saveSong({ id, source: draftToSource(draft) });
-      navigate(`/musica/${id}`);
+      if (queue.length > 0) {
+        advance();
+      } else {
+        navigate(`/musica/${id}`);
+      }
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Não foi possível salvar.');
     } finally {
@@ -167,24 +239,54 @@ export function ImportPage() {
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
               rows={8}
-              placeholder="Cole aqui a cifra…"
+              placeholder="Cole aqui a cifra (ex.: copiada do CifraClub)…"
               className="font-mono"
             />
-            <Button onClick={handlePaste} disabled={!pasteText.trim()} className="mt-3 gap-1.5">
-              Analisar <ArrowRight className="size-4" />
-            </Button>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Cole o texto da cifra — acordes acima da letra viram inline, e Intro/Refrão são
+              reconhecidos. Para importar várias, separe-as com uma linha de{' '}
+              <code className="font-mono">---</code>.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button onClick={handlePaste} disabled={!pasteText.trim()} className="gap-1.5">
+                Analisar <ArrowRight className="size-4" />
+              </Button>
+              {aiAvailable && (
+                <Button
+                  variant="secondary"
+                  onClick={handleFormatAI}
+                  disabled={!pasteText.trim() || aiLoading}
+                  className="gap-1.5"
+                  title="Deixa a IA limpar e formatar (útil para textos bagunçados)"
+                >
+                  {aiLoading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
+                  {aiLoading ? 'Formatando…' : 'Formatar com IA'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       ) : (
         <ReviewForm
           draft={draft}
+          position={total - queue.length}
+          total={total}
           onUpdate={update}
           onOpenEditor={openInEditor}
           onDownload={download}
           onSave={save}
+          onSkip={advance}
           saving={saving}
           saveError={saveError}
-          onRestart={() => setDraft(null)}
+          onRestart={() => {
+            setDraft(null);
+            setQueue([]);
+            setTotal(0);
+          }}
         />
       )}
     </div>
@@ -193,27 +295,45 @@ export function ImportPage() {
 
 function ReviewForm({
   draft,
+  position,
+  total,
   onUpdate,
   onOpenEditor,
   onDownload,
   onSave,
+  onSkip,
   saving,
   saveError,
   onRestart,
 }: {
   draft: Draft;
+  position: number;
+  total: number;
   onUpdate: (patch: Partial<Draft>) => void;
   onOpenEditor: () => void;
   onDownload: () => void;
   onSave: () => void;
+  onSkip: () => void;
   saving: boolean;
   saveError: string | null;
   onRestart: () => void;
 }) {
   const previewSong = parse(draftToSource(draft)).song;
+  const isBatch = total > 1;
 
   return (
     <div className="flex flex-col gap-5">
+      {isBatch && (
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-[var(--color-surface-container)] px-3 py-2 text-sm">
+          <span className="font-medium text-foreground">
+            Música {position} de {total}
+          </span>
+          <Button variant="ghost" size="sm" onClick={onSkip} className="gap-1.5">
+            <SkipForward className="size-4" /> Pular
+          </Button>
+        </div>
+      )}
+
       <p className="text-sm text-muted-foreground">
         Revise os dados extraídos antes de salvar. Ajuste o que for necessário.
       </p>

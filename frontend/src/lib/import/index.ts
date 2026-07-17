@@ -5,6 +5,8 @@
  */
 import { parse, serializeToFrontmatter } from '@/lib/parser';
 import { importPlainText } from './text-importer';
+
+export { splitPastedSongs } from './text-importer';
 import { importHtml } from './html-importer';
 import { importMarkdown } from './markdown-importer';
 import { importJson } from './json-importer';
