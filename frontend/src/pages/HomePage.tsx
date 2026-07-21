@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Music, SearchX, Clock, Plus } from 'lucide-react';
 import { useLibrary } from '@/hooks/useLibrary';
 import { useHistory } from '@/hooks/useHistory';
+import { useEditAccess } from '@/hooks/useEditAccess';
 import { SearchBar } from '@/components/library/SearchBar';
 import { FilterChips } from '@/components/library/FilterChips';
 import { SongListItem } from '@/components/library/SongListItem';
@@ -19,6 +20,7 @@ export function HomePage() {
     categories: activeCategories,
   });
   const { recentSongs } = useHistory();
+  const { showEditUI } = useEditAccess();
 
   const recentEntries = useMemo(() => {
     const byId = new Map(songs.map((s) => [s.id, s]));
@@ -49,13 +51,15 @@ export function HomePage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Button asChild size="sm" className="gap-1.5">
-            <Link to="/editor">
-              <Plus className="size-4" /> <span className="hidden sm:inline">Nova</span>
-            </Link>
-          </Button>
-        </div>
+        {showEditUI && (
+          <div className="flex items-center gap-1">
+            <Button asChild size="sm" className="gap-1.5">
+              <Link to="/editor">
+                <Plus className="size-4" /> <span className="hidden sm:inline">Nova</span>
+              </Link>
+            </Button>
+          </div>
+        )}
       </header>
 
       {/* Busca */}

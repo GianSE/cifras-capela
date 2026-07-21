@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { ChevronLeft, ChevronRight, AlertCircle, PenLine } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertCircle, PenLine, FileDown, Loader2 } from 'lucide-react';
 import { useSong } from '@/hooks/useSong';
 import { useTranspose } from '@/hooks/useTranspose';
 import { useFontSize } from '@/hooks/useFontSize';
@@ -8,6 +8,9 @@ import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { useHistory } from '@/hooks/useHistory';
 import { usePreferences } from '@/hooks/usePreferences';
 import { usePlaylistNav } from '@/hooks/usePlaylistNav';
+import { useEditAccess } from '@/hooks/useEditAccess';
+import { useSwipe } from '@/hooks/useSwipe';
+import { preferencesStorage } from '@/lib/storage/preferences';
 import { SongHeader } from '@/components/song/SongHeader';
 import { SongRenderer } from '@/components/song/SongRenderer';
 import { ReaderControls } from '@/components/song/ReaderControls';
@@ -25,6 +28,7 @@ export function SongPage() {
   const [isFetching, setIsFetching] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [stageOpen, setStageOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Passar o songId faz o tom ser salvo e restaurado por música.
   const transpose = useTranspose(song, songId);
@@ -35,6 +39,31 @@ export function SongPage() {
 
   const { record } = useHistory();
   const playlistNav = usePlaylistNav(songId);
+  const { showEditUI } = useEditAccess();
+
+  /** Exporta a cifra no tom atual em PDF (jsPDF carregado sob demanda). */
+  const handleExportPdf = async () => {
+    if (!transpose.transposedSong) return;
+    setExporting(true);
+    try {
+      const { exportSongToPdf } = await import('@/lib/export/pdf');
+      await exportSongToPdf(transpose.transposedSong);
+    } catch (e) {
+      console.error('Falha ao exportar PDF:', e);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Numa playlist, arrastar o dedo troca de música: ← próxima, → anterior.
+  const swipe = useSwipe({
+    onSwipeLeft: () => {
+      if (playlistNav?.nextHref) navigate(playlistNav.nextHref);
+    },
+    onSwipeRight: () => {
+      if (playlistNav?.prevHref) navigate(playlistNav.prevHref);
+    },
+  });
 
   // Carrega e parseia a música
   useEffect(() => {
@@ -66,6 +95,11 @@ export function SongPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [songId]);
+
+  // Guarda a velocidade calibrada para valer nas próximas músicas.
+  useEffect(() => {
+    preferencesStorage.update({ autoScrollSpeed: autoScroll.speed });
+  }, [autoScroll.speed]);
 
   // Título do documento
   useEffect(() => {
@@ -100,8 +134,9 @@ export function SongPage() {
   const { transposedSong } = transpose;
   return (
     <div className="flex h-dvh flex-col bg-background">
-      {/* Barra superior */}
-      <header className="glass-panel z-[var(--z-sticky)] flex items-center justify-between gap-2 border-b border-border px-3 py-2 safe-top">
+      {/* Barra superior — some durante a rolagem automática, para sobrar tela. */}
+      {!autoScroll.isScrolling && (
+        <header className="glass-panel z-[var(--z-sticky)] flex items-center justify-between gap-2 border-b border-border px-3 py-2 safe-top">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Voltar">
           <ChevronLeft />
         </Button>
@@ -123,21 +158,41 @@ export function SongPage() {
         </div>
         <AddToPlaylist songId={songId} />
 
-        {/* Atalho para corrigir a cifra (o editor carrega pelo id da URL). */}
+        {/* Exportar a cifra (no tom atual) em PDF. */}
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(`/editor/${songId}`)}
-          aria-label="Corrigir esta cifra no editor"
-          title="Corrigir esta cifra"
+          onClick={() => void handleExportPdf()}
+          disabled={exporting}
+          aria-label="Exportar em PDF"
+          title="Exportar em PDF"
         >
-          <PenLine />
+          {exporting ? <Loader2 className="animate-spin" /> : <FileDown />}
         </Button>
-      </header>
 
-      {/* Corpo rolável */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
-        <div className="mx-auto max-w-3xl pb-32">
+        {/* Atalho para corrigir a cifra (o editor carrega pelo id da URL). */}
+        {showEditUI && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`/editor/${songId}`)}
+            aria-label="Corrigir esta cifra no editor"
+            title="Corrigir esta cifra"
+          >
+            <PenLine />
+          </Button>
+        )}
+        </header>
+      )}
+
+      {/* Corpo rolável (swipe lateral troca de música na playlist) */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-6 md:px-8"
+        onTouchStart={swipe.onTouchStart}
+        onTouchEnd={swipe.onTouchEnd}
+      >
+        <div key={songId} className="mx-auto max-w-3xl pb-32 animate-slide-in-x">
           <SongHeader
             metadata={transposedSong.metadata}
             displayedKey={transpose.currentKey}

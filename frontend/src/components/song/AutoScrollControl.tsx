@@ -9,7 +9,7 @@ interface AutoScrollControlProps {
   onSpeedChange: (speed: number) => void;
 }
 
-const MIN = 0.25;
+const MIN = 0.1;
 const MAX = 3;
 
 /** Controle de rolagem automática: play/pause + velocidade ajustável. */
@@ -39,7 +39,7 @@ export function AutoScrollControl({
           value={[speed]}
           min={MIN}
           max={MAX}
-          step={0.25}
+          step={0.1}
           onValueChange={(v) => onSpeedChange(v[0] ?? 1)}
           aria-label="Velocidade da rolagem"
         />

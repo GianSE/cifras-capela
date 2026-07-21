@@ -28,6 +28,7 @@ import {
   type ImportedSong,
 } from '@/lib/import';
 import { SongRenderer } from '@/components/song/SongRenderer';
+import { RequireAuth } from '@/components/auth/RequireAuth';
 import { parse } from '@/lib/parser';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -253,6 +254,10 @@ export function ImportPage() {
   };
 
   return (
+    <RequireAuth
+      title="Entre para importar músicas"
+      description="Importar salva na sua biblioteca sincronizada, e isso exige login."
+    >
     <div className="mx-auto w-full max-w-3xl px-4 py-4 md:px-8 md:py-6">
       <header className="mb-5 flex items-center gap-2">
         <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -457,6 +462,7 @@ export function ImportPage() {
         />
       )}
     </div>
+    </RequireAuth>
   );
 }
 

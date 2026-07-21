@@ -42,10 +42,17 @@ export function useAutoScroll(
     return targetRef.current ?? window;
   }, [targetRef]);
 
+  /** Conteúdo rolável (1º filho do contêiner) — recebe o offset sub-pixel. */
+  const getContent = useCallback((): HTMLElement | null => {
+    return (targetRef.current?.firstElementChild as HTMLElement | null) ?? null;
+  }, [targetRef]);
+
   useEffect(() => {
     if (!isScrolling) {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
+      const content = getContent();
+      if (content) content.style.transform = '';
       return;
     }
 
@@ -59,22 +66,32 @@ export function useAutoScroll(
       // ~30 px/s por unidade de velocidade.
       const pxPerMs = (speedRef.current * 30) / 1000;
       remainderRef.current += pxPerMs * dt;
-      const pixels = Math.floor(remainderRef.current);
 
-      if (pixels > 0) {
-        remainderRef.current -= pixels;
-        const scroller = getScroller();
-        const el = targetRef.current;
+      const scroller = getScroller();
+      const el = targetRef.current;
+      const content = getContent();
+
+      // Parte inteira: rola de verdade (scroll nativo).
+      const whole = Math.floor(remainderRef.current);
+      if (whole > 0) {
+        remainderRef.current -= whole;
 
         const atBottom = el
           ? el.scrollTop + el.clientHeight >= el.scrollHeight - 1
           : window.innerHeight + window.scrollY >= document.body.scrollHeight - 1;
 
         if (atBottom) {
+          if (content) content.style.transform = '';
           setIsScrolling(false);
           return;
         }
-        scroller.scrollBy(0, pixels);
+        scroller.scrollBy(0, whole);
+      }
+
+      // Resto fracionário (0–1px): desloca o conteúdo suavemente entre os passos
+      // inteiros, dando movimento contínuo mesmo em velocidades bem baixas.
+      if (content) {
+        content.style.transform = `translate3d(0, ${-remainderRef.current}px, 0)`;
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -83,8 +100,10 @@ export function useAutoScroll(
     rafRef.current = requestAnimationFrame(tick);
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      const content = getContent();
+      if (content) content.style.transform = '';
     };
-  }, [isScrolling, getScroller, targetRef]);
+  }, [isScrolling, getScroller, getContent, targetRef]);
 
   const toggle = useCallback(() => setIsScrolling((prev) => !prev), []);
   const start = useCallback(() => setIsScrolling(true), []);

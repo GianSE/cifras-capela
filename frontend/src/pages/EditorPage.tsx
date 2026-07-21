@@ -20,7 +20,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { downloadTextFile, slugify } from '@/lib/export/download';
 import { buildSongId } from '@/lib/library/derive';
 import { songService } from '@/services/song-service';
-import { useAuth } from '@/hooks/useAuth';
+import { RequireAuth } from '@/components/auth/RequireAuth';
 import { cn } from '@/lib/utils';
 
 /** Painel visível no mobile (no desktop os dois aparecem lado a lado). */
@@ -42,14 +42,35 @@ language: pt
 [Em]Cada acorde fica [C]acima da sílaba [G]certa.
 `;
 
-const QUICK_CHORDS = ['C', 'D', 'Em', 'G', 'A', 'Am', 'F', 'Dm', 'E', 'B7', 'G7'];
+/**
+ * Campo harmônico por tom: os 7 acordes diatônicos (I ao vii°), na ordem dos
+ * graus. Ajuda a saber quais acordes cabem na música pelo tom em que ela está.
+ * Maiores primeiro, depois menores (relativas).
+ */
+const HARMONIC_FIELDS: Record<string, readonly string[]> = {
+  // Maiores: I ii iii IV V vi vii°
+  C: ['C', 'Dm', 'Em', 'F', 'G', 'Am', 'B°'],
+  D: ['D', 'Em', 'F#m', 'G', 'A', 'Bm', 'C#°'],
+  E: ['E', 'F#m', 'G#m', 'A', 'B', 'C#m', 'D#°'],
+  G: ['G', 'Am', 'Bm', 'C', 'D', 'Em', 'F#°'],
+  A: ['A', 'Bm', 'C#m', 'D', 'E', 'F#m', 'G#°'],
+  B: ['B', 'C#m', 'D#m', 'E', 'F#', 'G#m', 'A#°'],
+  // Menores: i ii° III iv v VI VII
+  Cm: ['Cm', 'D°', 'Eb', 'Fm', 'Gm', 'Ab', 'Bb'],
+  Dm: ['Dm', 'E°', 'F', 'Gm', 'Am', 'Bb', 'C'],
+  Em: ['Em', 'F#°', 'G', 'Am', 'Bm', 'C', 'D'],
+  Fm: ['Fm', 'G°', 'Ab', 'Bbm', 'Cm', 'Db', 'Eb'],
+  Gm: ['Gm', 'A°', 'Bb', 'Cm', 'Dm', 'Eb', 'F'],
+  Am: ['Am', 'B°', 'C', 'Dm', 'Em', 'F', 'G'],
+  Bm: ['Bm', 'C#°', 'D', 'Em', 'F#m', 'G', 'A'],
+};
+const HARMONIC_KEYS = Object.keys(HARMONIC_FIELDS);
 const QUICK_SECTIONS = ['{verso 1}', '{refrão}', '{ponte}', '{intro}'];
 
 export function EditorPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams();
-  const { isSignedIn } = useAuth();
 
   /** Id da música em edição (`/editor/harpa-crista/porque-ele-vive`). Vazio = nova. */
   const editingId = params['*'] || undefined;
@@ -176,7 +197,9 @@ export function EditorPage() {
 
   const editor = (
     <div className="flex min-h-0 flex-1 flex-col">
-      <Toolbar onInsert={insertAtCursor} />
+      {/* `key` remonta o Toolbar quando o tom do frontmatter muda, para o
+          seletor de campo harmônico acompanhar o tom da música. */}
+      <Toolbar key={song.metadata.key ?? ''} onInsert={insertAtCursor} songKey={song.metadata.key} />
       <textarea
         ref={textareaRef}
         value={source}
@@ -205,6 +228,10 @@ export function EditorPage() {
   );
 
   return (
+    <RequireAuth
+      title="Entre para editar músicas"
+      description="Criar e editar cifras salva na sua biblioteca sincronizada, e isso exige login."
+    >
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col px-4 py-4 md:px-8 md:py-6">
       {/* Cabeçalho */}
       <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -226,24 +253,29 @@ export function EditorPage() {
               <Upload className="size-4" /> <span className="hidden lg:inline">Importar</span>
             </Link>
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-1.5">
-            {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-            <span className="hidden lg:inline">{copied ? 'Copiado' : 'Copiar'}</span>
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleDownload} className="gap-1.5">
-            <Download className="size-4" /> <span className="hidden lg:inline">.cho</span>
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleExportPdf}
-            disabled={exporting}
-            className="gap-1.5"
-            title="Exportar a cifra em PDF"
-          >
-            <FileDown className="size-4" />
-            <span className="hidden lg:inline">{exporting ? 'Gerando…' : 'PDF'}</span>
-          </Button>
+          {/* Exportar só faz sentido numa música já existente (não no template novo). */}
+          {savedId && (
+            <>
+              <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-1.5">
+                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                <span className="hidden lg:inline">{copied ? 'Copiado' : 'Copiar'}</span>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleDownload} className="gap-1.5">
+                <Download className="size-4" /> <span className="hidden lg:inline">.cho</span>
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleExportPdf}
+                disabled={exporting}
+                className="gap-1.5"
+                title="Exportar a cifra em PDF"
+              >
+                <FileDown className="size-4" />
+                <span className="hidden lg:inline">{exporting ? 'Gerando…' : 'PDF'}</span>
+              </Button>
+            </>
+          )}
 
           {savedId && songService.canWrite && (
             <Button
@@ -280,16 +312,6 @@ export function EditorPage() {
           <code>frontend/public/songs/</code>.
         </p>
       )}
-      {songService.canWrite && !isSignedIn && (
-        <p className="mb-3 rounded-lg bg-[var(--color-surface-container)] p-3 text-xs text-muted-foreground">
-          Você precisa{' '}
-          <Link to="/config" className="font-medium text-primary underline">
-            entrar
-          </Link>{' '}
-          para salvar alterações.
-        </p>
-      )}
-
       {/* Alternador Editar/Prévia — apenas no mobile */}
       <Tabs
         value={pane}
@@ -317,35 +339,60 @@ export function EditorPage() {
         </div>
       </div>
     </div>
+    </RequireAuth>
   );
 }
 
-function Toolbar({ onInsert }: { onInsert: (text: string) => void }) {
+function Toolbar({ onInsert, songKey }: { onInsert: (text: string) => void; songKey?: string }) {
+  // Começa no tom da própria música (se for um dos campos conhecidos).
+  const [key, setKey] = useState<string>(() =>
+    songKey && songKey in HARMONIC_FIELDS ? songKey : 'C',
+  );
+  const chords = HARMONIC_FIELDS[key] ?? [];
+
   return (
-    <div className="mb-2 flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {QUICK_CHORDS.map((c) => (
-        <button
-          key={c}
-          type="button"
-          onClick={() => onInsert(`[${c}]`)}
-          className={cn(
-            'shrink-0 rounded-md bg-[var(--color-surface-container-high)] px-2.5 py-1 font-mono text-sm font-semibold text-accent transition-colors hover:bg-[var(--color-surface-container-highest)]',
-          )}
+    <div className="mb-2 flex flex-col gap-1.5">
+      {/* Tom + acordes do campo harmônico */}
+      <div className="flex items-center gap-1.5">
+        <select
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          title="Tom da música — mostra o campo harmônico (acordes que combinam)"
+          className="h-8 shrink-0 rounded-md border border-border bg-[var(--color-surface-container-high)] px-1.5 text-xs font-semibold text-foreground"
         >
-          {c}
-        </button>
-      ))}
-      <span className="mx-1 w-px shrink-0 bg-border" />
-      {QUICK_SECTIONS.map((s) => (
-        <button
-          key={s}
-          type="button"
-          onClick={() => onInsert(`\n${s}\n`)}
-          className="shrink-0 rounded-md bg-[var(--color-surface-container-high)] px-2.5 py-1 font-mono text-xs text-primary transition-colors hover:bg-[var(--color-surface-container-highest)]"
-        >
-          {s}
-        </button>
-      ))}
+          {HARMONIC_KEYS.map((k) => (
+            <option key={k} value={k}>
+              Tom {k}
+            </option>
+          ))}
+        </select>
+        <div className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {chords.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onInsert(`[${c}]`)}
+              className="shrink-0 rounded-md bg-[var(--color-surface-container-high)] px-2.5 py-1 font-mono text-sm font-semibold text-accent transition-colors hover:bg-[var(--color-surface-container-highest)]"
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Seções (abaixo dos acordes, sempre visíveis) */}
+      <div className="flex flex-wrap gap-1">
+        {QUICK_SECTIONS.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onInsert(`\n${s}\n`)}
+            className="shrink-0 rounded-md bg-[var(--color-surface-container-high)] px-2.5 py-1 font-mono text-xs text-primary transition-colors hover:bg-[var(--color-surface-container-highest)]"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,8 @@
-import { Link, useLocation } from 'react-router';
-import { Music, ListMusic, PenLine, Settings, Library } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { Music, ListMusic, PenLine, Settings, Library, UserRound, LogOut } from 'lucide-react';
+import { useEditAccess } from '@/hooks/useEditAccess';
+import { useAuth } from '@/hooks/useAuth';
+import { useGuestMode } from '@/hooks/useGuestMode';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -25,8 +28,12 @@ const LABEL =
  */
 export function Sidebar() {
   const { pathname } = useLocation();
+  const { showEditUI } = useEditAccess();
 
   const isActive = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path));
+
+  // O Editor só aparece para quem pode escrever (logado, ou modo arquivo).
+  const items = NAV_ITEMS.filter((item) => item.path !== '/editor' || showEditUI);
 
   return (
     <aside className={cn('relative hidden shrink-0 md:block', RAIL)}>
@@ -51,7 +58,7 @@ export function Sidebar() {
 
         {/* Navegação */}
         <nav className="flex flex-1 flex-col gap-1 p-3">
-          {NAV_ITEMS.map(({ name, path, icon: Icon }) => {
+          {items.map(({ name, path, icon: Icon }) => {
             const active = isActive(path);
             return (
               <Link
@@ -77,13 +84,64 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Rodapé */}
-        <div className="shrink-0 border-t border-border p-3">
-          <span className={cn(LABEL, 'block px-1 text-xs text-muted-foreground')}>
-            Offline • local
-          </span>
-        </div>
+        {/* Rodapé: conta / convidado */}
+        <SidebarAccount />
       </div>
     </aside>
+  );
+}
+
+/** Perfil de quem está usando (logado ou convidado) + botão de sair. */
+function SidebarAccount() {
+  const { isEnabled, isSignedIn, session, signOut } = useAuth();
+  const { clearGuest } = useGuestMode();
+  const navigate = useNavigate();
+
+  const handleExit = async () => {
+    if (isSignedIn) await signOut();
+    else clearGuest();
+    navigate('/login', { replace: true });
+  };
+
+  // Sem Supabase não há conta — mantém o rótulo simples.
+  if (!isEnabled) {
+    return (
+      <div className="shrink-0 border-t border-border p-3">
+        <span className={cn(LABEL, 'block px-1 text-xs text-muted-foreground')}>
+          Offline • local
+        </span>
+      </div>
+    );
+  }
+
+  const email = session?.user.email ?? '';
+  const name = isSignedIn ? email.split('@')[0] || 'Conta' : 'Convidado';
+  const sub = isSignedIn ? email : 'Somente leitura';
+
+  return (
+    <div className="shrink-0 border-t border-border p-3">
+      <div className="flex items-center">
+        <span className="grid size-11 shrink-0 place-items-center" title={sub}>
+          <span className="flex size-8 items-center justify-center rounded-full bg-[var(--color-surface-container-high)] text-muted-foreground">
+            <UserRound className="size-4" />
+          </span>
+        </span>
+        <div className={cn(LABEL, 'flex min-w-0 flex-1 items-center gap-1')}>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground">{name}</p>
+            <p className="truncate text-xs text-muted-foreground">{sub}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleExit()}
+            title="Sair"
+            aria-label="Sair"
+            className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--color-surface-hover)] hover:text-foreground"
+          >
+            <LogOut className="size-4" />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Maximize2, SlidersHorizontal, Play, Pause } from 'lucide-react';
+import { Maximize2, SlidersHorizontal, Play, Pause, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -26,7 +26,65 @@ interface ReaderControlsProps {
  * Barra de controles do leitor (fixa na base) + diálogo de ferramentas.
  * Reúne transposição, fonte, sustenido/bemol, capo, auto-scroll e modo palco.
  */
+const SPEED_MIN = 0.1;
+const SPEED_MAX = 3;
+const SPEED_STEP = 0.1;
+
 export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: ReaderControlsProps) {
+  const changeSpeed = (delta: number) => {
+    const next = Math.min(
+      SPEED_MAX,
+      Math.max(SPEED_MIN, Math.round((autoScroll.speed + delta) * 10) / 10),
+    );
+    autoScroll.setSpeed(next);
+  };
+
+  // Enquanto rola: barra minimalista só com a velocidade (libera a tela).
+  // Os detalhes (tom, tamanho, ferramentas) reaparecem ao pausar.
+  if (autoScroll.isScrolling) {
+    return (
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-sticky)] flex justify-center px-3 pb-3 safe-bottom md:pb-4">
+        <div className="glass-panel pointer-events-auto flex items-center gap-1 rounded-full border border-border p-1 shadow-xl">
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => changeSpeed(-SPEED_STEP)}
+            disabled={autoScroll.speed <= SPEED_MIN}
+            aria-label="Mais devagar"
+            title="Mais devagar"
+          >
+            <Minus />
+          </Button>
+          <span
+            className="min-w-[52px] text-center font-mono text-sm font-semibold text-foreground"
+            title="Velocidade da rolagem"
+          >
+            {autoScroll.speed.toFixed(1)}×
+          </span>
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => changeSpeed(SPEED_STEP)}
+            disabled={autoScroll.speed >= SPEED_MAX}
+            aria-label="Mais rápido"
+            title="Mais rápido"
+          >
+            <Plus />
+          </Button>
+          <Button
+            variant="default"
+            size="icon"
+            onClick={autoScroll.toggle}
+            aria-label="Pausar rolagem"
+            title="Pausar rolagem"
+          >
+            <Pause />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-sticky)] flex justify-center px-3 pb-3 safe-bottom md:pb-4">
       <div className="glass-panel pointer-events-auto flex items-center gap-2 rounded-2xl border border-border p-2 shadow-xl">

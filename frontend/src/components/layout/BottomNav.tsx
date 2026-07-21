@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router';
 import { Library, ListMusic, PenLine, Settings } from 'lucide-react';
+import { useEditAccess } from '@/hooks/useEditAccess';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -10,10 +11,13 @@ const NAV_ITEMS = [
 ] as const;
 
 export function BottomNav() {
+  const { showEditUI } = useEditAccess();
+  const items = NAV_ITEMS.filter((item) => item.to !== '/editor' || showEditUI);
+
   return (
     <nav className="glass-panel safe-bottom fixed inset-x-0 bottom-0 z-[var(--z-sticky)] border-t border-border">
       <div className="mx-auto flex max-w-lg items-center justify-around py-1.5">
-        {NAV_ITEMS.map(({ to, icon: Icon, label, end }) => (
+        {items.map(({ to, icon: Icon, label, end }) => (
           <NavLink
             key={to}
             to={to}

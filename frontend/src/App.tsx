@@ -1,9 +1,12 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router';
+import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router';
 import { AppShell } from '@/components/layout/AppShell';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useTheme } from '@/hooks/useTheme';
+import { useEditAccess } from '@/hooks/useEditAccess';
+import { useGuestMode } from '@/hooks/useGuestMode';
 import { HomePage } from '@/pages/HomePage';
+import { LoginPage } from '@/pages/LoginPage';
 
 // Rotas pesadas carregadas sob demanda (code-splitting).
 const PlaylistsPage = lazy(() =>
@@ -31,6 +34,24 @@ function PageFallback() {
   );
 }
 
+/**
+ * Guard de entrada: com o Supabase ligado e ninguém logado (nem convidado),
+ * redireciona para `/login`. Quem já entrou (a sessão persiste) ou já escolheu
+ * convidado passa direto. `/login` fica fora deste guard.
+ */
+function RequireEntry() {
+  const { needsLogin, isLoading } = useEditAccess();
+  const { isGuest } = useGuestMode();
+  const location = useLocation();
+
+  if (isLoading) return <PageFallback />;
+  if (needsLogin && !isGuest) {
+    const from = location.pathname + location.search;
+    return <Navigate to="/login" replace state={{ from }} />;
+  }
+  return <Outlet />;
+}
+
 export function App() {
   // Mantém o tema (claro/escuro/sistema) aplicado e reativo em todo o app.
   useTheme();
@@ -39,19 +60,25 @@ export function App() {
     <TooltipProvider delayDuration={300}>
       <Suspense fallback={<PageFallback />}>
         <Routes>
-          {/* Rotas com a "casca" do app (sidebar + navegação inferior) */}
-          <Route element={<AppShell />}>
-            <Route index element={<HomePage />} />
-            <Route path="playlists" element={<PlaylistsPage />} />
-            <Route path="playlists/:id" element={<PlaylistPage />} />
-            {/* `editor/*` aceita ids com barra: /editor/harpa-crista/porque-ele-vive */}
-            <Route path="editor/*" element={<EditorPage />} />
-            <Route path="importar" element={<ImportPage />} />
-            <Route path="config" element={<SettingsPage />} />
-          </Route>
+          {/* Entrada (fora do guard) */}
+          <Route path="login" element={<LoginPage />} />
 
-          {/* Leitor em tela cheia, sem a casca do app (foco total) */}
-          <Route path="musica/*" element={<SongPage />} />
+          {/* Tudo o mais exige ter entrado (ou ser convidado) */}
+          <Route element={<RequireEntry />}>
+            {/* Rotas com a "casca" do app (sidebar + navegação inferior) */}
+            <Route element={<AppShell />}>
+              <Route index element={<HomePage />} />
+              <Route path="playlists" element={<PlaylistsPage />} />
+              <Route path="playlists/:id" element={<PlaylistPage />} />
+              {/* `editor/*` aceita ids com barra: /editor/harpa-crista/porque-ele-vive */}
+              <Route path="editor/*" element={<EditorPage />} />
+              <Route path="importar" element={<ImportPage />} />
+              <Route path="config" element={<SettingsPage />} />
+            </Route>
+
+            {/* Leitor em tela cheia, sem a casca do app (foco total) */}
+            <Route path="musica/*" element={<SongPage />} />
+          </Route>
         </Routes>
       </Suspense>
     </TooltipProvider>

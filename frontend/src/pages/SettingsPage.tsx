@@ -1,23 +1,12 @@
-import { useState } from 'react';
 import { Link } from 'react-router';
-import {
-  Settings,
-  Sun,
-  Moon,
-  Monitor,
-  Trash2,
-  Info,
-  ListMusic,
-  LogIn,
-  LogOut,
-} from 'lucide-react';
+import { Settings, Sun, Moon, Monitor, Trash2, Info, ListMusic, LogOut } from 'lucide-react';
 import { usePreferences } from '@/hooks/usePreferences';
 import { usePlaylists } from '@/hooks/usePlaylists';
 import { useAuth } from '@/hooks/useAuth';
 import { songService } from '@/services/song-service';
 import { preferencesStorage, type ThemePreference } from '@/lib/storage/preferences';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { SignInForm } from '@/components/auth/SignInForm';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
@@ -91,9 +80,9 @@ export function SettingsPage() {
             <Slider
               className="w-40"
               value={[prefs.autoScrollSpeed]}
-              min={0.25}
+              min={0.1}
               max={3}
-              step={0.25}
+              step={0.1}
               onValueChange={(v) => preferencesStorage.update({ autoScrollSpeed: v[0] ?? 1 })}
             />
           </Row>
@@ -166,11 +155,7 @@ export function SettingsPage() {
  * é ele que autoriza criar/editar músicas (ler é público).
  */
 function AccountRow() {
-  const { isEnabled, isSignedIn, session, signIn, signOut, isLoading } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'error'>('idle');
-  const [message, setMessage] = useState('');
+  const { isEnabled, isSignedIn, session, signOut, isLoading } = useAuth();
 
   if (!isEnabled) {
     return (
@@ -196,54 +181,11 @@ function AccountRow() {
     );
   }
 
-  const handleSignIn = async () => {
-    if (!email.trim() || !password) return;
-    setStatus('sending');
-    setMessage('');
-    try {
-      await signIn(email.trim(), password);
-      setPassword('');
-      setStatus('idle');
-    } catch (e) {
-      setStatus('error');
-      setMessage(e instanceof Error ? e.message : 'Não foi possível entrar.');
-    }
-  };
-
   return (
-    <form
-      className="flex flex-col gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void handleSignIn();
-      }}
-    >
+    <div className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground">Entre para criar e editar músicas.</p>
-      <Input
-        type="email"
-        autoComplete="username"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="seu@email.com"
-      />
-      <div className="flex gap-2">
-        <Input
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Senha"
-        />
-        <Button
-          type="submit"
-          disabled={status === 'sending' || !email.trim() || !password}
-          className="shrink-0 gap-1.5"
-        >
-          <LogIn className="size-4" /> {status === 'sending' ? 'Entrando…' : 'Entrar'}
-        </Button>
-      </div>
-      {message && <p className="text-xs text-destructive">{message}</p>}
-    </form>
+      <SignInForm />
+    </div>
   );
 }
 
