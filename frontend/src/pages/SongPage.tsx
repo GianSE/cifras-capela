@@ -5,6 +5,7 @@ import { useSong } from '@/hooks/useSong';
 import { useTranspose } from '@/hooks/useTranspose';
 import { useFontSize } from '@/hooks/useFontSize';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
+import { useWakeLock } from '@/hooks/useWakeLock';
 import { useHistory } from '@/hooks/useHistory';
 import { usePreferences } from '@/hooks/usePreferences';
 import { usePlaylistNav } from '@/hooks/usePlaylistNav';
@@ -40,6 +41,9 @@ export function SongPage() {
   const { record } = useHistory();
   const playlistNav = usePlaylistNav(songId);
   const { showEditUI } = useEditAccess();
+
+  // Impede a tela de apagar enquanto a cifra está aberta para leitura.
+  useWakeLock(!isFetching && !isParsing && !fetchError);
 
   /** Exporta a cifra no tom atual em PDF (jsPDF carregado sob demanda). */
   const handleExportPdf = async () => {
@@ -137,7 +141,12 @@ export function SongPage() {
       {/* Barra superior — some durante a rolagem automática, para sobrar tela. */}
       {!autoScroll.isScrolling && (
         <header className="glass-panel z-[var(--z-sticky)] flex items-center justify-between gap-2 border-b border-border px-3 py-2 safe-top">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Voltar">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/')}
+          aria-label="Voltar"
+        >
           <ChevronLeft />
         </Button>
         <div className="min-w-0 flex-1 text-center">

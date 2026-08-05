@@ -98,6 +98,13 @@ export function SortableSongItem({
         {song.artist && <p className="truncate text-sm text-muted-foreground">{song.artist}</p>}
       </div>
 
+      {/* Categoria da música, quando houver. */}
+      {song.categories?.[0] && (
+        <span className="hidden shrink-0 rounded-full border border-border px-2 py-0.5 text-xs capitalize text-muted-foreground sm:inline-block">
+          {song.categories[0]}
+        </span>
+      )}
+
       {/* Tom de execução (o transposto), com o quanto foi movido do original. */}
       {(displayKey ?? song.key) && (
         <span className="flex shrink-0 items-center gap-1.5">

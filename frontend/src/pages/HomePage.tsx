@@ -5,7 +5,7 @@ import { useLibrary } from '@/hooks/useLibrary';
 import { useHistory } from '@/hooks/useHistory';
 import { useEditAccess } from '@/hooks/useEditAccess';
 import { SearchBar } from '@/components/library/SearchBar';
-import { FilterChips } from '@/components/library/FilterChips';
+import { CategoryFilter } from '@/components/library/CategoryFilter';
 import { SongListItem } from '@/components/library/SongListItem';
 import { SongCard } from '@/components/library/SongCard';
 import { EmptyState } from '@/components/library/EmptyState';
@@ -13,11 +13,11 @@ import { Button } from '@/components/ui/button';
 
 export function HomePage() {
   const [query, setQuery] = useState('');
-  const [activeCategories, setActiveCategories] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const { songs, results, allCategories, isLoading } = useLibrary({
     query,
-    categories: activeCategories,
+    categories: activeCategory ? [activeCategory] : [],
   });
   const { recentSongs } = useHistory();
   const { showEditUI } = useEditAccess();
@@ -27,12 +27,7 @@ export function HomePage() {
     return recentSongs.map((id) => byId.get(id)).filter((s) => s !== undefined).slice(0, 8);
   }, [songs, recentSongs]);
 
-  const toggleCategory = (c: string) =>
-    setActiveCategories((prev) =>
-      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
-    );
-
-  const isBrowsing = query.trim() === '' && activeCategories.length === 0;
+  const isBrowsing = query.trim() === '' && !activeCategory;
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-4 md:px-8 md:py-6">
@@ -65,8 +60,13 @@ export function HomePage() {
       {/* Busca */}
       <SearchBar value={query} onChange={setQuery} className="mb-3" />
 
-      {/* Filtros por categoria */}
-      <FilterChips options={allCategories} active={activeCategories} onToggle={toggleCategory} className="mb-5" />
+      {/* Filtro por categoria */}
+      <CategoryFilter
+        options={allCategories}
+        active={activeCategory}
+        onChange={setActiveCategory}
+        className="mb-5 max-w-xs"
+      />
 
       {/* Recentes */}
       {isBrowsing && recentEntries.length > 0 && (

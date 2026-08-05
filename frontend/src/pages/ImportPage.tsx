@@ -92,6 +92,7 @@ export function ImportPage() {
   const [pasteText, setPasteText] = useState('');
   const [pasteFormat, setPasteFormat] = useState('txt');
   const [loading, setLoading] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState<number | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiAvailable, setAiAvailable] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -188,10 +189,17 @@ export function ImportPage() {
 
   const handleFile = async (file: File) => {
     setLoading(true);
+    setOcrProgress(null);
     try {
-      startBatch([toDraft(await importFile(file))]);
+      const isImage = /\.(jpe?g|png|webp)$/i.test(file.name);
+      startBatch([
+        toDraft(
+          await importFile(file, isImage ? (f) => setOcrProgress(f) : undefined),
+        ),
+      ]);
     } finally {
       setLoading(false);
+      setOcrProgress(null);
     }
   };
 
@@ -278,12 +286,17 @@ export function ImportPage() {
             <div>
               <p className="font-semibold text-foreground">Selecione um arquivo</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                .txt · .md · .html · .json · .pdf · .cho
+                .txt · .md · .html · .json · .pdf · .cho · .jpg · .png
               </p>
+              {loading && ocrProgress !== null && (
+                <p className="mt-1 text-xs text-primary">
+                  Reconhecendo texto na imagem… {Math.round(ocrProgress * 100)}%
+                </p>
+              )}
             </div>
             <input
               type="file"
-              accept=".txt,.md,.markdown,.html,.htm,.json,.pdf,.cho,.chordpro,.chopro,text/*,application/json,application/pdf"
+              accept=".txt,.md,.markdown,.html,.htm,.json,.pdf,.cho,.chordpro,.chopro,.jpg,.jpeg,.png,.webp,text/*,application/json,application/pdf,image/jpeg,image/png,image/webp"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];

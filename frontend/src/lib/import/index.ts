@@ -11,9 +11,12 @@ import { importHtml } from './html-importer';
 import { importMarkdown } from './markdown-importer';
 import { importJson } from './json-importer';
 import { importPdf } from './pdf-importer';
+import { importImage } from './image-importer';
 import type { ImportedSong } from './types';
 
 export type { ImportedSong } from './types';
+
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 
 function extensionOf(name: string): string {
   return name.split('.').pop()?.toLowerCase() ?? '';
@@ -38,10 +41,16 @@ export function importFromText(text: string, format: string): ImportedSong {
 }
 
 /** Importa um arquivo selecionado pelo usuário. */
-export async function importFile(file: File): Promise<ImportedSong> {
+export async function importFile(
+  file: File,
+  onProgress?: (fraction: number) => void,
+): Promise<ImportedSong> {
   const ext = extensionOf(file.name);
   if (ext === 'pdf') {
     return importPdf(await file.arrayBuffer());
+  }
+  if (IMAGE_EXTENSIONS.has(ext)) {
+    return importImage(file, onProgress);
   }
   return importFromText(await file.text(), ext);
 }
