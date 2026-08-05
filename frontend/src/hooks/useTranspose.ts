@@ -76,8 +76,16 @@ export function useTranspose(song: Song | null, songId?: string): UseTransposeRe
     [originalKey, currentKey],
   );
 
-  const transposeUp = useCallback(() => setSemitones(semitones + 1), [setSemitones, semitones]);
-  const transposeDown = useCallback(() => setSemitones(semitones - 1), [setSemitones, semitones]);
+  // Nos extremos (±11), o próximo passo dá a volta para 0 em vez de travar —
+  // +12/−12 semitons soam idênticos a 0 (oitava), então não faz sentido parar.
+  const transposeUp = useCallback(
+    () => setSemitones(semitones === MAX_SEMITONES ? 0 : semitones + 1),
+    [setSemitones, semitones],
+  );
+  const transposeDown = useCallback(
+    () => setSemitones(semitones === -MAX_SEMITONES ? 0 : semitones - 1),
+    [setSemitones, semitones],
+  );
 
   const toggleAccidentalPreference = useCallback(() => {
     preferencesStorage.update({ preferFlats: !preferencesStorage.getSnapshot().preferFlats });

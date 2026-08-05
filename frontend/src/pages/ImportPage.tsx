@@ -187,6 +187,22 @@ export function ImportPage() {
     }
   };
 
+  /** Reenvia o corpo atual da revisão para a IA formatar (útil após OCR/PDF malformatados). */
+  const handleReformatAI = async () => {
+    if (!draft) return;
+    setAiLoading(true);
+    setSaveError(null);
+    try {
+      const { source, warnings } = await formatWithAI(draft.body);
+      const imported = importFromText(source, 'cho');
+      setDraft(toDraft({ ...imported, warnings: [...warnings, ...imported.warnings] }));
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Falha ao formatar com IA.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleFile = async (file: File) => {
     setLoading(true);
     setOcrProgress(null);
@@ -290,7 +306,9 @@ export function ImportPage() {
               </p>
               {loading && ocrProgress !== null && (
                 <p className="mt-1 text-xs text-primary">
-                  Reconhecendo texto na imagem… {Math.round(ocrProgress * 100)}%
+                  {ocrProgress < 1
+                    ? `Reconhecendo texto na imagem… ${Math.round(ocrProgress * 100)}%`
+                    : 'Nenhum acorde reconhecido — pedindo à IA para organizar…'}
                 </p>
               )}
             </div>
@@ -467,6 +485,9 @@ export function ImportPage() {
           onSkip={advance}
           saving={saving}
           saveError={saveError}
+          aiAvailable={aiAvailable}
+          aiLoading={aiLoading}
+          onReformatAI={handleReformatAI}
           onRestart={() => {
             setDraft(null);
             setQueue([]);
@@ -490,6 +511,9 @@ function ReviewForm({
   onSkip,
   saving,
   saveError,
+  aiAvailable,
+  aiLoading,
+  onReformatAI,
   onRestart,
 }: {
   draft: Draft;
@@ -502,6 +526,9 @@ function ReviewForm({
   onSkip: () => void;
   saving: boolean;
   saveError: string | null;
+  aiAvailable: boolean;
+  aiLoading: boolean;
+  onReformatAI: () => void;
   onRestart: () => void;
 }) {
   const previewSong = parse(draftToSource(draft)).song;
@@ -536,12 +563,29 @@ function ReviewForm({
       )}
 
       {draft.warnings.length > 0 && (
-        <div className="flex flex-col gap-1 rounded-lg bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] p-3 text-xs text-foreground">
+        <div className="flex flex-col gap-2 rounded-lg bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] p-3 text-xs text-foreground">
           {draft.warnings.map((w, i) => (
             <span key={i} className="flex items-start gap-1.5">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-accent" /> {w}
             </span>
           ))}
+          {aiAvailable && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onReformatAI}
+              disabled={aiLoading}
+              className="w-fit gap-1.5"
+              title="Reenvia o corpo abaixo para a IA arrumar acordes e estrutura"
+            >
+              {aiLoading ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="size-3.5" />
+              )}
+              {aiLoading ? 'Formatando…' : 'Corrigir com IA'}
+            </Button>
+          )}
         </div>
       )}
 
