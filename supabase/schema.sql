@@ -126,3 +126,56 @@ create policy "songs: excluir editor"
   on public.songs for delete
   to authenticated
   using (public.is_editor());
+
+-- -----------------------------------------------------------------------------
+-- Playlists (setlists) — sincronizadas entre dispositivos para quem loga.
+--
+-- Cada usuário só enxerga e mexe nas suas próprias playlists (não há
+-- compartilhamento). Diferente de `songs`, aqui não passa pela lista de
+-- `editors`: qualquer conta autenticada pode ter as suas.
+--
+-- `id` é gerado no cliente (mesmo formato do localStorage), não pelo banco —
+-- assim o app cria uma playlist e já sabe o id na hora, sem round-trip.
+-- -----------------------------------------------------------------------------
+create table if not exists public.playlists (
+  id          text primary key,
+  user_id     uuid not null references auth.users (id) on delete cascade,
+  name        text not null,
+  song_ids    text[] not null default '{}',
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+create index if not exists playlists_user_id_idx on public.playlists (user_id);
+
+drop trigger if exists playlists_set_updated_at on public.playlists;
+create trigger playlists_set_updated_at
+  before update on public.playlists
+  for each row execute function public.set_updated_at();
+
+alter table public.playlists enable row level security;
+
+drop policy if exists "playlists: dono lê" on public.playlists;
+create policy "playlists: dono lê"
+  on public.playlists for select
+  to authenticated
+  using (user_id = auth.uid());
+
+drop policy if exists "playlists: dono insere" on public.playlists;
+create policy "playlists: dono insere"
+  on public.playlists for insert
+  to authenticated
+  with check (user_id = auth.uid());
+
+drop policy if exists "playlists: dono atualiza" on public.playlists;
+create policy "playlists: dono atualiza"
+  on public.playlists for update
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+drop policy if exists "playlists: dono exclui" on public.playlists;
+create policy "playlists: dono exclui"
+  on public.playlists for delete
+  to authenticated
+  using (user_id = auth.uid());

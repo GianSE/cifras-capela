@@ -38,6 +38,25 @@ export type SongRow = {
 export type SongInsert = Omit<SongRow, 'created_at' | 'updated_at'>;
 
 /**
+ * Linha da tabela `public.playlists` — uma por usuário (RLS por `user_id`).
+ * O `id` é gerado no cliente (mesmo formato do localStorage), não pelo
+ * banco, para o app poder devolver o id de forma síncrona ao criar.
+ */
+export type PlaylistRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  song_ids: string[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type PlaylistInsert = Omit<PlaylistRow, 'created_at' | 'updated_at'> & {
+  created_at?: string;
+  updated_at?: string;
+};
+
+/**
  * Formato esperado pelo `supabase-js`. O idioma `{ [_ in never]: never }` é o
  * que a CLI do Supabase gera para seções vazias — `Record<string, never>`
  * quebra a inferência e faz as consultas retornarem `never`.
@@ -49,6 +68,12 @@ export type Database = {
         Row: SongRow;
         Insert: SongInsert;
         Update: Partial<SongInsert>;
+        Relationships: [];
+      };
+      playlists: {
+        Row: PlaylistRow;
+        Insert: PlaylistInsert;
+        Update: Partial<PlaylistInsert>;
         Relationships: [];
       };
     };
