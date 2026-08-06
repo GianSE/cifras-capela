@@ -15,8 +15,20 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+/**
+ * Fallback público (URL + anon key não são segredo — a escrita é protegida
+ * pelo RLS, não pelo sigilo destes valores). Existe porque as variáveis de
+ * build configuradas no painel do Cloudflare nem sempre chegam ao `vite
+ * build` (ex.: quando marcadas como "Secret", só viram binding do Worker em
+ * runtime, não env do build); manter isso aqui garante que o app funcione
+ * mesmo sem depender dessa configuração externa.
+ */
+const FALLBACK_URL = 'https://rsfnikttfhmilszdddch.supabase.co';
+const FALLBACK_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzZm5pa3R0ZmhtaWxzemRkZGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxNjE1OTksImV4cCI6MjA5OTczNzU5OX0.MESFX3jl-3xIaSqzu661IFx_DTL4U5CCKoUvGr2zIW4';
+
+const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || FALLBACK_URL;
+const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || FALLBACK_ANON_KEY;
 
 /** `true` quando o Supabase está configurado (habilita o CRUD). */
 export const isSupabaseEnabled = Boolean(url && anonKey);
