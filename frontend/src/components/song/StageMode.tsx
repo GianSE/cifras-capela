@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { X, Play, Pause, Minus, Plus } from 'lucide-react';
 import type { Song } from '@/types/song';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { SongRenderer } from './SongRenderer';
 import { TransposeControl } from './TransposeControl';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { useWakeLock } from '@/hooks/useWakeLock';
+import { useReaderShortcuts } from '@/hooks/useReaderShortcuts';
 import type { UseTransposeResult } from '@/hooks/useTranspose';
 import type { UseFontSizeResult } from '@/hooks/useFontSize';
 
@@ -30,19 +31,15 @@ export function StageMode({ song, title, transpose, font, onExit }: StageModePro
   const autoScroll = useAutoScroll(scrollRef, 1);
   useWakeLock(true);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onExit();
-      else if (e.key === 'ArrowUp') transpose.transposeUp();
-      else if (e.key === 'ArrowDown') transpose.transposeDown();
-      else if (e.key === ' ') {
-        e.preventDefault();
-        autoScroll.toggle();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onExit, transpose, autoScroll]);
+  // Mesmos atalhos do leitor — é o mesmo gesto, com ou sem o palco aberto.
+  useReaderShortcuts({
+    onTransposeUp: transpose.transposeUp,
+    onTransposeDown: transpose.transposeDown,
+    onToggleScroll: autoScroll.toggle,
+    onFontIncrease: font.increase,
+    onFontDecrease: font.decrease,
+    onExit,
+  });
 
   return (
     <div className="dark stage-mode fixed inset-0 z-[var(--z-modal)] flex flex-col bg-background text-foreground animate-fade-in">

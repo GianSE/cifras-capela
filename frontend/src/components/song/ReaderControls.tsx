@@ -30,6 +30,15 @@ const SPEED_MIN = 0.1;
 const SPEED_MAX = 3;
 const SPEED_STEP = 0.1;
 
+/** Atalhos de `useReaderShortcuts`, para quem toca com teclado na estante. */
+const SHORTCUTS: Array<[keys: string[], label: string]> = [
+  [['↑', '↓'], 'Meio tom'],
+  [['espaço'], 'Rolagem'],
+  [['+', '−'], 'Letra'],
+  [['P'], 'Apresentação'],
+  [['Esc'], 'Voltar'],
+];
+
 export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: ReaderControlsProps) {
   const changeSpeed = (delta: number) => {
     const next = Math.min(
@@ -182,6 +191,29 @@ export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: Re
               <Button variant="outline" onClick={onEnterStage} className="w-full gap-2">
                 <Maximize2 className="size-4" /> Modo apresentação
               </Button>
+
+              {/* Atalhos só existem com teclado; some em aparelho de toque,
+                  onde seriam uma lista inútil ocupando a tela. */}
+              <div className="hidden [@media(any-hover:hover)]:block">
+                <hr className="rule-gold border-0" />
+                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                  {SHORTCUTS.map(([keys, label]) => (
+                    <div key={label} className="flex items-center gap-2">
+                      <dt className="shrink-0">
+                        {keys.map((k) => (
+                          <kbd
+                            key={k}
+                            className="mr-1 rounded-md border border-[var(--color-outline)] bg-[var(--color-surface-container-high)] px-1.5 py-0.5 font-mono text-[11px] text-foreground"
+                          >
+                            {k}
+                          </kbd>
+                        ))}
+                      </dt>
+                      <dd className="truncate">{label}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

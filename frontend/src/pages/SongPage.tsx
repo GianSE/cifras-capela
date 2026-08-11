@@ -11,6 +11,7 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { usePlaylistNav } from '@/hooks/usePlaylistNav';
 import { useEditAccess } from '@/hooks/useEditAccess';
 import { useSwipe } from '@/hooks/useSwipe';
+import { useReaderShortcuts } from '@/hooks/useReaderShortcuts';
 import { preferencesStorage } from '@/lib/storage/preferences';
 import { SongHeader } from '@/components/song/SongHeader';
 import { SongRenderer } from '@/components/song/SongRenderer';
@@ -45,6 +46,19 @@ export function SongPage() {
 
   // Impede a tela de apagar enquanto a cifra está aberta para leitura.
   useWakeLock(!isFetching && !isParsing && !fetchError);
+
+  // Teclado (tablet/notebook na estante). Desligado enquanto o palco está
+  // aberto: lá o StageMode assume, senão as duas telas responderiam juntas.
+  useReaderShortcuts({
+    enabled: !stageOpen,
+    onTransposeUp: transpose.transposeUp,
+    onTransposeDown: transpose.transposeDown,
+    onToggleScroll: autoScroll.toggle,
+    onFontIncrease: font.increase,
+    onFontDecrease: font.decrease,
+    onStage: () => setStageOpen(true),
+    onExit: () => navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/'),
+  });
 
   /** Exporta a cifra no tom atual em PDF (jsPDF carregado sob demanda). */
   const handleExportPdf = async () => {
