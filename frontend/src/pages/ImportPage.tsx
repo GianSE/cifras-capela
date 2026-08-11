@@ -13,6 +13,7 @@ import {
   Wand2,
   Search,
   Link as LinkIcon,
+  Copy,
 } from 'lucide-react';
 import {
   isAiFormatterAvailable,
@@ -37,10 +38,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { downloadTextFile, slugify } from '@/lib/export/download';
-import { buildSongId } from '@/lib/library/derive';
+import { buildSongId, nextFreeSongId } from '@/lib/library/derive';
 import { songService } from '@/services/song-service';
+import { useSongLibrary } from '@/hooks/useSongLibrary';
 
 interface Draft {
   title: string;
@@ -98,6 +106,7 @@ function draftToSource(d: Draft): string {
 
 export function ImportPage() {
   const navigate = useNavigate();
+  const { songs } = useSongLibrary();
   const [draft, setDraft] = useState<Draft | null>(null);
   // Fila de músicas restantes quando o texto colado tem várias (separadas por ---).
   const [queue, setQueue] = useState<Draft[]>([]);
@@ -107,6 +116,8 @@ export function ImportPage() {
   const [pageUrl, setPageUrl] = useState('');
   const [urlLoading, setUrlLoading] = useState(false);
   const [urlAvailable, setUrlAvailable] = useState(false);
+  /** Id que já existe na biblioteca e está para ser sobrescrito. */
+  const [conflictId, setConflictId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [ocrProgress, setOcrProgress] = useState<number | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -282,18 +293,24 @@ export function ImportPage() {
     advance();
   };
 
-  /** Salva direto na biblioteca. Numa fila, avança; sozinha, abre a música. */
-  const save = async () => {
+  /** Id que esta revisão vai ocupar na biblioteca. */
+  const draftId = (d: Draft): string =>
+    buildSongId(
+      d.title,
+      d.categories
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean),
+    );
+
+  /** Grava de fato, no id informado. */
+  const writeSong = async (id: string) => {
     if (!draft) return;
     setSaving(true);
     setSaveError(null);
     try {
-      const categories = draft.categories
-        .split(',')
-        .map((c) => c.trim())
-        .filter(Boolean);
-      const id = buildSongId(draft.title, categories);
       await songService.saveSong({ id, source: draftToSource(draft) });
+      setConflictId(null);
       if (queue.length > 0) {
         advance();
       } else {
@@ -304,6 +321,21 @@ export function ImportPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  /**
+   * Salva na biblioteca. O id vem do título + categoria, e gravar é `upsert`:
+   * se já existir música com esse id, salvar em silêncio apagaria a versão
+   * antiga — inclusive correções feitas à mão. Nesse caso, pergunta antes.
+   */
+  const save = async () => {
+    if (!draft) return;
+    const id = draftId(draft);
+    if (songs.some((s) => s.id === id)) {
+      setConflictId(id);
+      return;
+    }
+    await writeSong(id);
   };
 
   return (
@@ -562,6 +594,52 @@ export function ImportPage() {
             />
           )}
         </div>
+
+        {/* Já existe música com este id — salvar por cima apagaria a antiga. */}
+        <Dialog open={conflictId !== null} onOpenChange={(open) => !open && setConflictId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Essa música já existe</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Já há{' '}
+              <strong className="text-foreground">
+                {songs.find((s) => s.id === conflictId)?.title ?? conflictId}
+              </strong>{' '}
+              em <code className="font-mono text-xs">{conflictId}</code>. Substituir apaga a
+              versão que está lá, inclusive correções feitas à mão.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="outline"
+                disabled={saving}
+                onClick={() => void writeSong(nextFreeSongId(conflictId ?? '', songs.map((s) => s.id)))}
+                className="justify-start gap-2"
+              >
+                <Copy className="size-4" /> Guardar como nova, sem mexer na antiga
+              </Button>
+              <Button
+                variant="outline"
+                disabled={saving}
+                onClick={() => {
+                  setConflictId(null);
+                  advance();
+                }}
+                className="justify-start gap-2"
+              >
+                <SkipForward className="size-4" /> Pular esta
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={saving}
+                onClick={() => void writeSong(conflictId ?? '')}
+                className="justify-start gap-2"
+              >
+                <Save className="size-4" /> Substituir a que está lá
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </>
     </RequireAuth>
   );

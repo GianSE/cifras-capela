@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildSongId, deriveIndexEntry, extractLyricsText } from '../../src/lib/library/derive';
+import {
+  buildSongId,
+  deriveIndexEntry,
+  extractLyricsText,
+  nextFreeSongId,
+} from '../../src/lib/library/derive';
 
 const SOURCE = `---
 title: Mãos ao Alto
@@ -78,5 +83,26 @@ describe('deriveIndexEntry', () => {
     expect(entry.categories).toBeUndefined();
     expect(entry.tags).toBeUndefined();
     expect(entry.tempo).toBeUndefined();
+  });
+});
+
+describe('nextFreeSongId', () => {
+  it('devolve o próprio id quando ninguém o ocupa', () => {
+    expect(nextFreeSongId('culto/amem', [])).toBe('culto/amem');
+    expect(nextFreeSongId('culto/amem', ['culto/outra'])).toBe('culto/amem');
+  });
+
+  it('sufixa a partir de 2 quando o id está ocupado', () => {
+    expect(nextFreeSongId('culto/amem', ['culto/amem'])).toBe('culto/amem-2');
+  });
+
+  it('pula os sufixos já usados', () => {
+    const taken = ['culto/amem', 'culto/amem-2', 'culto/amem-3'];
+    expect(nextFreeSongId('culto/amem', taken)).toBe('culto/amem-4');
+  });
+
+  it('não se confunde com um id que apenas começa igual', () => {
+    // "culto/amem-glória" não ocupa a vaga de "culto/amem".
+    expect(nextFreeSongId('culto/amem', ['culto/amem-gloria'])).toBe('culto/amem');
   });
 });

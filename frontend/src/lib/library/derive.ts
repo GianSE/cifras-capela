@@ -72,3 +72,19 @@ export function buildSongId(title: string, categories: readonly string[] = []): 
   const name = slug(title) || 'sem-titulo';
   return `${folder}/${name}`;
 }
+
+/**
+ * Primeiro id livre a partir do desejado: `culto/amem`, `culto/amem-2`, …
+ *
+ * Usado ao importar uma música cujo título e categoria dão num id que já
+ * existe, quando se quer guardar a nova **sem** encostar na antiga — gravar é
+ * `upsert`, então reusar o id apagaria a versão que está lá.
+ */
+export function nextFreeSongId(wanted: string, taken: Iterable<string>): string {
+  const used = new Set(taken);
+  if (!used.has(wanted)) return wanted;
+  for (let n = 2; ; n++) {
+    const candidate = `${wanted}-${n}`;
+    if (!used.has(candidate)) return candidate;
+  }
+}
