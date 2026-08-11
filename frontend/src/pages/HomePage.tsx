@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { SearchX, Clock, Plus, Library } from 'lucide-react';
+import { SearchX, Clock, Plus, Library, Star } from 'lucide-react';
 import { useLibrary } from '@/hooks/useLibrary';
 import { useHistory } from '@/hooks/useHistory';
 import { useEditAccess } from '@/hooks/useEditAccess';
+import { useFavorites } from '@/hooks/useFavorites';
+import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SectionTitle } from '@/components/layout/SectionTitle';
 import { SearchBar } from '@/components/library/SearchBar';
 import { CategoryFilter } from '@/components/library/CategoryFilter';
+import { filterChipClass } from '@/components/library/filter-chip';
 import { SongListItem } from '@/components/library/SongListItem';
 import { SongCard } from '@/components/library/SongCard';
 import { EmptyState } from '@/components/library/EmptyState';
@@ -16,10 +19,14 @@ import { Button } from '@/components/ui/button';
 export function HomePage() {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+
+  const { favorites } = useFavorites();
 
   const { songs, results, allCategories, isLoading } = useLibrary({
     query,
     categories: activeCategory ? [activeCategory] : [],
+    ids: onlyFavorites ? favorites : undefined,
   });
   const { recentSongs } = useHistory();
   const { showEditUI } = useEditAccess();
@@ -32,7 +39,7 @@ export function HomePage() {
       .slice(0, 8);
   }, [songs, recentSongs]);
 
-  const isBrowsing = query.trim() === '' && !activeCategory;
+  const isBrowsing = query.trim() === '' && !activeCategory && !onlyFavorites;
 
   return (
     <>
@@ -56,6 +63,19 @@ export function HomePage() {
           active={activeCategory}
           onChange={setActiveCategory}
           className="mt-3"
+          leading={
+            favorites.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setOnlyFavorites((v) => !v)}
+                aria-pressed={onlyFavorites}
+                className={filterChipClass(onlyFavorites)}
+              >
+                <Star className={cn('size-4', onlyFavorites && 'fill-current')} />
+                Favoritas
+              </button>
+            )
+          }
         />
       </PageHeader>
 
@@ -81,7 +101,7 @@ export function HomePage() {
                 : `${results.length} ${results.length === 1 ? 'resultado' : 'resultados'}`
             }
           >
-            {isBrowsing ? 'Todas as músicas' : 'Busca'}
+            {isBrowsing ? 'Todas as músicas' : onlyFavorites && !query ? 'Favoritas' : 'Busca'}
           </SectionTitle>
 
           {isLoading ? (
@@ -92,12 +112,16 @@ export function HomePage() {
             </div>
           ) : results.length === 0 ? (
             <EmptyState
-              icon={SearchX}
-              title="Nenhuma música encontrada"
+              icon={onlyFavorites ? Star : SearchX}
+              title={
+                onlyFavorites ? 'Nenhuma favorita por aqui' : 'Nenhuma música encontrada'
+              }
               description={
                 songs.length === 0
                   ? 'Adicione arquivos .cho em public/songs para começar.'
-                  : 'Tente outro termo ou remova os filtros.'
+                  : onlyFavorites
+                    ? 'Suas favoritas não batem com a busca ou a categoria escolhida.'
+                    : 'Tente outro termo ou remova os filtros.'
               }
             />
           ) : (

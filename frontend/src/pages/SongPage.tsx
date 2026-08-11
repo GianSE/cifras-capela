@@ -17,6 +17,7 @@ import { SongRenderer } from '@/components/song/SongRenderer';
 import { ReaderControls } from '@/components/song/ReaderControls';
 import { StageMode } from '@/components/song/StageMode';
 import { AddToPlaylist } from '@/components/playlist/AddToPlaylist';
+import { FavoriteButton } from '@/components/library/FavoriteButton';
 import { Button } from '@/components/ui/button';
 import { songService } from '@/services/song-service';
 
@@ -165,6 +166,7 @@ export function SongPage() {
                 )
               )}
             </div>
+            <FavoriteButton songId={songId} onDark />
             <AddToPlaylist songId={songId} onDark />
 
             {/* Exportar a cifra (no tom atual) em PDF. */}

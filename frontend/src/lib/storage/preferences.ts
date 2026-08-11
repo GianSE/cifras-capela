@@ -18,6 +18,8 @@ export interface UserPreferences {
   readonly theme: ThemePreference;
   /** IDs das músicas abertas recentemente (mais recente primeiro, máx. 30). */
   readonly recentSongs: readonly string[];
+  /** IDs das músicas marcadas como favoritas (as que a pessoa mais toca). */
+  readonly favorites: readonly string[];
   /** Tamanho da fonte da letra (px). */
   readonly fontSize: number;
   /** Velocidade padrão do auto-scroll (0.25–3). */
@@ -33,6 +35,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   preferFlats: false,
   theme: 'light',
   recentSongs: [],
+  favorites: [],
   fontSize: 18,
   autoScrollSpeed: 1,
   transpositions: {},
@@ -109,6 +112,27 @@ class PreferencesStorage {
 
   clearRecents(): void {
     this.update({ recentSongs: [] });
+  }
+
+  isFavorite(songId: string): boolean {
+    return this.prefs.favorites.includes(songId);
+  }
+
+  /**
+   * Marca/desmarca a música como favorita.
+   *
+   * As novas entram no fim: a ordem é a de quem marcou, não alfabética — quem
+   * favorita "Amém" hoje espera achá-la depois das antigas, não no topo.
+   */
+  toggleFavorite(songId: string): void {
+    const favorites = this.prefs.favorites.includes(songId)
+      ? this.prefs.favorites.filter((id) => id !== songId)
+      : [...this.prefs.favorites, songId];
+    this.update({ favorites });
+  }
+
+  clearFavorites(): void {
+    this.update({ favorites: [] });
   }
 
   /** Semitons salvos para a música (0 se ela nunca foi transposta). */

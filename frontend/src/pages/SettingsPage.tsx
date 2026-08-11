@@ -109,6 +109,21 @@ export function SettingsPage() {
           </Row>
           <Separator />
           <Row
+            label="Favoritas"
+            hint={`${prefs.favorites.length} ${prefs.favorites.length === 1 ? 'música marcada' : 'músicas marcadas'}`}
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => preferencesStorage.clearFavorites()}
+              disabled={prefs.favorites.length === 0}
+              className="gap-1.5"
+            >
+              <Trash2 className="size-4" /> Limpar
+            </Button>
+          </Row>
+          <Separator />
+          <Row
             label="Tons salvos"
             hint={`${transposedCount} ${transposedCount === 1 ? 'música transposta' : 'músicas transpostas'}`}
           >
