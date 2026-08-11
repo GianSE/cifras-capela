@@ -12,6 +12,7 @@ import {
   Sparkles,
   Wand2,
   Search,
+  Link as LinkIcon,
 } from 'lucide-react';
 import {
   isAiFormatterAvailable,
@@ -20,6 +21,7 @@ import {
   findSongCandidates,
   type SongCandidate,
 } from '@/lib/import/ai';
+import { importFromUrl, isUrlImportAvailable } from '@/lib/import/url-importer';
 import {
   importFile,
   importFromText,
@@ -102,6 +104,9 @@ export function ImportPage() {
   const [total, setTotal] = useState(0);
   const [pasteText, setPasteText] = useState('');
   const [pasteFormat, setPasteFormat] = useState('txt');
+  const [pageUrl, setPageUrl] = useState('');
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [urlAvailable, setUrlAvailable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ocrProgress, setOcrProgress] = useState<number | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -119,6 +124,8 @@ export function ImportPage() {
   // O formatador com IA só aparece se o Worker estiver configurado.
   useEffect(() => {
     isAiFormatterAvailable().then(setAiAvailable);
+    // Importar por link depende do Worker; em `vite dev` puro ele não existe.
+    isUrlImportAvailable().then(setUrlAvailable);
   }, []);
 
   /** Inicia a revisão de um lote (1 ou mais músicas). */
@@ -233,6 +240,21 @@ export function ImportPage() {
     startBatch(blocks.map((block) => toDraft(importFromText(block, pasteFormat))));
   };
 
+  /** Busca a página pelo Worker e abre a revisão com o que veio de lá. */
+  const handleUrl = async () => {
+    if (!pageUrl.trim()) return;
+    setUrlLoading(true);
+    setSaveError(null);
+    try {
+      startBatch([toDraft(await importFromUrl(pageUrl.trim()))]);
+      setPageUrl('');
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Não foi possível ler essa página.');
+    } finally {
+      setUrlLoading(false);
+    }
+  };
+
   const update = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
 
   /** Avança para a próxima da fila, ou encerra o lote. */
@@ -299,6 +321,42 @@ export function ImportPage() {
         <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8">
           {!draft ? (
             <div className="flex flex-col gap-5">
+              {/* Link da cifra — o caminho mais curto, então vem primeiro. */}
+              {urlAvailable && (
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+                  <div className="mb-1 flex items-center gap-2">
+                    <LinkIcon className="size-4 text-gold-600 dark:text-gold-400" />
+                    <h2 className="font-display text-xl text-foreground">Colar o link da cifra</h2>
+                  </div>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Cole o endereço da página (CifraClub e sites parecidos) e o app busca a
+                    cifra para você revisar.
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      type="url"
+                      inputMode="url"
+                      value={pageUrl}
+                      onChange={(e) => setPageUrl(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && void handleUrl()}
+                      placeholder="https://www.cifraclub.com.br/..."
+                    />
+                    <Button
+                      onClick={() => void handleUrl()}
+                      disabled={urlLoading || !pageUrl.trim()}
+                      className="shrink-0 gap-1.5"
+                    >
+                      {urlLoading ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <ArrowRight className="size-4" />
+                      )}
+                      {urlLoading ? 'Buscando…' : 'Buscar'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Upload de arquivo */}
               <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[var(--color-outline)] bg-card px-6 py-12 text-center transition-colors hover:border-gold-500">
                 {loading ? (

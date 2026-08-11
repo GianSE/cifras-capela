@@ -262,6 +262,132 @@ async function findCandidates(request: Request, env: Env): Promise<Response> {
   }
 }
 
+/* ==========================================================================
+   /api/fetch-page — busca o HTML de uma página de cifra
+   ========================================================================== */
+
+/** Teto do que aceitamos baixar: uma página de cifra não passa nem perto. */
+const MAX_PAGE_BYTES = 1_500_000;
+const PAGE_TIMEOUT_MS = 10_000;
+/** Saltos de redirecionamento seguidos à mão, revalidando o destino a cada um. */
+const MAX_REDIRECTS = 3;
+
+/**
+ * Endereços que o Worker não deve buscar em nome de quem pediu.
+ *
+ * Sem esta lista, o endpoint viraria um proxy para a rede interna: bastaria
+ * pedir `http://192.168.0.1` ou o serviço de metadados da nuvem e ler a
+ * resposta pelo app (SSRF). Bloqueamos por nome de host — é o que temos antes
+ * de resolver o DNS.
+ */
+function isBlockedHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+
+  if (host === 'localhost' || host.endsWith('.localhost')) return true;
+  if (host.endsWith('.local') || host.endsWith('.internal')) return true;
+  if (host === '::1' || host.startsWith('fc') || host.startsWith('fd')) return true;
+  // Metadados de nuvem (AWS/GCP/Azure) e afins.
+  if (host === 'metadata.google.internal' || host === '169.254.169.254') return true;
+
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (ipv4) {
+    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
+    if (a === 10 || a === 127 || a === 0) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 169 && b === 254) return true;
+  }
+  return false;
+}
+
+/** Valida o endereço pedido; devolve a mensagem de recusa ou `null`. */
+function rejectUrl(raw: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return 'Endereço inválido. Cole o link completo, começando com https://';
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return 'Só dá para buscar endereços http:// ou https://';
+  }
+  if (isBlockedHost(parsed.hostname)) {
+    return 'Esse endereço não pode ser buscado.';
+  }
+  return null;
+}
+
+/**
+ * Baixa a página e devolve o HTML cru para o app extrair a cifra.
+ *
+ * Precisa morar aqui: o navegador não consegue buscar outro site por causa do
+ * CORS. O Worker faz a busca e o `html-importer` do frontend, que já sabe
+ * achar o bloco `<pre>` usado pelos sites de cifra, faz o resto.
+ */
+async function fetchSongPage(request: Request): Promise<Response> {
+  let target = '';
+  try {
+    const body = (await request.json()) as { url?: unknown };
+    if (typeof body.url === 'string') target = body.url.trim();
+  } catch {
+    return json({ error: 'Corpo inválido.' }, 400);
+  }
+  if (!target) return json({ error: 'Informe o endereço da cifra.' }, 400);
+
+  let current = target;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const rejection = rejectUrl(current);
+    if (rejection) return json({ error: rejection }, 400);
+
+    let response: Response;
+    try {
+      response = await fetch(current, {
+        method: 'GET',
+        // Manual para revalidar cada destino: seguir automaticamente deixaria
+        // um redirecionamento levar a busca para um host bloqueado.
+        redirect: 'manual',
+        headers: {
+          // Sem um user-agent de navegador, vários sites devolvem 403.
+          'User-Agent':
+            'Mozilla/5.0 (compatible; CifrasCapela/1.0; +https://github.com/GianSE/cifras-capela)',
+          Accept: 'text/html,application/xhtml+xml',
+          'Accept-Language': 'pt-BR,pt;q=0.9',
+        },
+        signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
+      });
+    } catch (err) {
+      console.error('Falha ao buscar a página:', err);
+      return json({ error: 'Não foi possível acessar esse endereço.' }, 502);
+    }
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (!location) return json({ error: 'Redirecionamento sem destino.' }, 502);
+      current = new URL(location, current).toString();
+      continue;
+    }
+
+    if (!response.ok) {
+      return json({ error: `O site respondeu ${response.status}.` }, 502);
+    }
+
+    const type = response.headers.get('content-type') ?? '';
+    if (!type.includes('html') && !type.includes('text/plain')) {
+      return json({ error: 'Esse endereço não devolveu uma página de texto.' }, 415);
+    }
+
+    const declared = Number(response.headers.get('content-length') ?? '0');
+    if (declared > MAX_PAGE_BYTES) {
+      return json({ error: 'Página grande demais.' }, 413);
+    }
+
+    const html = (await response.text()).slice(0, MAX_PAGE_BYTES);
+    return json({ html, url: current });
+  }
+
+  return json({ error: 'Redirecionamentos demais.' }, 502);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -284,6 +410,13 @@ export default {
     if (url.pathname === '/api/generate') {
       if (request.method === 'POST') {
         return withSecurityHeaders(await generateWithAI(request, env));
+      }
+      return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
+    }
+
+    if (url.pathname === '/api/fetch-page') {
+      if (request.method === 'POST') {
+        return withSecurityHeaders(await fetchSongPage(request));
       }
       return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
     }
