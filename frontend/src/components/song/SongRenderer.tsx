@@ -6,6 +6,11 @@ interface SongRendererProps {
   song: Song;
   /** Tamanho da fonte da letra em px (os acordes escalam junto). */
   fontSize?: number;
+  /**
+   * Divide a cifra em duas colunas. Só tem efeito a partir de 1024px de
+   * largura — a regra vive no CSS, para o celular nunca ser afetado.
+   */
+  twoColumns?: boolean;
   className?: string;
 }
 
@@ -13,10 +18,15 @@ interface SongRendererProps {
  * Renderiza o corpo da cifra: seções com acordes posicionados acima da letra.
  * O `fontSize` controla a escala de toda a área (letra + acordes).
  */
-export function SongRenderer({ song, fontSize = 18, className }: SongRendererProps) {
+export function SongRenderer({
+  song,
+  fontSize = 18,
+  twoColumns = false,
+  className,
+}: SongRendererProps) {
   return (
     <article
-      className={cn('font-lyrics leading-relaxed', className)}
+      className={cn('font-lyrics leading-relaxed', twoColumns && 'song-columns', className)}
       style={{ fontSize: `${fontSize}px` }}
     >
       {song.sections.map((section, index) => (

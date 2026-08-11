@@ -20,7 +20,7 @@ export function SongSection({ section }: SongSectionProps) {
           tema escuro (onde o dourado é a cor de ação), num azul claro — senão
           ele competiria com os acordes logo abaixo. */}
       {section.label && section.type !== 'none' && (
-        <div className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-primary dark:text-navy-300">
+        <div className="section-label mb-2 text-xs font-bold uppercase tracking-[0.14em] text-primary dark:text-navy-300">
           {section.label}
         </div>
       )}

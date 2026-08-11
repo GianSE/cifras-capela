@@ -415,6 +415,34 @@ body {
     margin-left: -1rem;
   }
 
+  /* Cifra em duas colunas — só onde há largura de sobra (tablet deitado, PC).
+     Corta pela metade a rolagem no meio da música, que é quando rolar mais
+     atrapalha. No celular a regra simplesmente não se aplica. */
+  @media (min-width: 1024px) {
+    .song-columns {
+      column-count: 2;
+      column-gap: 3rem;
+      column-rule: 1px solid var(--color-outline-variant);
+    }
+    /* Uma linha é o par acorde/letra: parti-la entre colunas deixaria o
+       acorde numa e a sílaba dele na outra. */
+    .song-columns .song-line {
+      break-inside: avoid;
+    }
+    /* Cada filho direto é uma seção (verso, refrão, ponte). Mantê-las
+       inteiras é o que faz a leitura funcionar: partir um refrão ao meio
+       obriga a saltar de coluna no meio da frase — justamente o que as duas
+       colunas vieram evitar. Numa seção mais alta que a coluna o navegador
+       quebra assim mesmo, então não há risco de estouro. */
+    .song-columns > div {
+      break-inside: avoid;
+    }
+    /* Rótulo de seção nunca fica órfão no pé da coluna. */
+    .song-columns .section-label {
+      break-after: avoid;
+    }
+  }
+
   .glass-panel {
     background: color-mix(in srgb, var(--card) 85%, transparent);
     backdrop-filter: blur(12px);

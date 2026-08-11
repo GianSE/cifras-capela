@@ -21,6 +21,7 @@ import { AddToPlaylist } from '@/components/playlist/AddToPlaylist';
 import { FavoriteButton } from '@/components/library/FavoriteButton';
 import { Button } from '@/components/ui/button';
 import { songService } from '@/services/song-service';
+import { cn } from '@/lib/utils';
 
 export function SongPage() {
   const params = useParams();
@@ -36,7 +37,7 @@ export function SongPage() {
   // Passar o songId faz o tom ser salvo e restaurado por música.
   const transpose = useTranspose(song, songId);
   const font = useFontSize();
-  const { autoScrollSpeed } = usePreferences();
+  const { autoScrollSpeed, readerTwoColumns } = usePreferences();
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScroll = useAutoScroll(scrollRef, autoScrollSpeed);
 
@@ -222,13 +223,25 @@ export function SongPage() {
         onTouchStart={swipe.onTouchStart}
         onTouchEnd={swipe.onTouchEnd}
       >
-        <div key={songId} className="mx-auto max-w-3xl pb-32 animate-slide-in-x">
+        <div
+          key={songId}
+          className={cn(
+            // Em duas colunas a coluna de texto dobra: sem alargar o
+            // contêiner, cada uma ficaria estreita demais para caber a frase.
+            'mx-auto pb-32 animate-slide-in-x',
+            readerTwoColumns ? 'max-w-3xl lg:max-w-6xl' : 'max-w-3xl',
+          )}
+        >
           <SongHeader
             metadata={transposedSong.metadata}
             displayedKey={transpose.currentKey}
             capo={transpose.capo}
           />
-          <SongRenderer song={transposedSong} fontSize={font.fontSize} />
+          <SongRenderer
+            song={transposedSong}
+            fontSize={font.fontSize}
+            twoColumns={readerTwoColumns}
+          />
 
           {/* Navegação do setlist */}
           {playlistNav && (

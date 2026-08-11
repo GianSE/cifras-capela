@@ -1,5 +1,6 @@
 import { Maximize2, SlidersHorizontal, Play, Pause, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,8 @@ import { TransposeControl } from './TransposeControl';
 import { FontSizeControl } from './FontSizeControl';
 import { CapoControl } from './CapoControl';
 import { AutoScrollControl } from './AutoScrollControl';
+import { usePreferences } from '@/hooks/usePreferences';
+import { preferencesStorage } from '@/lib/storage/preferences';
 import type { UseTransposeResult } from '@/hooks/useTranspose';
 import type { UseFontSizeResult } from '@/hooks/useFontSize';
 import type { UseAutoScrollResult } from '@/hooks/useAutoScroll';
@@ -40,6 +43,7 @@ const SHORTCUTS: Array<[keys: string[], label: string]> = [
 ];
 
 export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: ReaderControlsProps) {
+  const { readerTwoColumns: twoColumns } = usePreferences();
   const changeSpeed = (delta: number) => {
     const next = Math.min(
       SPEED_MAX,
@@ -187,6 +191,21 @@ export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: Re
                 onToggle={autoScroll.toggle}
                 onSpeedChange={autoScroll.setSpeed}
               />
+
+              {/* Só aparece a partir de `lg`: abaixo disso as colunas não têm
+                  efeito, e o interruptor pareceria quebrado. */}
+              <div className="hidden items-center justify-between gap-3 lg:flex">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Duas colunas</p>
+                  <p className="text-xs text-muted-foreground">Cabe mais na tela, rola menos.</p>
+                </div>
+                <Switch
+                  checked={twoColumns}
+                  onCheckedChange={(checked) =>
+                    preferencesStorage.update({ readerTwoColumns: checked })
+                  }
+                />
+              </div>
 
               <Button variant="outline" onClick={onEnterStage} className="w-full gap-2">
                 <Maximize2 className="size-4" /> Modo apresentação

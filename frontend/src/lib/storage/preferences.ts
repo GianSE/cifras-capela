@@ -24,6 +24,8 @@ export interface UserPreferences {
   readonly fontSize: number;
   /** Velocidade padrão do auto-scroll (0.25–3). */
   readonly autoScrollSpeed: number;
+  /** Cifra em duas colunas em telas largas (>=1024px). */
+  readonly readerTwoColumns: boolean;
   /**
    * Tom em que cada música foi deixada: `id da música` → semitons.
    * Só guarda quem foi transposto (0 = tom original é removido do mapa).
@@ -38,6 +40,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   favorites: [],
   fontSize: 18,
   autoScrollSpeed: 1,
+  readerTwoColumns: true,
   transpositions: {},
 };
 

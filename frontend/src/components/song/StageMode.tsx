@@ -6,6 +6,7 @@ import { SongRenderer } from './SongRenderer';
 import { TransposeControl } from './TransposeControl';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { useWakeLock } from '@/hooks/useWakeLock';
+import { usePreferences } from '@/hooks/usePreferences';
 import { useReaderShortcuts } from '@/hooks/useReaderShortcuts';
 import type { UseTransposeResult } from '@/hooks/useTranspose';
 import type { UseFontSizeResult } from '@/hooks/useFontSize';
@@ -27,6 +28,7 @@ interface StageModeProps {
  * classe `dark` na raiz redeclara os tokens só dentro desta tela.
  */
 export function StageMode({ song, title, transpose, font, onExit }: StageModeProps) {
+  const { readerTwoColumns: twoColumns } = usePreferences();
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScroll = useAutoScroll(scrollRef, 1);
   useWakeLock(true);
@@ -53,8 +55,8 @@ export function StageMode({ song, title, transpose, font, onExit }: StageModePro
 
       {/* Corpo rolável */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-8 md:px-16">
-        <div className="mx-auto max-w-4xl">
-          <SongRenderer song={song} fontSize={font.fontSize + 6} />
+        <div className={twoColumns ? 'mx-auto max-w-7xl' : 'mx-auto max-w-4xl'}>
+          <SongRenderer song={song} fontSize={font.fontSize + 6} twoColumns={twoColumns} />
           <div className="h-[40vh]" aria-hidden />
         </div>
       </div>
