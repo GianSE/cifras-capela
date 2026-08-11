@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { songService } from '@/services/song-service';
 import { searchEngine } from '@/lib/search/search-engine';
 import type { SongIndexEntry } from '@/types/library';
@@ -51,18 +51,4 @@ export function useSongLibrary() {
   }, []);
 
   return { songs, isLoading, error, reload };
-}
-
-export function useSearch(query: string) {
-  const { songs, isLoading } = useSongLibrary();
-
-  const results = useMemo(() => {
-    if (isLoading) return [];
-    if (!query || query.trim() === '') {
-      return songs; // Sem busca, devolve tudo
-    }
-    return searchEngine.search(query);
-  }, [query, songs, isLoading]);
-
-  return { results, isLoading };
 }
