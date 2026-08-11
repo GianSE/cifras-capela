@@ -7,6 +7,7 @@ import { useEditAccess } from '@/hooks/useEditAccess';
 import { useFavorites } from '@/hooks/useFavorites';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { OfflineNotice } from '@/components/layout/OfflineNotice';
 import { SectionTitle } from '@/components/layout/SectionTitle';
 import { SearchBar } from '@/components/library/SearchBar';
 import { CategoryFilter } from '@/components/library/CategoryFilter';
@@ -23,7 +24,7 @@ export function HomePage() {
 
   const { favorites } = useFavorites();
 
-  const { songs, results, allCategories, isLoading } = useLibrary({
+  const { songs, results, allCategories, isLoading, staleSince } = useLibrary({
     query,
     categories: activeCategory ? [activeCategory] : [],
     ids: onlyFavorites ? favorites : undefined,
@@ -80,6 +81,8 @@ export function HomePage() {
       </PageHeader>
 
       <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8">
+        <OfflineNotice staleSince={staleSince} />
+
         {/* Recentes */}
         {isBrowsing && recentEntries.length > 0 && (
           <section className="mb-8">

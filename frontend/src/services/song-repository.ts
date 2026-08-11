@@ -21,11 +21,31 @@ export interface SaveSongInput {
   readonly source: string;
 }
 
+/**
+ * Resultado de uma carga da biblioteca.
+ *
+ * Diz **de onde** os dados vieram, não só quais são. Antes, quem falhava
+ * devolvia uma lista vazia: uma queda de rede virava "Nenhuma música
+ * encontrada" na tela, indistinguível de uma biblioteca realmente vazia, e
+ * quem lia do cache não tinha como avisar que os dados podiam estar velhos.
+ */
+export interface LibraryLoad {
+  readonly entries: SongIndexEntry[];
+  /** `true` quando a rede falhou e isto veio da cópia local. */
+  readonly fromCache: boolean;
+  /** Quando a cópia local foi gravada (ISO), se `fromCache`. */
+  readonly cachedAt?: string;
+}
+
 export interface SongRepository {
   /** `true` quando dá para criar/editar/excluir por aqui. */
   readonly canWrite: boolean;
-  /** Todas as músicas da biblioteca (metadados para listagem/busca). */
-  listSongs(): Promise<SongIndexEntry[]>;
+  /**
+   * Todas as músicas da biblioteca (metadados para listagem/busca).
+   * **Lança** quando não consegue nem da rede nem do cache — quem chama
+   * precisa poder distinguir "vazia" de "não deu para carregar".
+   */
+  listSongs(): Promise<LibraryLoad>;
   /** O `.cho` completo de uma música. */
   getSource(id: string): Promise<string>;
   /** Cria ou atualiza. Só quando `canWrite`. */

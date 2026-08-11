@@ -8,8 +8,7 @@
  */
 
 import { isSupabaseEnabled } from '@/lib/supabase/client';
-import type { SongIndexEntry } from '@/types/library';
-import type { SaveSongInput, SongRepository } from './song-repository';
+import type { LibraryLoad, SaveSongInput, SongRepository } from './song-repository';
 import { staticRepository } from './static-repository';
 import { supabaseRepository } from './supabase-repository';
 
@@ -37,8 +36,12 @@ class SongService {
     for (const listener of this.listeners) listener();
   }
 
-  /** Metadados de todas as músicas (para listar e buscar). */
-  async getSongIndex(): Promise<SongIndexEntry[]> {
+  /**
+   * Metadados de todas as músicas (para listar e buscar), com a informação de
+   * se vieram da rede ou da cópia local — quem monta a tela precisa saber
+   * para avisar que os dados podem estar velhos.
+   */
+  async getSongIndex(): Promise<LibraryLoad> {
     return repository.listSongs();
   }
 

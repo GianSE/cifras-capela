@@ -8,7 +8,11 @@
  */
 
 import type { SongIndexEntry } from '@/types/library';
-import { ReadOnlyLibraryError, type SongRepository } from './song-repository';
+import {
+  ReadOnlyLibraryError,
+  type LibraryLoad,
+  type SongRepository,
+} from './song-repository';
 
 class StaticSongRepository implements SongRepository {
   readonly canWrite = false;
@@ -16,11 +20,15 @@ class StaticSongRepository implements SongRepository {
   private indexCache: SongIndexEntry[] | null = null;
   private inFlight: Promise<SongIndexEntry[]> | null = null;
 
-  async listSongs(): Promise<SongIndexEntry[]> {
-    if (this.indexCache) return this.indexCache;
-    if (this.inFlight) return this.inFlight;
+  /**
+   * O índice vem do service worker quando não há rede, então uma falha aqui é
+   * um problema de verdade — e é propagada em vez de virar lista vazia, que a
+   * tela mostraria como "Nenhuma música encontrada".
+   */
+  async listSongs(): Promise<LibraryLoad> {
+    if (this.indexCache) return { entries: this.indexCache, fromCache: false };
 
-    this.inFlight = fetch('/songs/index.json')
+    this.inFlight ??= fetch('/songs/index.json')
       .then((res) => {
         if (!res.ok) throw new Error('Falha ao buscar o índice de músicas');
         return res.json() as Promise<SongIndexEntry[]>;
@@ -29,15 +37,11 @@ class StaticSongRepository implements SongRepository {
         this.indexCache = index;
         return index;
       })
-      .catch((err) => {
-        console.error('Erro ao carregar o índice de músicas:', err);
-        return [];
-      })
       .finally(() => {
         this.inFlight = null;
       });
 
-    return this.inFlight;
+    return { entries: await this.inFlight, fromCache: false };
   }
 
   async getSource(id: string): Promise<string> {

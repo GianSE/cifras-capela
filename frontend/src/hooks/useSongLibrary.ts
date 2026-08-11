@@ -13,6 +13,8 @@ export function useSongLibrary() {
   const [songs, setSongs] = useState<SongIndexEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Data da cópia em cache quando a rede falhou (nulo = dados frescos). */
+  const [staleSince, setStaleSince] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -20,11 +22,12 @@ export function useSongLibrary() {
     const load = () => {
       songService
         .getSongIndex()
-        .then((index) => {
+        .then(({ entries: index, fromCache, cachedAt }) => {
           if (!mounted) return;
           setSongs(index);
           searchEngine.init(index);
           setError(null);
+          setStaleSince(fromCache ? (cachedAt ?? '') : null);
           setIsLoading(false);
         })
         .catch(() => {
@@ -44,11 +47,12 @@ export function useSongLibrary() {
   }, []);
 
   const reload = useCallback(() => {
-    songService.getSongIndex().then((index) => {
+    songService.getSongIndex().then(({ entries: index, fromCache, cachedAt }) => {
       setSongs(index);
       searchEngine.init(index);
+      setStaleSince(fromCache ? (cachedAt ?? '') : null);
     });
   }, []);
 
-  return { songs, isLoading, error, reload };
+  return { songs, isLoading, error, staleSince, reload };
 }

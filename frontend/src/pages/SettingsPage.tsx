@@ -1,12 +1,25 @@
 import { Link } from 'react-router';
-import { Settings, Sun, Moon, Monitor, Trash2, Info, ListMusic, LogOut } from 'lucide-react';
+import {
+  Settings,
+  Sun,
+  Moon,
+  Monitor,
+  Trash2,
+  Info,
+  ListMusic,
+  LogOut,
+  Download,
+  Check,
+} from 'lucide-react';
 import { usePreferences } from '@/hooks/usePreferences';
 import { usePlaylists } from '@/hooks/usePlaylists';
 import { useAuth } from '@/hooks/useAuth';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { songService } from '@/services/song-service';
 import { preferencesStorage, type ThemePreference } from '@/lib/storage/preferences';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SectionTitle } from '@/components/layout/SectionTitle';
+import { OfflineNotice } from '@/components/layout/OfflineNotice';
 import { Button } from '@/components/ui/button';
 import { SignInForm } from '@/components/auth/SignInForm';
 import { Switch } from '@/components/ui/switch';
@@ -35,6 +48,13 @@ export function SettingsPage() {
       />
 
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-7 px-4 py-6 md:px-8">
+        <OfflineNotice />
+
+        {/* No aparelho */}
+        <Section title="No aparelho">
+          <InstallRow />
+        </Section>
+
         {/* Aparência */}
         <Section title="Aparência">
           <Row label="Tema">
@@ -203,6 +223,43 @@ function AccountRow() {
       <p className="text-sm text-muted-foreground">Entre para criar e editar músicas.</p>
       <SignInForm />
     </div>
+  );
+}
+
+/**
+ * Instalar na tela inicial — é o que faz o app abrir em tela cheia e
+ * funcionar sem rede. O iOS não expõe o evento de instalação, então lá só dá
+ * para explicar o caminho manual.
+ */
+function InstallRow() {
+  const { canInstall, installed, promptInstall } = useInstallPrompt();
+
+  if (installed) {
+    return (
+      <Row label="App instalado" hint="Abre em tela cheia e funciona sem internet.">
+        <Check className="size-5 text-gold-600 dark:text-gold-400" />
+      </Row>
+    );
+  }
+
+  if (canInstall) {
+    return (
+      <Row
+        label="Instalar na tela inicial"
+        hint="Abre em tela cheia e funciona sem internet."
+      >
+        <Button size="sm" className="gap-1.5" onClick={() => void promptInstall()}>
+          <Download className="size-4" /> Instalar
+        </Button>
+      </Row>
+    );
+  }
+
+  return (
+    <p className="text-sm text-muted-foreground">
+      Para usar sem internet, adicione o app à tela inicial pelo menu do navegador — no
+      iPhone, <strong className="text-foreground">Compartilhar › Adicionar à Tela de Início</strong>.
+    </p>
   );
 }
 

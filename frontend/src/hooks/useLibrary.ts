@@ -22,7 +22,7 @@ function byTitle(a: SongIndexEntry, b: SongIndexEntry): number {
  * A busca textual usa o MiniSearch; os demais filtros são aplicados por cima.
  */
 export function useLibrary(filter: LibraryFilter = {}) {
-  const { songs, isLoading, error } = useSongLibrary();
+  const { songs, isLoading, error, staleSince } = useSongLibrary();
   const { query = '', categories = [], ids } = filter;
 
   const allCategories = useMemo(() => {
@@ -51,5 +51,5 @@ export function useLibrary(filter: LibraryFilter = {}) {
     return list;
   }, [songs, query, categories, ids]);
 
-  return { songs, results, allCategories, isLoading, error };
+  return { songs, results, allCategories, isLoading, error, staleSince };
 }

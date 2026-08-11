@@ -12,7 +12,7 @@ import type { SongRow } from '@/lib/supabase/types';
 import type { SongIndexEntry } from '@/types/library';
 import { deriveIndexEntry } from '@/lib/library/derive';
 import { parse } from '@/lib/parser';
-import type { SaveSongInput, SongRepository } from './song-repository';
+import type { LibraryLoad, SaveSongInput, SongRepository } from './song-repository';
 
 const CACHE_KEY = 'cifras-capela:songs-cache';
 
@@ -65,7 +65,7 @@ function requireClient() {
 class SupabaseSongRepository implements SongRepository {
   readonly canWrite = true;
 
-  async listSongs(): Promise<SongIndexEntry[]> {
+  async listSongs(): Promise<LibraryLoad> {
     try {
       const { data, error } = await requireClient()
         .from('songs')
@@ -82,15 +82,16 @@ class SupabaseSongRepository implements SongRepository {
       for (const row of rows) sources[row.id] = row.source;
       writeCache({ entries, sources, cachedAt: new Date().toISOString() });
 
-      return entries;
+      return { entries, fromCache: false };
     } catch (err) {
       const cache = readCache();
       if (cache) {
         console.warn('Sem conexão com o Supabase — usando a biblioteca em cache.', err);
-        return cache.entries;
+        return { entries: cache.entries, fromCache: true, cachedAt: cache.cachedAt };
       }
-      console.error('Erro ao carregar a biblioteca:', err);
-      return [];
+      // Sem rede e sem cache não há o que mostrar: propaga, para a tela dizer
+      // que falhou em vez de fingir uma biblioteca vazia.
+      throw err instanceof Error ? err : new Error('Erro ao carregar a biblioteca.');
     }
   }
 
