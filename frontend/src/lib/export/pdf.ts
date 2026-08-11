@@ -20,10 +20,11 @@ const PAGE_MARGIN = 42;
 const BASE_FONT_SIZE = 10.5;
 const MIN_FONT_SIZE = 6.5;
 
-const COLOR_LYRIC: [number, number, number] = [23, 26, 30];
-const COLOR_CHORD: [number, number, number] = [168, 100, 0]; // âmbar legível no papel
-const COLOR_LABEL: [number, number, number] = [62, 92, 255]; // indigo
-const COLOR_MUTED: [number, number, number] = [110, 118, 132];
+// Mesma paleta mariana da tela, ajustada para o papel branco.
+const COLOR_LYRIC: [number, number, number] = [26, 28, 34];
+const COLOR_CHORD: [number, number, number] = [138, 99, 24]; // ouro velho (gold-700)
+const COLOR_LABEL: [number, number, number] = [29, 58, 107]; // azul do manto (navy-700)
+const COLOR_MUTED: [number, number, number] = [107, 114, 128];
 
 export interface PdfExportOptions {
   /** Nome do arquivo (sem extensão). Padrão: slug do título. */
@@ -284,7 +285,11 @@ export async function exportPlaylistToPdf(
     month: 'long',
     year: 'numeric',
   });
-  doc.text(`${songs.length} ${songs.length === 1 ? 'música' : 'músicas'}  ·  ${date}`, PAGE_MARGIN, y);
+  doc.text(
+    `${songs.length} ${songs.length === 1 ? 'música' : 'músicas'}  ·  ${date}`,
+    PAGE_MARGIN,
+    y,
+  );
   y += 16;
 
   doc.setDrawColor(220, 224, 230);

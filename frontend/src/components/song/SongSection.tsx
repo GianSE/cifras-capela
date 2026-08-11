@@ -16,12 +16,15 @@ export function SongSection({ section }: SongSectionProps) {
 
   return (
     <div className={sectionClass}>
+      {/* O ouro é dos acordes: o rótulo da seção fica no azul do manto e, no
+          tema escuro (onde o dourado é a cor de ação), num azul claro — senão
+          ele competiria com os acordes logo abaixo. */}
       {section.label && section.type !== 'none' && (
-        <div className="mb-2 text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">
+        <div className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-primary dark:text-navy-300">
           {section.label}
         </div>
       )}
-      
+
       <div className="flex flex-col">
         {section.lines.map((line, index) => (
           <SongLine key={index} line={line} />

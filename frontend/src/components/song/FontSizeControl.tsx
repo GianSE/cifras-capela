@@ -23,7 +23,7 @@ export function FontSizeControl({
   return (
     <div
       className={cn(
-        'flex items-center gap-1 rounded-xl border border-border bg-[var(--color-surface-container-high)] p-1',
+        'flex items-center gap-1 rounded-full border border-[var(--color-outline)] bg-[var(--color-surface-container-high)] p-1',
         className,
       )}
     >
@@ -36,9 +36,7 @@ export function FontSizeControl({
       >
         <Minus />
       </Button>
-      <span className="min-w-10 text-center text-sm font-semibold text-foreground">
-        {fontSize}
-      </span>
+      <span className="min-w-10 text-center text-sm font-semibold text-foreground">{fontSize}</span>
       <Button
         variant="ghost"
         size="icon-sm"

@@ -31,7 +31,7 @@ export interface UserPreferences {
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   preferFlats: false,
-  theme: 'dark',
+  theme: 'light',
   recentSongs: [],
   fontSize: 18,
   autoScrollSpeed: 1,

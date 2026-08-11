@@ -1,12 +1,16 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Cartão de superfície. Branco sobre o marfim (ou azul sobre o azul noturno),
+ * com a sombra tingida de azul que dá o relevo suave do site da Capela.
+ */
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
-        'rounded-xl border border-border bg-card text-card-foreground transition-colors',
+        'rounded-2xl border border-border bg-card text-card-foreground shadow-soft transition-colors',
         className,
       )}
       {...props}
@@ -24,11 +28,7 @@ CardHeader.displayName = 'CardHeader';
 
 const CardTitle = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn('font-semibold leading-tight tracking-tight text-foreground', className)}
-      {...props}
-    />
+    <div ref={ref} className={cn('font-display text-xl text-foreground', className)} {...props} />
   ),
 );
 CardTitle.displayName = 'CardTitle';

@@ -13,7 +13,7 @@ const NAV_ITEMS = [
 ] as const;
 
 /** Largura do trilho recolhido (só ícones). */
-const RAIL = 'w-[68px]';
+const RAIL = 'w-[72px]';
 
 /** Classes do rótulo: some quando recolhido, aparece suave ao expandir. */
 const LABEL =
@@ -22,7 +22,10 @@ const LABEL =
 /**
  * Sidebar em trilho: mostra apenas os ícones e expande ao passar o mouse.
  *
- * O `<aside>` é só um espaçador de 68px no fluxo; o painel de verdade é
+ * É a "espinha" azul do app — fica no azul do manto nos dois temas, para o
+ * conteúdo em marfim respirar ao lado e o dourado dos ativos se destacar.
+ *
+ * O `<aside>` é só um espaçador de 72px no fluxo; o painel de verdade é
  * `absolute` dentro dele, então ao expandir ele **sobrepõe** o conteúdo em vez
  * de empurrá-lo. Também expande via `focus-within` (navegação por teclado).
  */
@@ -41,19 +44,27 @@ export function Sidebar() {
         className={cn(
           'group absolute inset-y-0 left-0 z-40 flex flex-col overflow-hidden',
           RAIL,
-          'border-r border-border bg-[var(--color-surface-container-lowest)]',
+          'bg-[image:var(--gradient-blue)] text-navy-100',
+          // No tema escuro o fundo da página também é azul: o fio dourado é o
+          // que mantém o trilho separado do conteúdo.
+          'border-r border-gold-400/15 dark:border-gold-400/30',
           'transition-[width,box-shadow] duration-300 ease-out',
-          'hover:w-64 hover:shadow-2xl focus-within:w-64 focus-within:shadow-2xl',
+          'hover:w-64 hover:shadow-floating focus-within:w-64 focus-within:shadow-floating',
         )}
       >
         {/* Marca */}
-        <div className="flex h-16 shrink-0 items-center border-b border-border px-3">
+        <div className="flex h-20 shrink-0 items-center border-b border-white/10 px-3.5">
           <span className="grid size-11 shrink-0 place-items-center">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <span className="flex size-9 items-center justify-center rounded-full bg-[image:var(--gradient-gold)] text-navy-900 shadow-gilded">
               <Music className="size-5" />
             </span>
           </span>
-          <span className={cn(LABEL, 'font-bold tracking-tight text-foreground')}>Cifras</span>
+          <span className={cn(LABEL, 'flex flex-col leading-tight')}>
+            <strong className="font-display text-xl text-ivory">Cifras</strong>
+            <span className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-gold-400">
+              Capela
+            </span>
+          </span>
         </div>
 
         {/* Navegação */}
@@ -66,19 +77,19 @@ export function Sidebar() {
                 to={path}
                 title={name}
                 className={cn(
-                  'relative flex h-11 shrink-0 items-center rounded-lg transition-colors',
+                  'relative flex h-12 shrink-0 items-center rounded-full transition-colors',
                   active
-                    ? 'bg-[var(--color-surface-container)] text-primary'
-                    : 'text-muted-foreground hover:bg-[var(--color-surface-hover)] hover:text-foreground',
+                    ? 'bg-white/10 text-gold-300'
+                    : 'text-navy-200 hover:bg-white/6 hover:text-ivory',
                 )}
               >
                 {active && (
-                  <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary" />
+                  <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-[image:var(--gradient-gold)]" />
                 )}
-                <span className="grid size-11 shrink-0 place-items-center">
-                  <Icon className="size-5" />
+                <span className="grid size-12 shrink-0 place-items-center">
+                  <Icon className="size-5" strokeWidth={active ? 2.25 : 1.75} />
                 </span>
-                <span className={cn(LABEL, 'text-sm font-medium')}>{name}</span>
+                <span className={cn(LABEL, 'text-sm font-semibold')}>{name}</span>
               </Link>
             );
           })}
@@ -106,10 +117,8 @@ function SidebarAccount() {
   // Sem Supabase não há conta — mantém o rótulo simples.
   if (!isEnabled) {
     return (
-      <div className="shrink-0 border-t border-border p-3">
-        <span className={cn(LABEL, 'block px-1 text-xs text-muted-foreground')}>
-          Offline • local
-        </span>
+      <div className="shrink-0 border-t border-white/10 p-3">
+        <span className={cn(LABEL, 'block px-1 text-xs text-navy-200')}>Offline • local</span>
       </div>
     );
   }
@@ -119,24 +128,24 @@ function SidebarAccount() {
   const sub = isSignedIn ? email : 'Somente leitura';
 
   return (
-    <div className="shrink-0 border-t border-border p-3">
+    <div className="shrink-0 border-t border-white/10 p-3">
       <div className="flex items-center">
-        <span className="grid size-11 shrink-0 place-items-center" title={sub}>
-          <span className="flex size-8 items-center justify-center rounded-full bg-[var(--color-surface-container-high)] text-muted-foreground">
+        <span className="grid size-12 shrink-0 place-items-center" title={sub}>
+          <span className="flex size-9 items-center justify-center rounded-full border border-gold-400/30 bg-white/8 text-gold-300">
             <UserRound className="size-4" />
           </span>
         </span>
         <div className={cn(LABEL, 'flex min-w-0 flex-1 items-center gap-1')}>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{name}</p>
-            <p className="truncate text-xs text-muted-foreground">{sub}</p>
+            <p className="truncate text-sm font-semibold text-ivory">{name}</p>
+            <p className="truncate text-xs text-navy-200">{sub}</p>
           </div>
           <button
             type="button"
             onClick={() => void handleExit()}
             title="Sair"
             aria-label="Sair"
-            className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--color-surface-hover)] hover:text-foreground"
+            className="grid size-9 shrink-0 place-items-center rounded-full text-navy-200 transition-colors hover:bg-white/10 hover:text-gold-300"
           >
             <LogOut className="size-4" />
           </button>

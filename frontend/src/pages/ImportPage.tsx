@@ -28,6 +28,7 @@ import {
   type ImportedSong,
 } from '@/lib/import';
 import { SongRenderer } from '@/components/song/SongRenderer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { parse } from '@/lib/parser';
 import { Button } from '@/components/ui/button';
@@ -72,8 +73,18 @@ function draftToSource(d: Draft): string {
     title: d.title,
     artist: d.artist || undefined,
     key: d.key || undefined,
-    categories: d.categories ? d.categories.split(',').map((c) => c.trim()).filter(Boolean) : undefined,
-    tags: d.tags ? d.tags.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
+    categories: d.categories
+      ? d.categories
+          .split(',')
+          .map((c) => c.trim())
+          .filter(Boolean)
+      : undefined,
+    tags: d.tags
+      ? d.tags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : undefined,
     language: d.language || undefined,
     tempo: d.tempo ? Number.parseInt(d.tempo, 10) : undefined,
     capo: d.capo ? Number.parseInt(d.capo, 10) : undefined,
@@ -208,11 +219,7 @@ export function ImportPage() {
     setOcrProgress(null);
     try {
       const isImage = /\.(jpe?g|png|webp)$/i.test(file.name);
-      startBatch([
-        toDraft(
-          await importFile(file, isImage ? (f) => setOcrProgress(f) : undefined),
-        ),
-      ]);
+      startBatch([toDraft(await importFile(file, isImage ? (f) => setOcrProgress(f) : undefined))]);
     } finally {
       setLoading(false);
       setOcrProgress(null);
@@ -282,220 +289,222 @@ export function ImportPage() {
       title="Entre para importar músicas"
       description="Importar salva na sua biblioteca sincronizada, e isso exige login."
     >
-    <div className="mx-auto w-full max-w-3xl px-4 py-4 md:px-8 md:py-6">
-      <header className="mb-5 flex items-center gap-2">
-        <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Upload className="size-5" />
-        </div>
-        <h1 className="text-lg font-bold tracking-tight text-foreground">Importar cifra</h1>
-      </header>
-
-      {!draft ? (
-        <div className="flex flex-col gap-5">
-          {/* Upload de arquivo */}
-          <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border bg-card px-6 py-12 text-center transition-colors hover:border-primary">
-            {loading ? (
-              <Loader2 className="size-8 animate-spin text-primary" />
-            ) : (
-              <FileText className="size-8 text-muted-foreground" />
-            )}
-            <div>
-              <p className="font-semibold text-foreground">Selecione um arquivo</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                .txt · .md · .html · .json · .pdf · .cho · .jpg · .png
-              </p>
-              {loading && ocrProgress !== null && (
-                <p className="mt-1 text-xs text-primary">
-                  {ocrProgress < 1
-                    ? `Reconhecendo texto na imagem… ${Math.round(ocrProgress * 100)}%`
-                    : 'Nenhum acorde reconhecido — pedindo à IA para organizar…'}
-                </p>
-              )}
-            </div>
-            <input
-              type="file"
-              accept=".txt,.md,.markdown,.html,.htm,.json,.pdf,.cho,.chordpro,.chopro,.jpg,.jpeg,.png,.webp,text/*,application/json,application/pdf,image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleFile(file);
-              }}
-            />
-          </label>
-
-          {/* Colar texto */}
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <Label>Ou cole o texto</Label>
-              <select
-                value={pasteFormat}
-                onChange={(e) => setPasteFormat(e.target.value)}
-                className="h-9 rounded-md border border-border bg-[var(--color-surface-container-high)] px-2 text-sm text-foreground"
-              >
-                <option value="txt">Texto</option>
-                <option value="cho">ChordPro</option>
-                <option value="md">Markdown</option>
-                <option value="html">HTML</option>
-                <option value="json">JSON</option>
-              </select>
-            </div>
-            <Textarea
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              rows={8}
-              placeholder="Cole aqui a cifra (ex.: copiada do CifraClub)…"
-              className="font-mono"
-            />
-            <p className="mt-2 text-xs text-muted-foreground">
-              Cole o texto da cifra — acordes acima da letra viram inline, e Intro/Refrão são
-              reconhecidos. Para importar várias, separe-as com uma linha de{' '}
-              <code className="font-mono">---</code>.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button onClick={handlePaste} disabled={!pasteText.trim()} className="gap-1.5">
-                Analisar <ArrowRight className="size-4" />
-              </Button>
-              {aiAvailable && (
-                <Button
-                  variant="secondary"
-                  onClick={handleFormatAI}
-                  disabled={!pasteText.trim() || aiLoading}
-                  className="gap-1.5"
-                  title="Deixa a IA limpar e formatar (útil para textos bagunçados)"
-                >
-                  {aiLoading ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="size-4" />
-                  )}
-                  {aiLoading ? 'Formatando…' : 'Formatar com IA'}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Gerar música pela IA (buscar → escolher → gerar) */}
-          {aiAvailable && (
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <div className="mb-1 flex items-center gap-2">
-                <Wand2 className="size-4 text-primary" />
-                <Label>Ou peça a música à IA</Label>
-              </div>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Digite o nome e a IA lista as músicas que conhece — você escolhe a certa pela
-                primeira linha. Funciona melhor com hinos; sempre revise os acordes.
-              </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                <Input
-                  value={genTitle}
-                  onChange={(e) => setGenTitle(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && void handleSearchCandidates()}
-                  placeholder="Nome da música *"
-                />
-                <Input
-                  value={genArtist}
-                  onChange={(e) => setGenArtist(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && void handleSearchCandidates()}
-                  placeholder="Artista (opcional)"
-                />
-                <Input
-                  value={genKey}
-                  onChange={(e) => setGenKey(e.target.value)}
-                  placeholder="Tom (ex.: G)"
-                  className="sm:w-24"
-                  title="Tom desejado para gerar (opcional)"
-                />
-              </div>
-              <Button
-                onClick={handleSearchCandidates}
-                disabled={!genTitle.trim() || searchLoading || genLoading}
-                className="mt-3 gap-1.5"
-              >
-                {searchLoading ? (
-                  <Loader2 className="size-4 animate-spin" />
+      <>
+        <PageHeader
+          eyebrow="Biblioteca"
+          title="Importar cifra"
+          icon={Upload}
+          subtitle="Traga de um arquivo, de um texto colado ou de uma foto da folha"
+        />
+        <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8">
+          {!draft ? (
+            <div className="flex flex-col gap-5">
+              {/* Upload de arquivo */}
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[var(--color-outline)] bg-card px-6 py-12 text-center transition-colors hover:border-gold-500">
+                {loading ? (
+                  <Loader2 className="size-8 animate-spin text-gold-600 dark:text-gold-400" />
                 ) : (
-                  <Search className="size-4" />
+                  <FileText className="size-8 text-muted-foreground" />
                 )}
-                {searchLoading ? 'Buscando…' : 'Buscar músicas'}
-              </Button>
-
-              {/* Lista de candidatas */}
-              {candidates && (
-                <div className="mt-4">
-                  {candidates.length === 0 ? (
-                    <p className="rounded-lg bg-[var(--color-surface-container)] p-3 text-sm text-muted-foreground">
-                      A IA não conhece nenhuma música com esse nome com segurança. Tente colar a
-                      letra acima e usar <strong className="text-foreground">Formatar com IA</strong>.
+                <div>
+                  <p className="font-display text-xl text-foreground">Selecione um arquivo</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    .txt · .md · .html · .json · .pdf · .cho · .jpg · .png
+                  </p>
+                  {loading && ocrProgress !== null && (
+                    <p className="mt-1 text-xs text-primary">
+                      {ocrProgress < 1
+                        ? `Reconhecendo texto na imagem… ${Math.round(ocrProgress * 100)}%`
+                        : 'Nenhum acorde reconhecido — pedindo à IA para organizar…'}
                     </p>
-                  ) : (
-                    <>
-                      <p className="mb-2 text-xs font-medium text-muted-foreground">
-                        Escolha a sua (clique para gerar):
-                      </p>
-                      <ul className="flex flex-col gap-2">
-                        {candidates.map((c, i) => (
-                          <li key={i}>
-                            <button
-                              type="button"
-                              onClick={() => void handleGenerateCandidate(c)}
-                              disabled={genLoading}
-                              className="flex w-full items-start gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
-                            >
-                              <span className="min-w-0 flex-1">
-                                <span className="flex flex-wrap items-center gap-x-2">
-                                  <span className="font-medium text-foreground">{c.title}</span>
-                                  {c.artist && (
-                                    <span className="text-xs text-muted-foreground">
-                                      {c.artist}
-                                    </span>
-                                  )}
-                                </span>
-                                {c.firstLine && (
-                                  <span className="mt-0.5 block truncate text-sm italic text-muted-foreground">
-                                    “{c.firstLine}…”
-                                  </span>
-                                )}
-                              </span>
-                              <ConfidenceBadge level={c.confidence} />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                      {genLoading && (
-                        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Loader2 className="size-3.5 animate-spin" /> Gerando a cifra…
-                        </p>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept=".txt,.md,.markdown,.html,.htm,.json,.pdf,.cho,.chordpro,.chopro,.jpg,.jpeg,.png,.webp,text/*,application/json,application/pdf,image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleFile(file);
+                  }}
+                />
+              </label>
+
+              {/* Colar texto */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <Label>Ou cole o texto</Label>
+                  <select
+                    value={pasteFormat}
+                    onChange={(e) => setPasteFormat(e.target.value)}
+                    className="h-9 rounded-md border border-border bg-[var(--color-surface-container-high)] px-2 text-sm text-foreground"
+                  >
+                    <option value="txt">Texto</option>
+                    <option value="cho">ChordPro</option>
+                    <option value="md">Markdown</option>
+                    <option value="html">HTML</option>
+                    <option value="json">JSON</option>
+                  </select>
+                </div>
+                <Textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  rows={8}
+                  placeholder="Cole aqui a cifra (ex.: copiada do CifraClub)…"
+                  className="font-mono"
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Cole o texto da cifra — acordes acima da letra viram inline, e Intro/Refrão são
+                  reconhecidos. Para importar várias, separe-as com uma linha de{' '}
+                  <code className="font-mono">---</code>.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button onClick={handlePaste} disabled={!pasteText.trim()} className="gap-1.5">
+                    Analisar <ArrowRight className="size-4" />
+                  </Button>
+                  {aiAvailable && (
+                    <Button
+                      variant="secondary"
+                      onClick={handleFormatAI}
+                      disabled={!pasteText.trim() || aiLoading}
+                      className="gap-1.5"
+                      title="Deixa a IA limpar e formatar (útil para textos bagunçados)"
+                    >
+                      {aiLoading ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="size-4" />
                       )}
-                    </>
+                      {aiLoading ? 'Formatando…' : 'Formatar com IA'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Gerar música pela IA (buscar → escolher → gerar) */}
+              {aiAvailable && (
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+                  <div className="mb-1 flex items-center gap-2">
+                    <Wand2 className="size-4 text-gold-600 dark:text-gold-400" />
+                    <Label>Ou peça a música à IA</Label>
+                  </div>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Digite o nome e a IA lista as músicas que conhece — você escolhe a certa pela
+                    primeira linha. Funciona melhor com hinos; sempre revise os acordes.
+                  </p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                    <Input
+                      value={genTitle}
+                      onChange={(e) => setGenTitle(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && void handleSearchCandidates()}
+                      placeholder="Nome da música *"
+                    />
+                    <Input
+                      value={genArtist}
+                      onChange={(e) => setGenArtist(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && void handleSearchCandidates()}
+                      placeholder="Artista (opcional)"
+                    />
+                    <Input
+                      value={genKey}
+                      onChange={(e) => setGenKey(e.target.value)}
+                      placeholder="Tom (ex.: G)"
+                      className="sm:w-24"
+                      title="Tom desejado para gerar (opcional)"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleSearchCandidates}
+                    disabled={!genTitle.trim() || searchLoading || genLoading}
+                    className="mt-3 gap-1.5"
+                  >
+                    {searchLoading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Search className="size-4" />
+                    )}
+                    {searchLoading ? 'Buscando…' : 'Buscar músicas'}
+                  </Button>
+
+                  {/* Lista de candidatas */}
+                  {candidates && (
+                    <div className="mt-4">
+                      {candidates.length === 0 ? (
+                        <p className="rounded-lg bg-[var(--color-surface-container)] p-3 text-sm text-muted-foreground">
+                          A IA não conhece nenhuma música com esse nome com segurança. Tente colar a
+                          letra acima e usar{' '}
+                          <strong className="text-foreground">Formatar com IA</strong>.
+                        </p>
+                      ) : (
+                        <>
+                          <p className="mb-2 text-xs font-medium text-muted-foreground">
+                            Escolha a sua (clique para gerar):
+                          </p>
+                          <ul className="flex flex-col gap-2">
+                            {candidates.map((c, i) => (
+                              <li key={i}>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleGenerateCandidate(c)}
+                                  disabled={genLoading}
+                                  className="flex w-full items-start gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+                                >
+                                  <span className="min-w-0 flex-1">
+                                    <span className="flex flex-wrap items-center gap-x-2">
+                                      <span className="font-medium text-foreground">{c.title}</span>
+                                      {c.artist && (
+                                        <span className="text-xs text-muted-foreground">
+                                          {c.artist}
+                                        </span>
+                                      )}
+                                    </span>
+                                    {c.firstLine && (
+                                      <span className="mt-0.5 block truncate text-sm italic text-muted-foreground">
+                                        “{c.firstLine}…”
+                                      </span>
+                                    )}
+                                  </span>
+                                  <ConfidenceBadge level={c.confidence} />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                          {genLoading && (
+                            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Loader2 className="size-3.5 animate-spin" /> Gerando a cifra…
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
             </div>
+          ) : (
+            <ReviewForm
+              draft={draft}
+              position={total - queue.length}
+              total={total}
+              onUpdate={update}
+              onOpenEditor={openInEditor}
+              onDownload={download}
+              onSave={save}
+              onSkip={advance}
+              saving={saving}
+              saveError={saveError}
+              aiAvailable={aiAvailable}
+              aiLoading={aiLoading}
+              onReformatAI={handleReformatAI}
+              onRestart={() => {
+                setDraft(null);
+                setQueue([]);
+                setTotal(0);
+              }}
+            />
           )}
         </div>
-      ) : (
-        <ReviewForm
-          draft={draft}
-          position={total - queue.length}
-          total={total}
-          onUpdate={update}
-          onOpenEditor={openInEditor}
-          onDownload={download}
-          onSave={save}
-          onSkip={advance}
-          saving={saving}
-          saveError={saveError}
-          aiAvailable={aiAvailable}
-          aiLoading={aiLoading}
-          onReformatAI={handleReformatAI}
-          onRestart={() => {
-            setDraft(null);
-            setQueue([]);
-            setTotal(0);
-          }}
-        />
-      )}
-    </div>
+      </>
     </RequireAuth>
   );
 }
@@ -601,16 +610,27 @@ function ReviewForm({
           <Input value={draft.key} onChange={(e) => onUpdate({ key: e.target.value })} />
         </Field>
         <Field label="Categorias (vírgula)">
-          <Input value={draft.categories} onChange={(e) => onUpdate({ categories: e.target.value })} />
+          <Input
+            value={draft.categories}
+            onChange={(e) => onUpdate({ categories: e.target.value })}
+          />
         </Field>
         <Field label="Tags (vírgula)">
           <Input value={draft.tags} onChange={(e) => onUpdate({ tags: e.target.value })} />
         </Field>
         <Field label="BPM">
-          <Input value={draft.tempo} inputMode="numeric" onChange={(e) => onUpdate({ tempo: e.target.value })} />
+          <Input
+            value={draft.tempo}
+            inputMode="numeric"
+            onChange={(e) => onUpdate({ tempo: e.target.value })}
+          />
         </Field>
         <Field label="Capo">
-          <Input value={draft.capo} inputMode="numeric" onChange={(e) => onUpdate({ capo: e.target.value })} />
+          <Input
+            value={draft.capo}
+            inputMode="numeric"
+            onChange={(e) => onUpdate({ capo: e.target.value })}
+          />
         </Field>
       </div>
 

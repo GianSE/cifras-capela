@@ -5,6 +5,8 @@ import { usePlaylists } from '@/hooks/usePlaylists';
 import { useAuth } from '@/hooks/useAuth';
 import { songService } from '@/services/song-service';
 import { preferencesStorage, type ThemePreference } from '@/lib/storage/preferences';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { SectionTitle } from '@/components/layout/SectionTitle';
 import { Button } from '@/components/ui/button';
 import { SignInForm } from '@/components/auth/SignInForm';
 import { Switch } from '@/components/ui/switch';
@@ -24,28 +26,28 @@ export function SettingsPage() {
   const transposedCount = Object.keys(prefs.transpositions).length;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-4 md:px-8 md:py-6">
-      <header className="mb-6 flex items-center gap-2">
-        <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Settings className="size-5" />
-        </div>
-        <h1 className="text-lg font-bold tracking-tight text-foreground">Configurações</h1>
-      </header>
+    <>
+      <PageHeader
+        eyebrow="Preferências"
+        title="Configurações"
+        icon={Settings}
+        subtitle="Aparência, música e dados guardados neste aparelho"
+      />
 
-      <div className="flex flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-7 px-4 py-6 md:px-8">
         {/* Aparência */}
         <Section title="Aparência">
           <Row label="Tema">
-            <div className="flex gap-1 rounded-lg border border-border p-1">
+            <div className="flex gap-1 rounded-full bg-[var(--color-surface-container-high)] p-1">
               {THEMES.map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => preferencesStorage.update({ theme: value })}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                    'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors',
                     prefs.theme === value
-                      ? 'bg-primary text-primary-foreground'
+                      ? 'bg-[image:var(--gradient-gold)] text-navy-900 shadow-gilded'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
@@ -135,8 +137,8 @@ export function SettingsPage() {
         </Section>
 
         {/* Sobre */}
-        <div className="flex items-start gap-2 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-          <Info className="mt-0.5 size-4 shrink-0" />
+        <div className="flex items-start gap-2.5 rounded-2xl border border-gold-500/30 bg-[color-mix(in_srgb,var(--color-gold-400)_8%,transparent)] p-4 text-sm text-muted-foreground">
+          <Info className="mt-0.5 size-4 shrink-0 text-gold-600 dark:text-gold-400" />
           <p>
             <strong className="text-foreground">Minha Biblioteca de Cifras</strong> — funciona
             offline. Preferências, playlists e tons ficam neste dispositivo.{' '}
@@ -146,7 +148,7 @@ export function SettingsPage() {
           </p>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -192,8 +194,8 @@ function AccountRow() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="mb-2 text-sm font-semibold text-muted-foreground">{title}</h2>
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+      <SectionTitle>{title}</SectionTitle>
+      <div className="flex flex-col gap-3.5 rounded-2xl border border-border bg-card p-5 shadow-soft">
         {children}
       </div>
     </section>

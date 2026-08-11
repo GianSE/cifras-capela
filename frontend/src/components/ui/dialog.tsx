@@ -15,7 +15,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-[var(--z-modal)] bg-black/60 backdrop-blur-sm data-[state=open]:animate-fade-in',
+      'fixed inset-0 z-[var(--z-modal)] bg-navy-950/55 backdrop-blur-sm data-[state=open]:animate-fade-in',
       className,
     )}
     {...props}
@@ -32,13 +32,15 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 z-[var(--z-modal)] grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border border-border bg-popover p-6 text-popover-foreground shadow-2xl animate-scale-in',
+        'fixed left-1/2 top-1/2 z-[var(--z-modal)] grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl border border-border bg-popover p-6 text-popover-foreground shadow-floating animate-scale-in',
+        /* Fio dourado no topo — a mesma assinatura das faixas azuis. */
+        'before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-[image:var(--gradient-gold)] before:content-[""]',
         className,
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-[var(--color-text-muted)] opacity-80 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-[var(--color-text-muted)] opacity-80 transition-opacity hover:opacity-100">
         <X className="size-4" />
         <span className="sr-only">Fechar</span>
       </DialogPrimitive.Close>
@@ -66,7 +68,7 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn('text-lg font-semibold text-foreground', className)}
+    className={cn('font-display text-2xl text-foreground', className)}
     {...props}
   />
 ));

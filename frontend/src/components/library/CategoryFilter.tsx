@@ -1,4 +1,3 @@
-import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CategoryFilterProps {
@@ -6,32 +5,58 @@ interface CategoryFilterProps {
   /** Categoria ativa (seleção única) ou null para "todas". */
   active: string | null;
   onChange: (value: string | null) => void;
+  /** Sobre a faixa azul do cabeçalho: inverte as cores das pastilhas. */
+  onDark?: boolean;
   className?: string;
 }
 
-/** Menu suspenso para filtrar por categoria (seleção única, só categorias existentes). */
-export function CategoryFilter({ options, active, onChange, className }: CategoryFilterProps) {
+/**
+ * Filtro de categoria em pastilhas roláveis (seleção única). A ativa recebe o
+ * dourado; as demais ficam discretas, para a lista de músicas continuar sendo
+ * o assunto principal da tela.
+ */
+export function CategoryFilter({
+  options,
+  active,
+  onChange,
+  onDark,
+  className,
+}: CategoryFilterProps) {
   if (options.length === 0) return null;
 
-  return (
-    <div className={cn('relative', className)}>
-      <select
-        value={active ?? ''}
-        onChange={(e) => onChange(e.target.value || null)}
-        aria-label="Filtrar por categoria"
+  const chip = (label: string, value: string | null) => {
+    const selected = active === value;
+    return (
+      <button
+        key={value ?? '__all__'}
+        type="button"
+        onClick={() => onChange(value)}
+        aria-pressed={selected}
         className={cn(
-          'h-10 w-full appearance-none rounded-lg border border-input bg-[var(--color-surface-container-high)] px-3 py-2 pr-9 text-sm capitalize text-foreground transition-colors',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent',
+          'shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold capitalize transition-colors',
+          selected
+            ? 'bg-[image:var(--gradient-gold)] text-navy-900 shadow-gilded'
+            : onDark
+              ? 'border border-white/20 text-navy-100 hover:border-gold-400/50 hover:text-ivory'
+              : 'border border-[var(--color-outline)] text-muted-foreground hover:border-gold-500 hover:text-foreground',
         )}
       >
-        <option value="">Todas as categorias</option>
-        {options.map((option) => (
-          <option key={option} value={option} className="capitalize">
-            {option}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        {label}
+      </button>
+    );
+  };
+
+  return (
+    <div
+      role="group"
+      aria-label="Filtrar por categoria"
+      className={cn(
+        'flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        className,
+      )}
+    >
+      {chip('Todas', null)}
+      {options.map((option) => chip(option, option))}
     </div>
   );
 }

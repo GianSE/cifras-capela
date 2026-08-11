@@ -28,13 +28,16 @@ export function RequireAuth({
   if (needsLogin) {
     return (
       <div className="mx-auto w-full max-w-md px-4 py-10">
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Lock className="size-5" />
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+          <div aria-hidden className="h-[3px] bg-[image:var(--gradient-gold)]" />
+          <div className="p-6">
+            <div className="mb-3 flex size-11 items-center justify-center rounded-full bg-navy-700 text-gold-300">
+              <Lock className="size-5" />
+            </div>
+            <h1 className="font-display text-2xl text-foreground">{title}</h1>
+            <p className="mb-4 mt-1 text-sm text-muted-foreground">{description}</p>
+            <SignInForm />
           </div>
-          <h1 className="text-lg font-bold tracking-tight text-foreground">{title}</h1>
-          <p className="mb-4 mt-1 text-sm text-muted-foreground">{description}</p>
-          <SignInForm />
         </div>
       </div>
     );

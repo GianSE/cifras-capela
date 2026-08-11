@@ -17,6 +17,8 @@ interface AddToPlaylistProps {
   songId: string;
   /** Renderiza como botão de ícone (leitor) ou botão com rótulo. */
   variant?: 'icon' | 'button';
+  /** Sobre a barra azul do leitor: clareia o ícone para contrastar. */
+  onDark?: boolean;
   className?: string;
 }
 
@@ -24,7 +26,7 @@ interface AddToPlaylistProps {
  * Adiciona/remove a música de playlists. Marcar/desmarcar é instantâneo, e dá
  * para criar uma playlist nova já com a música dentro.
  */
-export function AddToPlaylist({ songId, variant = 'icon', className }: AddToPlaylistProps) {
+export function AddToPlaylist({ songId, variant = 'icon', onDark, className }: AddToPlaylistProps) {
   const playlists = usePlaylists();
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -45,12 +47,12 @@ export function AddToPlaylist({ songId, variant = 'icon', className }: AddToPlay
             variant="ghost"
             size="icon"
             aria-label="Adicionar a uma playlist"
-            className={className}
+            className={cn(onDark && 'text-navy-100 hover:bg-white/10 hover:text-ivory', className)}
           >
-            <ListPlus className={cn(inAny && 'text-primary')} />
+            <ListPlus className={cn(inAny && (onDark ? 'text-gold-300' : 'text-accent'))} />
           </Button>
         ) : (
-          <Button variant="secondary" size="sm" className={cn('gap-1.5', className)}>
+          <Button variant="outline" size="sm" className={cn('gap-1.5', className)}>
             <ListPlus className="size-4" /> Playlist
           </Button>
         )}
@@ -75,12 +77,14 @@ export function AddToPlaylist({ songId, variant = 'icon', className }: AddToPlay
                         : playlistStorage.addSong(playlist.id, songId)
                     }
                     aria-pressed={included}
-                    className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
+                    className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
                   >
                     <span
                       className={cn(
-                        'grid size-5 shrink-0 place-items-center rounded border',
-                        included ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
+                        'grid size-5 shrink-0 place-items-center rounded-md border transition-colors',
+                        included
+                          ? 'border-gold-500 bg-[image:var(--gradient-gold)] text-navy-900'
+                          : 'border-[var(--color-outline)]',
                       )}
                     >
                       {included && <Check className="size-3.5" />}

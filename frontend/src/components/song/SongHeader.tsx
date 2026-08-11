@@ -17,13 +17,11 @@ export function SongHeader({ metadata, displayedKey, capo }: SongHeaderProps) {
   const { title, artist, tempo, time, categories } = metadata;
 
   return (
-    <header className="mb-6">
-      <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
-        {title}
-      </h1>
+    <header className="mb-7">
+      <h1 className="font-display text-4xl text-foreground sm:text-5xl">{title}</h1>
       {artist && <p className="mt-1 text-base font-medium text-muted-foreground">{artist}</p>}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         {displayedKey && (
           <Badge variant="accent" className="gap-1 text-sm">
             <Music2 className="size-3.5" /> {displayedKey}
@@ -50,6 +48,9 @@ export function SongHeader({ metadata, displayedKey, capo }: SongHeaderProps) {
           </Badge>
         ))}
       </div>
+
+      {/* Fio dourado separando o cabeçalho da cifra. */}
+      <hr className="rule-gold mt-5 border-0" />
     </header>
   );
 }

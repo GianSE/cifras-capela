@@ -81,26 +81,26 @@ export function SortableSongItem({
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       className={cn(
-        'flex cursor-pointer select-none items-center gap-3 rounded-xl border bg-card p-3 transition-colors',
+        'flex cursor-pointer select-none items-center gap-3 rounded-2xl border bg-card p-3.5 shadow-soft transition-colors',
         isDragging
-          ? 'relative z-10 border-primary opacity-95 shadow-2xl'
-          : 'border-transparent hover:border-border hover:bg-[var(--color-surface-container-high)]',
+          ? 'relative z-10 border-gold-500 opacity-95 shadow-floating'
+          : 'border-border hover:border-gold-400/60',
       )}
     >
-      <span className="w-5 shrink-0 text-center font-mono text-sm text-muted-foreground">
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-navy-700 font-mono text-sm font-semibold text-gold-300">
         {position}
       </span>
 
       <GripVertical className="size-4 shrink-0 text-muted-foreground" aria-hidden />
 
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-foreground">{song.title}</p>
+        <p className="font-display truncate text-lg text-foreground">{song.title}</p>
         {song.artist && <p className="truncate text-sm text-muted-foreground">{song.artist}</p>}
       </div>
 
       {/* Categoria da música, quando houver. */}
       {song.categories?.[0] && (
-        <span className="hidden shrink-0 rounded-full border border-border px-2 py-0.5 text-xs capitalize text-muted-foreground sm:inline-block">
+        <span className="hidden shrink-0 rounded-full border border-[var(--color-outline)] px-2.5 py-0.5 text-xs capitalize text-muted-foreground sm:inline-block">
           {song.categories[0]}
         </span>
       )}
@@ -108,11 +108,11 @@ export function SortableSongItem({
       {/* Tom de execução (o transposto), com o quanto foi movido do original. */}
       {(displayKey ?? song.key) && (
         <span className="flex shrink-0 items-center gap-1.5">
-          <span className="rounded-md bg-[var(--color-surface-container-highest)] px-2 py-1 font-mono text-sm font-semibold text-accent">
+          <span className="rounded-full border border-gold-500/40 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 font-mono text-sm font-semibold text-accent">
             {displayKey ?? song.key}
           </span>
           {semitones !== 0 && (
-            <span className="font-mono text-[11px] font-medium text-primary">
+            <span className="font-mono text-[11px] font-semibold text-primary">
               {semitones > 0 ? `+${semitones}` : semitones}
             </span>
           )}

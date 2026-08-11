@@ -1,114 +1,181 @@
 @import 'tailwindcss';
 
 /* =============================================================================
-   Minha Biblioteca de Cifras — Design System "Sonic Structure"
-   Dark-first (Stage), com tema claro derivado. Material-3 tonal.
-   Primary: Electric Indigo #3E5CFF · Chords: Stage Amber #FFB800
-   Fonts: Inter (UI/letra) · JetBrains Mono (acordes)
+   Minha Biblioteca de Cifras — Design System "Mariano"
+   Paleta da Capela N. S. de Fátima: marfim, azul do manto e dourado da coroa.
+
+   Claro (padrão): marfim #fbf9f4 · azul #1d3a6b · acordes em ouro velho
+   Escuro ("noite de Fátima"): azul #0b1f3a · ações e acordes em dourado
+
+   Títulos: Cormorant Garamond · Interface: Inter · Acordes: JetBrains Mono
    ============================================================================= */
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* -----------------------------------------------------------------------------
-   Tema ESCURO (padrão) — escala crua Sonic Structure + tokens semânticos shadcn
+   Escalas de marca — constantes nos dois temas.
+   Viram utilitários: `bg-navy-900`, `text-gold-400`, `border-sand`…
+   ----------------------------------------------------------------------------- */
+@theme {
+  /* Azul de Fátima (o manto) */
+  --color-navy-950: #061223;
+  --color-navy-900: #0b1f3a;
+  --color-navy-800: #122a4d;
+  --color-navy-700: #1d3a6b;
+  --color-navy-600: #2a4f8a;
+  --color-navy-500: #3d66a5;
+  --color-navy-400: #5b7bb0;
+  --color-navy-300: #8fa8ce;
+  --color-navy-200: #bccbe4;
+  --color-navy-100: #dce6f5;
+  --color-navy-50: #eef3fb;
+
+  /* Dourado (a coroa e os raios). O 700 é o único legível como texto no claro. */
+  --color-gold-700: #8a6318;
+  --color-gold-600: #b8862f;
+  --color-gold-500: #c79a3a;
+  --color-gold-400: #e9c46a;
+  --color-gold-300: #f0d391;
+  --color-gold-200: #f4e2b0;
+  --color-gold-100: #faf0d8;
+
+  /* Neutros quentes — marfim, não branco puro: mais acolhedor e menos ofuscante */
+  --color-ivory: #fbf9f4;
+  --color-cream: #f5f1e8;
+  --color-sand: #ece5d6;
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Raios generosos, como no site — pílulas e cantos macios */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.625rem;
+  --radius-full: 9999px;
+}
+
+/* -----------------------------------------------------------------------------
+   Tema CLARO (padrão) — marfim, azul e dourado
    ----------------------------------------------------------------------------- */
 :root {
-  color-scheme: dark;
-
-  /* Escala de superfícies (tonal, sem sombras) */
-  --color-surface: #0e141a;
-  --color-surface-dim: #0b1015;
-  --color-surface-bright: #333a40;
-  --color-surface-container-lowest: #080f14;
-  --color-surface-container-low: #161c22;
-  --color-surface-container: #1a2026;
-  --color-surface-container-high: #242b31;
-  --color-surface-container-highest: #2f353c;
-  --color-surface-elevated: #1a2026;
-  --color-surface-hover: rgba(255, 255, 255, 0.05);
-
-  /* Texto */
-  --color-on-primary: #ffffff;
-  --color-text-primary: #dde3eb;
-  --color-text-secondary: #c4c5d9;
-  --color-text-muted: #8e8fa2;
-  --color-text-disabled: #444656;
-
-  /* Contornos */
-  --color-outline: #444656;
-  --color-outline-variant: #2b3137;
-
-  /* Tokens semânticos (shadcn) — nomes "planos", expostos via @theme inline */
-  --background: #0e141a;
-  --foreground: #dde3eb;
-  --card: #161c22;
-  --card-foreground: #dde3eb;
-  --popover: #1a2026;
-  --popover-foreground: #dde3eb;
-  --primary: #3e5cff;
-  --primary-foreground: #ffffff;
-  --secondary: #242b31;
-  --secondary-foreground: #dde3eb;
-  --muted: #242b31;
-  --muted-foreground: #8e8fa2;
-  --accent: #ffb800; /* Stage Amber — cor dos acordes */
-  --accent-foreground: #412d00;
-  --destructive: #ff5449;
-  --destructive-foreground: #ffffff;
-  --border: #2b3137;
-  --input: #2b3137;
-  --ring: #3e5cff;
-}
-
-/* -----------------------------------------------------------------------------
-   Tema CLARO — sobrescreve apenas os valores de cor
-   ----------------------------------------------------------------------------- */
-.light {
   color-scheme: light;
 
-  --color-surface: #ffffff;
-  --color-surface-dim: #eceff3;
+  /* Superfícies: marfim de fundo, branco nos cartões */
+  --color-surface: #fbf9f4;
+  --color-surface-dim: #f0ece1;
   --color-surface-bright: #ffffff;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f6f8fa;
-  --color-surface-container: #eef1f5;
-  --color-surface-container-high: #e7ebf0;
-  --color-surface-container-highest: #dfe4ea;
+  --color-surface-container-low: #fdfcf8;
+  --color-surface-container: #f5f1e8;
+  --color-surface-container-high: #efeade;
+  --color-surface-container-highest: #ece5d6;
   --color-surface-elevated: #ffffff;
-  --color-surface-hover: rgba(15, 23, 42, 0.045);
+  --color-surface-hover: rgba(11, 31, 58, 0.05);
 
-  --color-on-primary: #ffffff;
-  --color-text-primary: #0e141a;
-  --color-text-secondary: #3f4b57;
-  --color-text-muted: #6b7684;
-  --color-text-disabled: #b3bcc7;
+  /* Texto */
+  --color-on-primary: #fbf9f4;
+  --color-text-primary: #1a1c22;
+  --color-text-secondary: #3a3f4a;
+  --color-text-muted: #6b7280;
+  --color-text-disabled: #a8adb8;
 
-  --color-outline: #c4ccd6;
-  --color-outline-variant: #e2e7ee;
+  /* Contornos */
+  --color-outline: rgba(26, 28, 34, 0.18);
+  --color-outline-variant: rgba(26, 28, 34, 0.1);
 
-  --background: #f7f9fb;
-  --foreground: #0e141a;
+  /* Sombras — tingidas de azul, como no site */
+  --shadow-sm: 0 1px 2px rgba(11, 31, 58, 0.06), 0 1px 3px rgba(11, 31, 58, 0.08);
+  --shadow-md: 0 4px 12px rgba(11, 31, 58, 0.08), 0 8px 24px rgba(11, 31, 58, 0.06);
+  --shadow-lg: 0 12px 32px rgba(11, 31, 58, 0.12), 0 20px 48px rgba(11, 31, 58, 0.1);
+  --shadow-gold: 0 8px 24px rgba(199, 154, 58, 0.28);
+
+  /* Gradientes de marca */
+  --gradient-gold: linear-gradient(135deg, #e9c46a, #b8862f);
+  --gradient-blue: linear-gradient(160deg, #122a4d, #0b1f3a);
+
+  /* Tokens semânticos (shadcn) */
+  --background: #fbf9f4;
+  --foreground: #1a1c22;
   --card: #ffffff;
-  --card-foreground: #0e141a;
+  --card-foreground: #1a1c22;
   --popover: #ffffff;
-  --popover-foreground: #0e141a;
-  --primary: #2f4bff;
-  --primary-foreground: #ffffff;
-  --secondary: #e7ebf0;
-  --secondary-foreground: #0e141a;
-  --muted: #eef1f5;
-  --muted-foreground: #6b7684;
-  --accent: #a86400; /* âmbar mais escuro p/ contraste em fundo claro */
-  --accent-foreground: #ffffff;
-  --destructive: #ba1a1a;
+  --popover-foreground: #1a1c22;
+  --primary: #1d3a6b; /* azul do manto — ações principais */
+  --primary-foreground: #fbf9f4;
+  --secondary: #ece5d6; /* areia */
+  --secondary-foreground: #122a4d;
+  --muted: #f5f1e8;
+  --muted-foreground: #6b7280;
+  --accent: #8a6318; /* ouro velho — cor dos acordes, legível no marfim */
+  --accent-foreground: #fbf9f4;
+  --destructive: #a8231d;
   --destructive-foreground: #ffffff;
-  --border: #e2e7ee;
-  --input: #e2e7ee;
-  --ring: #2f4bff;
+  --border: rgba(26, 28, 34, 0.1);
+  --input: rgba(26, 28, 34, 0.16);
+  --ring: #c79a3a; /* foco dourado, como no site */
 }
 
 /* -----------------------------------------------------------------------------
-   Mapeamento para utilitários Tailwind v4 + shadcn (theme-aware via inline)
+   Tema ESCURO — "noite de Fátima": azul profundo com dourado
+   ----------------------------------------------------------------------------- */
+.dark {
+  color-scheme: dark;
+
+  --color-surface: #0b1f3a;
+  --color-surface-dim: #061223;
+  --color-surface-bright: #24406b;
+  --color-surface-container-lowest: #061223;
+  --color-surface-container-low: #0e2643;
+  --color-surface-container: #122a4d;
+  --color-surface-container-high: #1a3459;
+  --color-surface-container-highest: #234066;
+  --color-surface-elevated: #122a4d;
+  --color-surface-hover: rgba(233, 196, 106, 0.1);
+
+  --color-on-primary: #0b1f3a;
+  --color-text-primary: #f2eee4;
+  --color-text-secondary: #cdd8ea;
+  --color-text-muted: #93a6c2;
+  --color-text-disabled: #5b7093;
+
+  --color-outline: rgba(233, 196, 106, 0.28);
+  --color-outline-variant: rgba(220, 230, 245, 0.14);
+
+  /* No escuro a profundidade vem do tom, não da sombra — ficam discretas. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.38);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.48);
+  --shadow-gold: 0 8px 24px rgba(233, 196, 106, 0.22);
+
+  --gradient-gold: linear-gradient(135deg, #f0d391, #c79a3a);
+  --gradient-blue: linear-gradient(160deg, #16345c, #061223);
+
+  --background: #0b1f3a;
+  --foreground: #f2eee4;
+  --card: #122a4d;
+  --card-foreground: #f2eee4;
+  --popover: #16345c;
+  --popover-foreground: #f2eee4;
+  --primary: #e9c46a; /* no azul, quem lidera é o dourado */
+  --primary-foreground: #0b1f3a;
+  --secondary: #1a3459;
+  --secondary-foreground: #f2eee4;
+  --muted: #16304f;
+  --muted-foreground: #93a6c2;
+  --accent: #f5d78e; /* acordes: dourado claro, alto contraste no azul */
+  --accent-foreground: #0b1f3a;
+  --destructive: #ff6b61;
+  --destructive-foreground: #2a0b09;
+  --border: rgba(220, 230, 245, 0.14);
+  --input: rgba(220, 230, 245, 0.2);
+  --ring: #e9c46a;
+}
+
+/* -----------------------------------------------------------------------------
+   Mapeamento para os utilitários do Tailwind (reativo ao tema)
    ----------------------------------------------------------------------------- */
 @theme inline {
   --color-background: var(--background);
@@ -131,15 +198,10 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
-  --radius-full: 9999px;
+  --shadow-soft: var(--shadow-sm);
+  --shadow-raised: var(--shadow-md);
+  --shadow-floating: var(--shadow-lg);
+  --shadow-gilded: var(--shadow-gold);
 }
 
 /* -----------------------------------------------------------------------------
@@ -151,6 +213,7 @@
   --z-modal: 200;
   --z-toast: 300;
 
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -182,31 +245,114 @@ body {
     color var(--transition-normal);
 }
 
-/* Scrollbar minimalista */
+/* Scrollbar discreta, com o polegar dourado do site */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-container-highest);
+  background: color-mix(in srgb, var(--color-gold-500) 55%, transparent);
   border-radius: var(--radius-full);
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-outline);
+  background: var(--color-gold-500);
+  background-clip: content-box;
 }
 
 ::selection {
-  background: var(--accent);
-  color: var(--accent-foreground);
+  background: var(--color-gold-200);
+  color: var(--color-navy-900);
+}
+.dark ::selection {
+  background: color-mix(in srgb, var(--color-gold-400) 35%, transparent);
+  color: var(--color-gold-100);
 }
 
+/* Foco visível único para o app inteiro: contorno dourado, como no site.
+   Sem `border-radius` aqui — o contorno já acompanha o raio do próprio
+   elemento, e forçá-lo esquadrinharia os botões em pílula ao focar. */
 :focus-visible {
-  outline: 2px solid var(--ring);
+  outline: 3px solid var(--ring);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
+}
+
+/* =============================================================================
+   Identidade — tipografia e ornamentos marianos
+   ============================================================================= */
+@layer components {
+  /* Título "de igreja": serifado, equilibrado, azul do manto. */
+  .font-display {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+  }
+
+  /* Palavra-chave acima do título: caixa alta, espaçada e dourada. */
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-gold-700);
+  }
+  .dark .eyebrow {
+    color: var(--color-gold-400);
+  }
+
+  /* Texto preenchido com o gradiente dourado (usar só em títulos grandes). */
+  .gold-text {
+    background: var(--gradient-gold);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Faixa azul do manto — cabeçalho de página, como o PageHero do site. */
+  .hero-blue {
+    background: var(--gradient-blue);
+    color: var(--color-ivory);
+  }
+  /* Fio dourado no pé da faixa: o "raio" que assina a marca. */
+  .hero-blue::after {
+    content: '';
+    display: block;
+    height: 3px;
+    background: var(--gradient-gold);
+  }
+
+  /* Cartão que levanta ao passar o mouse (assinatura do site). */
+  .card-lift {
+    box-shadow: var(--shadow-sm);
+    transition:
+      transform var(--transition-fast),
+      box-shadow var(--transition-fast),
+      border-color var(--transition-fast);
+  }
+  .card-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Divisória ornamental: fio dourado que esmaece nas pontas. */
+  .rule-gold {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(
+      to right,
+      transparent,
+      color-mix(in srgb, var(--color-gold-500) 70%, transparent),
+      transparent
+    );
+  }
 }
 
 /* =============================================================================
@@ -217,7 +363,7 @@ body {
     font-family: var(--font-sans);
   }
 
-  /* Acorde: âmbar, monoespaçado e semibold.
+  /* Acorde: dourado, monoespaçado e semibold.
      Sem tracking extra: a fonte mono já separa bem os glifos, e o espaçamento
      adicional afastava demais o número da letra ("D 7"). O `padding` lateral
      é o que garante respiro entre acordes vizinhos. */
@@ -249,22 +395,26 @@ body {
     color: var(--color-text-primary);
   }
 
-  /* Seções com barra de acento colorida */
+  /* Seções: o refrão ganha o fio azul do manto; a ponte, um fio discreto. */
   .section-chorus {
-    border-left: 2px solid var(--primary);
+    border-left: 3px solid var(--color-navy-600);
     padding-left: 1rem;
     margin-left: -1rem;
-    background-color: var(--color-surface-container-low);
-    border-radius: var(--radius-sm);
+    background-color: color-mix(in srgb, var(--color-navy-600) 6%, transparent);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+  .dark .section-chorus {
+    border-left-color: var(--color-gold-500);
+    background-color: color-mix(in srgb, var(--color-gold-400) 7%, transparent);
   }
   .section-bridge {
-    border-left: 2px solid var(--color-text-muted);
+    border-left: 3px solid var(--color-outline);
     padding-left: 1rem;
     margin-left: -1rem;
   }
 
   .glass-panel {
-    background: color-mix(in srgb, var(--card) 88%, transparent);
+    background: color-mix(in srgb, var(--card) 85%, transparent);
     backdrop-filter: blur(12px);
     border-top: 1px solid var(--border);
   }
@@ -294,7 +444,7 @@ body {
 }
 
 /* =============================================================================
-   Modo apresentação / palco
+   Modo apresentação / palco — sempre em azul noturno, esteja o app claro ou não
    ============================================================================= */
 .stage-mode .song-segment-lyric {
   line-height: 1.6;
@@ -354,5 +504,8 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .card-lift:hover {
+    transform: none;
   }
 }

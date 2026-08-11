@@ -6,28 +6,36 @@ interface SongCardProps {
   song: SongIndexEntry;
 }
 
-/** Card compacto (usado na fileira "Recentes"). */
+/**
+ * Card compacto da fileira "Abertas recentemente".
+ *
+ * Vai no azul do manto — assim a fileira de recentes se lê como um bloco só e
+ * dá o contraponto à lista de músicas em branco logo abaixo.
+ */
 export function SongCard({ song }: SongCardProps) {
   return (
     <Link
       to={`/musica/${song.id}`}
-      className="group relative flex h-32 w-44 shrink-0 flex-col justify-end overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:bg-[var(--color-surface-container-high)]"
+      className="group card-lift relative flex h-32 w-48 shrink-0 flex-col justify-end overflow-hidden rounded-2xl bg-[image:var(--gradient-blue)] p-4 text-ivory"
     >
-      {/* blob decorativo */}
-      <div className="absolute -right-6 -top-6 size-20 rounded-full bg-primary/20 blur-2xl transition-opacity group-hover:opacity-100" />
+      {/* Raio dourado no canto */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-8 -top-8 size-24 rounded-full bg-gold-400/25 blur-2xl transition-opacity duration-300 group-hover:bg-gold-400/40"
+      />
 
       {song.key && (
-        <span className="absolute right-3 top-3 rounded-md bg-[var(--color-surface-container-highest)] px-2 py-0.5 font-mono text-xs font-semibold text-accent">
+        <span className="absolute left-4 top-3.5 rounded-full border border-gold-400/35 px-2 py-0.5 font-mono text-xs font-semibold text-gold-300">
           {song.key}
         </span>
       )}
 
-      <div className="relative">
-        <p className="truncate font-semibold text-foreground">{song.title}</p>
-        {song.artist && <p className="truncate text-xs text-muted-foreground">{song.artist}</p>}
+      <div className="relative min-w-0">
+        <p className="font-display truncate text-lg text-ivory">{song.title}</p>
+        {song.artist && <p className="truncate text-xs text-navy-200">{song.artist}</p>}
       </div>
 
-      <span className="absolute bottom-3 right-3 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+      <span className="absolute bottom-3.5 right-3.5 flex size-9 items-center justify-center rounded-full bg-[image:var(--gradient-gold)] text-navy-900 opacity-0 shadow-gilded transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
         <Play className="size-4 fill-current" />
       </span>
     </Link>

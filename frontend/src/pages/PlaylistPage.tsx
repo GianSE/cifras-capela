@@ -25,6 +25,7 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { playlistStorage } from '@/lib/storage/playlists';
 import { transposeSong, getKeyFromSemitones } from '@/lib/transpose';
 import { SortableSongItem } from '@/components/playlist/SortableSongItem';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/library/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,9 +82,7 @@ export function PlaylistPage() {
       .filter((s) => !inPlaylist.has(s.id))
       .filter(
         (s) =>
-          !q ||
-          s.title.toLowerCase().includes(q) ||
-          (s.artist ?? '').toLowerCase().includes(q),
+          !q || s.title.toLowerCase().includes(q) || (s.artist ?? '').toLowerCase().includes(q),
       )
       .sort((a, b) => a.title.localeCompare(b.title, 'pt-BR'));
   }, [allSongs, playlist, query]);
@@ -151,209 +150,208 @@ export function PlaylistPage() {
   const openSong = (songId: string) => navigate(`/musica/${songId}?playlist=${playlist.id}`);
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-4 md:px-8 md:py-6">
-      {/* Cabeçalho */}
-      <header className="mb-5 flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild aria-label="Voltar">
-          <Link to="/playlists">
-            <ChevronLeft />
-          </Link>
-        </Button>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h1 className="truncate text-lg font-bold leading-tight tracking-tight text-foreground">
-              {playlist.name}
-            </h1>
-            <button
-              type="button"
-              onClick={() => {
-                setDraftName(playlist.name);
-                setRenaming(true);
-              }}
-              aria-label="Renomear playlist"
-              className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground"
+    <>
+      <PageHeader
+        eyebrow="Playlist"
+        title={playlist.name}
+        subtitle={`${songs.length} ${songs.length === 1 ? 'música' : 'músicas'} · arraste para ordenar`}
+        actions={
+          <>
+            <Button
+              variant="outline-dark"
+              className="gap-1.5"
+              onClick={handleExportPdf}
+              disabled={exporting || songs.length === 0}
+              title="Baixar todas as músicas num PDF só"
             >
-              <Pencil className="size-3.5" />
-            </button>
+              <FileDown className="size-4" />
+              <span className="hidden sm:inline">{exporting ? 'Gerando…' : 'PDF'}</span>
+            </Button>
+            <Button
+              variant="gold"
+              className="gap-1.5"
+              onClick={handlePlay}
+              disabled={songs.length === 0}
+            >
+              <Play className="size-4" /> <span className="hidden sm:inline">Tocar</span>
+            </Button>
+          </>
+        }
+      >
+        <div className="flex items-center gap-2">
+          <Button variant="outline-dark" size="sm" asChild className="gap-1.5">
+            <Link to="/playlists">
+              <ChevronLeft className="size-4" /> Playlists
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-navy-100 hover:bg-white/10 hover:text-ivory"
+            onClick={() => {
+              setDraftName(playlist.name);
+              setRenaming(true);
+            }}
+          >
+            <Pencil className="size-3.5" /> Renomear
+          </Button>
+        </div>
+      </PageHeader>
+
+      <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8">
+        {/* Lista reordenável */}
+        {isLoading ? (
+          <div className="space-y-2.5">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-[70px] animate-pulse rounded-2xl bg-muted" />
+            ))}
           </div>
-          <p className="text-xs text-muted-foreground">
-            {songs.length} {songs.length === 1 ? 'música' : 'músicas'}
-          </p>
-        </div>
+        ) : songs.length === 0 ? (
+          <EmptyState
+            icon={ListMusic}
+            title="Playlist vazia"
+            description="Adicione as músicas do dia e arraste os cards para definir a ordem."
+            action={
+              <Button variant="gold" className="gap-2" onClick={() => setAdding(true)}>
+                <Plus className="size-4" /> Adicionar músicas
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={songs.map((s) => s.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <ul className="flex flex-col gap-2.5">
+                  {songs.map((song, index) => {
+                    const semitones = transpositions[song.id] ?? 0;
+                    return (
+                      <SortableSongItem
+                        key={song.id}
+                        song={song}
+                        position={index + 1}
+                        semitones={semitones}
+                        displayKey={
+                          song.key
+                            ? getKeyFromSemitones(song.key, semitones, preferFlats)
+                            : undefined
+                        }
+                        onOpen={openSong}
+                        onRemove={(songId) => playlistStorage.removeSong(playlist.id, songId)}
+                      />
+                    );
+                  })}
+                </ul>
+              </SortableContext>
+            </DndContext>
 
-        <Button
-          variant="secondary"
-          size="sm"
-          className="gap-1.5"
-          onClick={handleExportPdf}
-          disabled={exporting || songs.length === 0}
-          title="Baixar todas as músicas num PDF só"
-        >
-          <FileDown className="size-4" />
-          <span className="hidden sm:inline">{exporting ? 'Gerando…' : 'PDF'}</span>
-        </Button>
-        <Button size="sm" className="gap-1.5" onClick={handlePlay} disabled={songs.length === 0}>
-          <Play className="size-4" /> <span className="hidden sm:inline">Tocar</span>
-        </Button>
-      </header>
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              Segure e arraste um card para mudar a ordem.
+            </p>
 
-      {/* Lista reordenável */}
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl bg-card" />
-          ))}
-        </div>
-      ) : songs.length === 0 ? (
-        <EmptyState
-          icon={ListMusic}
-          title="Playlist vazia"
-          description="Adicione as músicas do dia e arraste os cards para definir a ordem."
-          action={
-            <Button className="gap-2" onClick={() => setAdding(true)}>
+            <Button variant="outline" className="mt-4 w-full gap-2" onClick={() => setAdding(true)}>
               <Plus className="size-4" /> Adicionar músicas
             </Button>
-          }
-        />
-      ) : (
-        <>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={songs.map((s) => s.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <ul className="flex flex-col gap-2">
-                {songs.map((song, index) => {
-                  const semitones = transpositions[song.id] ?? 0;
-                  return (
-                    <SortableSongItem
-                      key={song.id}
-                      song={song}
-                      position={index + 1}
-                      semitones={semitones}
-                      displayKey={
-                        song.key
-                          ? getKeyFromSemitones(song.key, semitones, preferFlats)
-                          : undefined
-                      }
-                      onOpen={openSong}
-                      onRemove={(songId) => playlistStorage.removeSong(playlist.id, songId)}
-                    />
-                  );
-                })}
-              </ul>
-            </SortableContext>
-          </DndContext>
+          </>
+        )}
 
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            Segure e arraste um card para mudar a ordem.
-          </p>
+        {/* Adicionar músicas */}
+        <Dialog open={adding} onOpenChange={setAdding}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Adicionar músicas</DialogTitle>
+            </DialogHeader>
 
-          <Button
-            variant="secondary"
-            className="mt-4 w-full gap-2"
-            onClick={() => setAdding(true)}
-          >
-            <Plus className="size-4" /> Adicionar músicas
-          </Button>
-        </>
-      )}
+            <Input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por título ou artista…"
+            />
 
-      {/* Adicionar músicas */}
-      <Dialog open={adding} onOpenChange={setAdding}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adicionar músicas</DialogTitle>
-          </DialogHeader>
-
-          <Input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por título ou artista…"
-          />
-
-          <ul className="-mx-1 max-h-80 overflow-y-auto px-1">
-            {candidates.length === 0 ? (
-              <li className="py-6 text-center text-sm text-muted-foreground">
-                Nenhuma música disponível.
-              </li>
-            ) : (
-              candidates.map((song) => (
-                <li key={song.id}>
-                  <button
-                    type="button"
-                    onClick={() => playlistStorage.addSong(playlist.id, song.id)}
-                    className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
-                  >
-                    <Plus className="size-4 shrink-0 text-primary" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-foreground">
-                        {song.title}
+            <ul className="-mx-1 max-h-80 overflow-y-auto px-1">
+              {candidates.length === 0 ? (
+                <li className="py-6 text-center text-sm text-muted-foreground">
+                  Nenhuma música disponível.
+                </li>
+              ) : (
+                candidates.map((song) => (
+                  <li key={song.id}>
+                    <button
+                      type="button"
+                      onClick={() => playlistStorage.addSong(playlist.id, song.id)}
+                      className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
+                    >
+                      <Plus className="size-4 shrink-0 text-gold-600 dark:text-gold-400" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {song.title}
+                        </span>
+                        {song.artist && (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {song.artist}
+                          </span>
+                        )}
                       </span>
-                      {song.artist && (
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {song.artist}
+                      {song.key && (
+                        <span className="shrink-0 font-mono text-xs font-semibold text-accent">
+                          {song.key}
                         </span>
                       )}
-                    </span>
-                    {song.key && (
-                      <span className="shrink-0 font-mono text-xs font-semibold text-accent">
-                        {song.key}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button>Concluir</Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button>Concluir</Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* Renomear */}
-      <Dialog open={renaming} onOpenChange={setRenaming}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Renomear playlist</DialogTitle>
-          </DialogHeader>
-          <Input
-            autoFocus
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                playlistStorage.rename(playlist.id, draftName);
-                setRenaming(false);
-              }
-            }}
-          />
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="ghost">Cancelar</Button>
-            </DialogClose>
-            <Button
-              onClick={() => {
-                playlistStorage.rename(playlist.id, draftName);
-                setRenaming(false);
+        {/* Renomear */}
+        <Dialog open={renaming} onOpenChange={setRenaming}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Renomear playlist</DialogTitle>
+            </DialogHeader>
+            <Input
+              autoFocus
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  playlistStorage.rename(playlist.id, draftName);
+                  setRenaming(false);
+                }
               }}
-            >
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            />
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="ghost">Cancelar</Button>
+              </DialogClose>
+              <Button
+                onClick={() => {
+                  playlistStorage.rename(playlist.id, draftName);
+                  setRenaming(false);
+                }}
+              >
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </>
   );
 }

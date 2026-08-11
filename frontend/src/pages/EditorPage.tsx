@@ -143,8 +143,7 @@ export function EditorPage() {
     setSaving(true);
     setSaveError(null);
     try {
-      const id =
-        savedId ?? buildSongId(song.metadata.title, song.metadata.categories ?? []);
+      const id = savedId ?? buildSongId(song.metadata.title, song.metadata.categories ?? []);
       await songService.saveSong({ id, source });
       setSavedId(id);
       navigate(`/musica/${id}`);
@@ -199,22 +198,26 @@ export function EditorPage() {
     <div className="flex min-h-0 flex-1 flex-col">
       {/* `key` remonta o Toolbar quando o tom do frontmatter muda, para o
           seletor de campo harmônico acompanhar o tom da música. */}
-      <Toolbar key={song.metadata.key ?? ''} onInsert={insertAtCursor} songKey={song.metadata.key} />
+      <Toolbar
+        key={song.metadata.key ?? ''}
+        onInsert={insertAtCursor}
+        songKey={song.metadata.key}
+      />
       <textarea
         ref={textareaRef}
         value={source}
         onChange={(e) => setSource(e.target.value)}
         spellCheck={false}
-        className="min-h-0 flex-1 resize-none overflow-y-auto rounded-lg border border-border bg-[var(--color-surface-container-lowest)] p-4 font-mono text-sm leading-relaxed text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="min-h-0 flex-1 resize-none overflow-y-auto rounded-xl border border-input bg-[var(--color-surface-container-lowest)] p-4 font-mono text-sm leading-relaxed text-foreground focus-visible:border-gold-500"
         placeholder="Escreva a cifra no formato frontmatter + ChordPro…"
       />
     </div>
   );
 
   const preview = (
-    <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-card p-4">
+    <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border bg-card p-5 shadow-soft">
       {warnings.length > 0 && (
-        <div className="mb-3 flex flex-col gap-1 rounded-lg bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] p-3 text-xs text-foreground">
+        <div className="mb-3 flex flex-col gap-1 rounded-xl border border-gold-500/30 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] p-3 text-xs text-foreground">
           {warnings.map((w, i) => (
             <span key={i} className="flex items-start gap-1.5">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-accent" /> {w.message}
@@ -232,113 +235,113 @@ export function EditorPage() {
       title="Entre para editar músicas"
       description="Criar e editar cifras salva na sua biblioteca sincronizada, e isso exige login."
     >
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col px-4 py-4 md:px-8 md:py-6">
-      {/* Cabeçalho */}
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Music className="size-5" />
+      <div className="mx-auto flex h-full w-full max-w-6xl flex-col px-4 py-4 md:px-8 md:py-6">
+        {/* Cabeçalho — enxuto de propósito: no editor, a tela é do texto. */}
+        <header className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-10 items-center justify-center rounded-full bg-navy-700 text-gold-300">
+              <Music className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-display text-2xl text-foreground">
+                {savedId ? 'Editar música' : 'Nova música'}
+              </h1>
+              {savedId && <p className="truncate text-xs text-muted-foreground">{savedId}</p>}
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold leading-tight tracking-tight text-foreground">
-              {savedId ? 'Editar música' : 'Nova música'}
-            </h1>
-            {savedId && <p className="truncate text-xs text-muted-foreground">{savedId}</p>}
-          </div>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="gap-1.5">
-            <Link to="/importar">
-              <Upload className="size-4" /> <span className="hidden lg:inline">Importar</span>
-            </Link>
-          </Button>
-          {/* Exportar só faz sentido numa música já existente (não no template novo). */}
-          {savedId && (
-            <>
-              <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-1.5">
-                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                <span className="hidden lg:inline">{copied ? 'Copiado' : 'Copiar'}</span>
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleDownload} className="gap-1.5">
-                <Download className="size-4" /> <span className="hidden lg:inline">.cho</span>
-              </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="ghost" size="sm" className="gap-1.5">
+              <Link to="/importar">
+                <Upload className="size-4" /> <span className="hidden lg:inline">Importar</span>
+              </Link>
+            </Button>
+            {/* Exportar só faz sentido numa música já existente (não no template novo). */}
+            {savedId && (
+              <>
+                <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-1.5">
+                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                  <span className="hidden lg:inline">{copied ? 'Copiado' : 'Copiar'}</span>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleDownload} className="gap-1.5">
+                  <Download className="size-4" /> <span className="hidden lg:inline">.cho</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleExportPdf}
+                  disabled={exporting}
+                  className="gap-1.5"
+                  title="Exportar a cifra em PDF"
+                >
+                  <FileDown className="size-4" />
+                  <span className="hidden lg:inline">{exporting ? 'Gerando…' : 'PDF'}</span>
+                </Button>
+              </>
+            )}
+
+            {savedId && songService.canWrite && (
               <Button
-                variant="secondary"
+                variant="ghost"
                 size="sm"
-                onClick={handleExportPdf}
-                disabled={exporting}
-                className="gap-1.5"
-                title="Exportar a cifra em PDF"
+                onClick={handleDelete}
+                disabled={saving}
+                className="gap-1.5 text-destructive hover:text-destructive"
+                title="Excluir da biblioteca"
               >
-                <FileDown className="size-4" />
-                <span className="hidden lg:inline">{exporting ? 'Gerando…' : 'PDF'}</span>
+                <Trash2 className="size-4" /> <span className="hidden lg:inline">Excluir</span>
               </Button>
-            </>
-          )}
+            )}
 
-          {savedId && songService.canWrite && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDelete}
-              disabled={saving}
-              className="gap-1.5 text-destructive hover:text-destructive"
-              title="Excluir da biblioteca"
-            >
-              <Trash2 className="size-4" /> <span className="hidden lg:inline">Excluir</span>
-            </Button>
-          )}
+            {songService.canWrite && (
+              <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+                {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                {saving ? 'Salvando…' : 'Salvar'}
+              </Button>
+            )}
+          </div>
+        </header>
 
-          {songService.canWrite && (
-            <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
-              {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-              {saving ? 'Salvando…' : 'Salvar'}
-            </Button>
-          )}
-        </div>
-      </header>
+        {/* Avisos de escrita */}
+        {saveError && (
+          <p className="mb-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+            {saveError}
+          </p>
+        )}
+        {!songService.canWrite && (
+          <p className="mb-3 rounded-lg bg-[var(--color-surface-container)] p-3 text-xs text-muted-foreground">
+            Biblioteca somente leitura. Configure o Supabase para salvar músicas pelo app — por
+            enquanto, use <strong className="text-foreground">.cho</strong> e coloque o arquivo em{' '}
+            <code>frontend/public/songs/</code>.
+          </p>
+        )}
+        {/* Alternador Editar/Prévia — apenas no mobile */}
+        <Tabs
+          value={pane}
+          onValueChange={(v) => setPane(v as EditorPane)}
+          className="mb-3 md:hidden"
+        >
+          <TabsList className="self-start">
+            <TabsTrigger value="edit">Editar</TabsTrigger>
+            <TabsTrigger value="preview">Prévia</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-      {/* Avisos de escrita */}
-      {saveError && (
-        <p className="mb-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-          {saveError}
-        </p>
-      )}
-      {!songService.canWrite && (
-        <p className="mb-3 rounded-lg bg-[var(--color-surface-container)] p-3 text-xs text-muted-foreground">
-          Biblioteca somente leitura. Configure o Supabase para salvar músicas pelo app — por
-          enquanto, use <strong className="text-foreground">.cho</strong> e coloque o arquivo em{' '}
-          <code>frontend/public/songs/</code>.
-        </p>
-      )}
-      {/* Alternador Editar/Prévia — apenas no mobile */}
-      <Tabs
-        value={pane}
-        onValueChange={(v) => setPane(v as EditorPane)}
-        className="mb-3 md:hidden"
-      >
-        <TabsList className="self-start">
-          <TabsTrigger value="edit">Editar</TabsTrigger>
-          <TabsTrigger value="preview">Prévia</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {/*
+        {/*
         Desktop: split em 2 colunas. Mobile: mostra só o painel ativo.
         Cada painel é renderizado UMA vez (evita textarea duplicada/ref
         compartilhada). `min-h-0` é essencial: sem ele os itens do grid usam
         `min-height: auto` e crescem até a altura do conteúdo em vez de rolar.
       */}
-      <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
-        <div className={cn('flex min-h-0 flex-col', pane !== 'edit' && 'hidden md:flex')}>
-          {editor}
-        </div>
-        <div className={cn('flex min-h-0 flex-col', pane !== 'preview' && 'hidden md:flex')}>
-          {preview}
+        <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
+          <div className={cn('flex min-h-0 flex-col', pane !== 'edit' && 'hidden md:flex')}>
+            {editor}
+          </div>
+          <div className={cn('flex min-h-0 flex-col', pane !== 'preview' && 'hidden md:flex')}>
+            {preview}
+          </div>
         </div>
       </div>
-    </div>
     </RequireAuth>
   );
 }
@@ -358,7 +361,7 @@ function Toolbar({ onInsert, songKey }: { onInsert: (text: string) => void; song
           value={key}
           onChange={(e) => setKey(e.target.value)}
           title="Tom da música — mostra o campo harmônico (acordes que combinam)"
-          className="h-8 shrink-0 rounded-md border border-border bg-[var(--color-surface-container-high)] px-1.5 text-xs font-semibold text-foreground"
+          className="h-8 shrink-0 rounded-full border border-[var(--color-outline)] bg-[var(--color-surface-container-high)] px-2 text-xs font-semibold text-foreground"
         >
           {HARMONIC_KEYS.map((k) => (
             <option key={k} value={k}>
@@ -372,7 +375,7 @@ function Toolbar({ onInsert, songKey }: { onInsert: (text: string) => void; song
               key={c}
               type="button"
               onClick={() => onInsert(`[${c}]`)}
-              className="shrink-0 rounded-md bg-[var(--color-surface-container-high)] px-2.5 py-1 font-mono text-sm font-semibold text-accent transition-colors hover:bg-[var(--color-surface-container-highest)]"
+              className="shrink-0 rounded-full border border-gold-500/40 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 font-mono text-sm font-semibold text-accent transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
             >
               {c}
             </button>
@@ -387,7 +390,7 @@ function Toolbar({ onInsert, songKey }: { onInsert: (text: string) => void; song
             key={s}
             type="button"
             onClick={() => onInsert(`\n${s}\n`)}
-            className="shrink-0 rounded-md bg-[var(--color-surface-container-high)] px-2.5 py-1 font-mono text-xs text-primary transition-colors hover:bg-[var(--color-surface-container-highest)]"
+            className="shrink-0 rounded-full bg-[var(--color-surface-container-high)] px-2.5 py-1 font-mono text-xs font-semibold text-primary transition-colors hover:bg-[var(--color-surface-container-highest)]"
           >
             {s}
           </button>

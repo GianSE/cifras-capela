@@ -140,57 +140,62 @@ export function SongPage() {
     <div className="flex h-dvh flex-col bg-background">
       {/* Barra superior — some durante a rolagem automática, para sobrar tela. */}
       {!autoScroll.isScrolling && (
-        <header className="glass-panel z-[var(--z-sticky)] flex items-center justify-between gap-2 border-b border-border px-3 py-2 safe-top">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/')}
-          aria-label="Voltar"
-        >
-          <ChevronLeft />
-        </Button>
-        <div className="min-w-0 flex-1 text-center">
-          <p className="truncate text-sm font-semibold text-foreground">
-            {transposedSong.metadata.title}
-          </p>
-          {playlistNav ? (
-            <p className="truncate text-xs text-primary">
-              {playlistNav.playlistName} · {playlistNav.position}/{playlistNav.total}
-            </p>
-          ) : (
-            transposedSong.metadata.artist && (
-              <p className="truncate text-xs text-muted-foreground">
-                {transposedSong.metadata.artist}
+        <header className="safe-top z-[var(--z-sticky)] shrink-0 bg-[image:var(--gradient-blue)] text-ivory">
+          <div className="flex items-center justify-between gap-1 px-2 py-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/')}
+              aria-label="Voltar"
+              className="text-navy-100 hover:bg-white/10 hover:text-ivory"
+            >
+              <ChevronLeft />
+            </Button>
+            <div className="min-w-0 flex-1 text-center">
+              <p className="font-display truncate text-lg text-ivory">
+                {transposedSong.metadata.title}
               </p>
-            )
-          )}
-        </div>
-        <AddToPlaylist songId={songId} />
+              {playlistNav ? (
+                <p className="truncate text-xs font-semibold text-gold-300">
+                  {playlistNav.playlistName} · {playlistNav.position}/{playlistNav.total}
+                </p>
+              ) : (
+                transposedSong.metadata.artist && (
+                  <p className="truncate text-xs text-navy-200">{transposedSong.metadata.artist}</p>
+                )
+              )}
+            </div>
+            <AddToPlaylist songId={songId} onDark />
 
-        {/* Exportar a cifra (no tom atual) em PDF. */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => void handleExportPdf()}
-          disabled={exporting}
-          aria-label="Exportar em PDF"
-          title="Exportar em PDF"
-        >
-          {exporting ? <Loader2 className="animate-spin" /> : <FileDown />}
-        </Button>
+            {/* Exportar a cifra (no tom atual) em PDF. */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => void handleExportPdf()}
+              disabled={exporting}
+              aria-label="Exportar em PDF"
+              title="Exportar em PDF"
+              className="text-navy-100 hover:bg-white/10 hover:text-ivory"
+            >
+              {exporting ? <Loader2 className="animate-spin" /> : <FileDown />}
+            </Button>
 
-        {/* Atalho para corrigir a cifra (o editor carrega pelo id da URL). */}
-        {showEditUI && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(`/editor/${songId}`)}
-            aria-label="Corrigir esta cifra no editor"
-            title="Corrigir esta cifra"
-          >
-            <PenLine />
-          </Button>
-        )}
+            {/* Atalho para corrigir a cifra (o editor carrega pelo id da URL). */}
+            {showEditUI && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate(`/editor/${songId}`)}
+                aria-label="Corrigir esta cifra no editor"
+                title="Corrigir esta cifra"
+                className="text-navy-100 hover:bg-white/10 hover:text-ivory"
+              >
+                <PenLine />
+              </Button>
+            )}
+          </div>
+          {/* Fio dourado que separa a barra da cifra. */}
+          <div aria-hidden className="h-[3px] bg-[image:var(--gradient-gold)]" />
         </header>
       )}
 
@@ -211,9 +216,9 @@ export function SongPage() {
 
           {/* Navegação do setlist */}
           {playlistNav && (
-            <nav className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-5">
+            <nav className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-6">
               {playlistNav.prevHref ? (
-                <Button asChild variant="secondary" className="gap-1.5">
+                <Button asChild variant="outline" className="gap-1.5">
                   <Link to={playlistNav.prevHref}>
                     <ChevronLeft className="size-4" /> Anterior
                   </Link>
@@ -222,13 +227,13 @@ export function SongPage() {
                 <span />
               )}
               {playlistNav.nextHref ? (
-                <Button asChild className="gap-1.5">
+                <Button asChild variant="gold" className="gap-1.5">
                   <Link to={playlistNav.nextHref}>
                     Próxima <ChevronRight className="size-4" />
                   </Link>
                 </Button>
               ) : (
-                <Button asChild variant="secondary">
+                <Button asChild variant="outline">
                   <Link to={`/playlists/${playlistNav.playlistId}`}>Fim do setlist</Link>
                 </Button>
               )}

@@ -18,8 +18,8 @@ export default defineConfig({
         description:
           'Biblioteca pessoal de cifras musicais: rápida, offline, com transposição perfeita.',
         lang: 'pt-BR',
-        theme_color: '#0e141a',
-        background_color: '#0e141a',
+        theme_color: '#0b1f3a',
+        background_color: '#fbf9f4',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',

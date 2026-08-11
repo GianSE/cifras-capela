@@ -44,7 +44,7 @@ export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: Re
   if (autoScroll.isScrolling) {
     return (
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-sticky)] flex justify-center px-3 pb-3 safe-bottom md:pb-4">
-        <div className="glass-panel pointer-events-auto flex items-center gap-1 rounded-full border border-border p-1 shadow-xl">
+        <div className="glass-panel pointer-events-auto flex items-center gap-1 rounded-full border border-gold-400/40 p-1 shadow-floating">
           <Button
             variant="secondary"
             size="icon"
@@ -87,7 +87,7 @@ export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: Re
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-sticky)] flex justify-center px-3 pb-3 safe-bottom md:pb-4">
-      <div className="glass-panel pointer-events-auto flex items-center gap-2 rounded-2xl border border-border p-2 shadow-xl">
+      <div className="glass-panel pointer-events-auto flex items-center gap-2 rounded-full border border-gold-400/40 p-2 shadow-floating">
         <TransposeControl
           semitones={transpose.semitones}
           currentKey={transpose.currentKey}
@@ -134,11 +134,11 @@ export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: Re
                   onUp={transpose.transposeUp}
                   onDown={transpose.transposeDown}
                 />
-                <div className="flex overflow-hidden rounded-lg border border-border">
+                <div className="flex overflow-hidden rounded-full border border-[var(--color-outline)]">
                   <button
                     type="button"
                     onClick={() => !transpose.preferFlats || transpose.toggleAccidentalPreference()}
-                    className={`px-3 py-2 font-mono text-sm ${!transpose.preferFlats ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+                    className={`px-4 py-2 font-mono text-sm font-semibold transition-colors ${!transpose.preferFlats ? 'bg-[image:var(--gradient-gold)] text-navy-900' : 'text-muted-foreground hover:text-foreground'}`}
                     aria-pressed={!transpose.preferFlats}
                   >
                     ♯
@@ -146,7 +146,7 @@ export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: Re
                   <button
                     type="button"
                     onClick={() => transpose.preferFlats || transpose.toggleAccidentalPreference()}
-                    className={`px-3 py-2 font-mono text-sm ${transpose.preferFlats ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+                    className={`px-4 py-2 font-mono text-sm font-semibold transition-colors ${transpose.preferFlats ? 'bg-[image:var(--gradient-gold)] text-navy-900' : 'text-muted-foreground hover:text-foreground'}`}
                     aria-pressed={transpose.preferFlats}
                   >
                     ♭

@@ -52,7 +52,7 @@ export function SignInForm({ onSignedIn }: { onSignedIn?: () => void }) {
 
   return (
     <form
-      className="flex flex-col gap-2"
+      className="flex flex-col gap-2.5"
       onSubmit={(e) => {
         e.preventDefault();
         void handleSignIn();
@@ -75,6 +75,7 @@ export function SignInForm({ onSignedIn }: { onSignedIn?: () => void }) {
         />
         <Button
           type="submit"
+          variant="gold"
           disabled={status === 'sending' || !email.trim() || !password}
           className="shrink-0 gap-1.5"
         >
