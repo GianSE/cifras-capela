@@ -28,9 +28,9 @@ export function SettingsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Preferências"
         title="Configurações"
         icon={Settings}
+        contentWidth="max-w-2xl"
         subtitle="Aparência, música e dados guardados neste aparelho"
       />
 

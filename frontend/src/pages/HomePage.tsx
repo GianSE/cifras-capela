@@ -37,13 +37,12 @@ export function HomePage() {
   return (
     <>
       <PageHeader
-        eyebrow="Capela N. S. de Fátima"
         title="Minha Biblioteca"
         icon={Library}
         subtitle={`${songs.length} ${songs.length === 1 ? 'música' : 'músicas'} para tocar e cantar`}
         actions={
           showEditUI && (
-            <Button asChild variant="gold" className="gap-1.5">
+            <Button asChild variant="gold" size="sm" className="gap-1.5">
               <Link to="/editor">
                 <Plus className="size-4" /> <span className="hidden sm:inline">Nova</span>
               </Link>
@@ -51,12 +50,11 @@ export function HomePage() {
           )
         }
       >
-        <SearchBar value={query} onChange={setQuery} onDark />
+        <SearchBar value={query} onChange={setQuery} />
         <CategoryFilter
           options={allCategories}
           active={activeCategory}
           onChange={setActiveCategory}
-          onDark
           className="mt-3"
         />
       </PageHeader>

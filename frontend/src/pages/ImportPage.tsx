@@ -291,9 +291,9 @@ export function ImportPage() {
     >
       <>
         <PageHeader
-          eyebrow="Biblioteca"
           title="Importar cifra"
           icon={Upload}
+          contentWidth="max-w-3xl"
           subtitle="Traga de um arquivo, de um texto colado ou de uma foto da folha"
         />
         <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8">

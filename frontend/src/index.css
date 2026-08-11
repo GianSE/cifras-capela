@@ -4,8 +4,8 @@
    Minha Biblioteca de Cifras — Design System "Mariano"
    Paleta da Capela N. S. de Fátima: marfim, azul do manto e dourado da coroa.
 
-   Claro (padrão): marfim #fbf9f4 · azul #1d3a6b · acordes em ouro velho
-   Escuro ("noite de Fátima"): azul #0b1f3a · ações e acordes em dourado
+   Claro (padrão): marfim #fbf9f4 · azul #16304f · acordes em ouro velho
+   Escuro ("noite de Fátima"): azul #061426 · ações e acordes em dourado
 
    Títulos: Cormorant Garamond · Interface: Inter · Acordes: JetBrains Mono
    ============================================================================= */
@@ -17,14 +17,16 @@
    Viram utilitários: `bg-navy-900`, `text-gold-400`, `border-sand`…
    ----------------------------------------------------------------------------- */
 @theme {
-  /* Azul de Fátima (o manto) */
-  --color-navy-950: #061223;
-  --color-navy-900: #0b1f3a;
-  --color-navy-800: #122a4d;
-  --color-navy-700: #1d3a6b;
-  --color-navy-600: #2a4f8a;
-  --color-navy-500: #3d66a5;
-  --color-navy-400: #5b7bb0;
+  /* Azul de Fátima (o manto) — manto de noite: os tons profundos puxam para
+     o quase-preto azulado; do 300 para cima ficam claros, porque é neles que
+     o texto sobre azul se apoia. */
+  --color-navy-950: #020913;
+  --color-navy-900: #061426;
+  --color-navy-800: #0a1e36;
+  --color-navy-700: #16304f;
+  --color-navy-600: #22436b;
+  --color-navy-500: #33578a;
+  --color-navy-400: #517099;
   --color-navy-300: #8fa8ce;
   --color-navy-200: #bccbe4;
   --color-navy-100: #dce6f5;
@@ -73,7 +75,7 @@
   --color-surface-container-high: #efeade;
   --color-surface-container-highest: #ece5d6;
   --color-surface-elevated: #ffffff;
-  --color-surface-hover: rgba(11, 31, 58, 0.05);
+  --color-surface-hover: rgba(6, 20, 38, 0.055);
 
   /* Texto */
   --color-on-primary: #fbf9f4;
@@ -87,14 +89,14 @@
   --color-outline-variant: rgba(26, 28, 34, 0.1);
 
   /* Sombras — tingidas de azul, como no site */
-  --shadow-sm: 0 1px 2px rgba(11, 31, 58, 0.06), 0 1px 3px rgba(11, 31, 58, 0.08);
-  --shadow-md: 0 4px 12px rgba(11, 31, 58, 0.08), 0 8px 24px rgba(11, 31, 58, 0.06);
-  --shadow-lg: 0 12px 32px rgba(11, 31, 58, 0.12), 0 20px 48px rgba(11, 31, 58, 0.1);
+  --shadow-sm: 0 1px 2px rgba(6, 20, 38, 0.07), 0 1px 3px rgba(6, 20, 38, 0.09);
+  --shadow-md: 0 4px 12px rgba(6, 20, 38, 0.09), 0 8px 24px rgba(6, 20, 38, 0.07);
+  --shadow-lg: 0 12px 32px rgba(6, 20, 38, 0.14), 0 20px 48px rgba(6, 20, 38, 0.11);
   --shadow-gold: 0 8px 24px rgba(199, 154, 58, 0.28);
 
   /* Gradientes de marca */
   --gradient-gold: linear-gradient(135deg, #e9c46a, #b8862f);
-  --gradient-blue: linear-gradient(160deg, #122a4d, #0b1f3a);
+  --gradient-blue: linear-gradient(160deg, #0d2440, #061426);
 
   /* Tokens semânticos (shadcn) */
   --background: #fbf9f4;
@@ -103,10 +105,10 @@
   --card-foreground: #1a1c22;
   --popover: #ffffff;
   --popover-foreground: #1a1c22;
-  --primary: #1d3a6b; /* azul do manto — ações principais */
+  --primary: #16304f; /* azul do manto — ações principais */
   --primary-foreground: #fbf9f4;
   --secondary: #ece5d6; /* areia */
-  --secondary-foreground: #122a4d;
+  --secondary-foreground: #0a1e36;
   --muted: #f5f1e8;
   --muted-foreground: #6b7280;
   --accent: #8a6318; /* ouro velho — cor dos acordes, legível no marfim */
@@ -124,18 +126,18 @@
 .dark {
   color-scheme: dark;
 
-  --color-surface: #0b1f3a;
-  --color-surface-dim: #061223;
-  --color-surface-bright: #24406b;
-  --color-surface-container-lowest: #061223;
-  --color-surface-container-low: #0e2643;
-  --color-surface-container: #122a4d;
-  --color-surface-container-high: #1a3459;
-  --color-surface-container-highest: #234066;
-  --color-surface-elevated: #122a4d;
+  --color-surface: #061426;
+  --color-surface-dim: #020913;
+  --color-surface-bright: #1b3a5e;
+  --color-surface-container-lowest: #020913;
+  --color-surface-container-low: #091b31;
+  --color-surface-container: #0c2039;
+  --color-surface-container-high: #122845;
+  --color-surface-container-highest: #1a3354;
+  --color-surface-elevated: #0c2039;
   --color-surface-hover: rgba(233, 196, 106, 0.1);
 
-  --color-on-primary: #0b1f3a;
+  --color-on-primary: #061426;
   --color-text-primary: #f2eee4;
   --color-text-secondary: #cdd8ea;
   --color-text-muted: #93a6c2;
@@ -151,22 +153,22 @@
   --shadow-gold: 0 8px 24px rgba(233, 196, 106, 0.22);
 
   --gradient-gold: linear-gradient(135deg, #f0d391, #c79a3a);
-  --gradient-blue: linear-gradient(160deg, #16345c, #061223);
+  --gradient-blue: linear-gradient(160deg, #0d2440, #020913);
 
-  --background: #0b1f3a;
+  --background: #061426;
   --foreground: #f2eee4;
-  --card: #122a4d;
+  --card: #0c2039;
   --card-foreground: #f2eee4;
-  --popover: #16345c;
+  --popover: #102544;
   --popover-foreground: #f2eee4;
   --primary: #e9c46a; /* no azul, quem lidera é o dourado */
-  --primary-foreground: #0b1f3a;
-  --secondary: #1a3459;
+  --primary-foreground: #061426;
+  --secondary: #122845;
   --secondary-foreground: #f2eee4;
-  --muted: #16304f;
+  --muted: #0f2338;
   --muted-foreground: #93a6c2;
   --accent: #f5d78e; /* acordes: dourado claro, alto contraste no azul */
-  --accent-foreground: #0b1f3a;
+  --accent-foreground: #061426;
   --destructive: #ff6b61;
   --destructive-foreground: #2a0b09;
   --border: rgba(220, 230, 245, 0.14);

@@ -37,12 +37,11 @@ export function PlaylistsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Repertório"
         title="Playlists"
         icon={ListMusic}
         subtitle={`${playlists.length} ${playlists.length === 1 ? 'playlist' : 'playlists'} montadas`}
         actions={
-          <Button variant="gold" className="gap-1.5" onClick={() => setCreating(true)}>
+          <Button variant="gold" size="sm" className="gap-1.5" onClick={() => setCreating(true)}>
             <Plus className="size-4" /> <span className="hidden sm:inline">Nova</span>
           </Button>
         }

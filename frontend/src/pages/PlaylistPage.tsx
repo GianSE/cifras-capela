@@ -152,13 +152,13 @@ export function PlaylistPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Playlist"
         title={playlist.name}
         subtitle={`${songs.length} ${songs.length === 1 ? 'música' : 'músicas'} · arraste para ordenar`}
         actions={
           <>
             <Button
               variant="outline-dark"
+              size="sm"
               className="gap-1.5"
               onClick={handleExportPdf}
               disabled={exporting || songs.length === 0}
@@ -169,6 +169,7 @@ export function PlaylistPage() {
             </Button>
             <Button
               variant="gold"
+              size="sm"
               className="gap-1.5"
               onClick={handlePlay}
               disabled={songs.length === 0}
@@ -178,8 +179,9 @@ export function PlaylistPage() {
           </>
         }
       >
+        {/* Já sobre o marfim: variantes claras, não as de fundo azul. */}
         <div className="flex items-center gap-2">
-          <Button variant="outline-dark" size="sm" asChild className="gap-1.5">
+          <Button variant="outline" size="sm" asChild className="gap-1.5">
             <Link to="/playlists">
               <ChevronLeft className="size-4" /> Playlists
             </Link>
@@ -187,7 +189,7 @@ export function PlaylistPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5 text-navy-100 hover:bg-white/10 hover:text-ivory"
+            className="gap-1.5"
             onClick={() => {
               setDraftName(playlist.name);
               setRenaming(true);
