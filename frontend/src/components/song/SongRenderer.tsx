@@ -11,6 +11,12 @@ interface SongRendererProps {
    * largura — a regra vive no CSS, para o celular nunca ser afetado.
    */
   twoColumns?: boolean;
+  /**
+   * Prefixo das âncoras de seção. Precisa diferir entre leitor e palco: com
+   * o palco aberto as duas cifras ficam no DOM ao mesmo tempo, e ids
+   * repetidos fariam o salto acertar sempre a de baixo.
+   */
+  sectionIdPrefix?: string;
   className?: string;
 }
 
@@ -22,6 +28,7 @@ export function SongRenderer({
   song,
   fontSize = 18,
   twoColumns = false,
+  sectionIdPrefix,
   className,
 }: SongRendererProps) {
   return (
@@ -30,7 +37,11 @@ export function SongRenderer({
       style={{ fontSize: `${fontSize}px` }}
     >
       {song.sections.map((section, index) => (
-        <SongSection key={index} section={section} />
+        <SongSection
+          key={index}
+          section={section}
+          id={sectionIdPrefix ? `${sectionIdPrefix}-${index}` : undefined}
+        />
       ))}
     </article>
   );

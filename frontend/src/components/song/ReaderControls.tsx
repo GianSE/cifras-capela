@@ -12,6 +12,8 @@ import { TransposeControl } from './TransposeControl';
 import { FontSizeControl } from './FontSizeControl';
 import { CapoControl } from './CapoControl';
 import { AutoScrollControl } from './AutoScrollControl';
+import { SectionJump } from './SectionJump';
+import type { Song } from '@/types/song';
 import { usePreferences } from '@/hooks/usePreferences';
 import { preferencesStorage } from '@/lib/storage/preferences';
 import type { UseTransposeResult } from '@/hooks/useTranspose';
@@ -19,6 +21,8 @@ import type { UseFontSizeResult } from '@/hooks/useFontSize';
 import type { UseAutoScrollResult } from '@/hooks/useAutoScroll';
 
 interface ReaderControlsProps {
+  /** Cifra em exibição — só para listar as seções do salto. */
+  song: Song;
   transpose: UseTransposeResult;
   font: UseFontSizeResult;
   autoScroll: UseAutoScrollResult;
@@ -42,7 +46,13 @@ const SHORTCUTS: Array<[keys: string[], label: string]> = [
   [['Esc'], 'Voltar'],
 ];
 
-export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: ReaderControlsProps) {
+export function ReaderControls({
+  song,
+  transpose,
+  font,
+  autoScroll,
+  onEnterStage,
+}: ReaderControlsProps) {
   const { readerTwoColumns: twoColumns } = usePreferences();
   const changeSpeed = (delta: number) => {
     const next = Math.min(
@@ -126,6 +136,8 @@ export function ReaderControls({ transpose, font, autoScroll, onEnterStage }: Re
         >
           {autoScroll.isScrolling ? <Pause /> : <Play />}
         </Button>
+
+        <SectionJump song={song} idPrefix="secao" />
 
         <Dialog>
           <DialogTrigger asChild>

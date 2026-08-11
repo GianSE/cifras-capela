@@ -3,9 +3,11 @@ import { SongLine } from './SongLine';
 
 interface SongSectionProps {
   section: Section;
+  /** Âncora para o salto de seção do leitor. */
+  id?: string;
 }
 
-export function SongSection({ section }: SongSectionProps) {
+export function SongSection({ section, id }: SongSectionProps) {
   // Determine the styling class based on the section type
   let sectionClass = 'my-4';
   if (section.type === 'chorus') {
@@ -15,7 +17,7 @@ export function SongSection({ section }: SongSectionProps) {
   }
 
   return (
-    <div className={sectionClass}>
+    <div id={id} className={sectionClass}>
       {/* O ouro é dos acordes: o rótulo da seção fica no azul do manto e, no
           tema escuro (onde o dourado é a cor de ação), num azul claro — senão
           ele competiria com os acordes logo abaixo. */}
