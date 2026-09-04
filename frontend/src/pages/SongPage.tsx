@@ -156,7 +156,7 @@ export function SongPage() {
     <div className="flex h-dvh flex-col bg-background">
       {/* Barra superior — some durante a rolagem automática, para sobrar tela. */}
       {!autoScroll.isScrolling && (
-        <header className="safe-top z-[var(--z-sticky)] shrink-0 bg-[image:var(--gradient-blue)] text-ivory">
+        <header className="safe-top z-[var(--z-sticky)] shrink-0 border-b border-white/10 bg-[image:var(--gradient-blue)] text-ivory">
           <div className="flex items-center justify-between gap-1 px-2 py-2">
             <Button
               variant="ghost"
@@ -211,8 +211,6 @@ export function SongPage() {
               </Button>
             )}
           </div>
-          {/* Fio dourado que separa a barra da cifra. */}
-          <div aria-hidden className="h-[3px] bg-[image:var(--gradient-gold)]" />
         </header>
       )}
 

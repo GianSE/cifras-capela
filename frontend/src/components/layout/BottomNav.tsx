@@ -20,10 +20,7 @@ export function BottomNav() {
   const items = NAV_ITEMS.filter((item) => item.to !== '/editor' || showEditUI);
 
   return (
-    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-[var(--z-sticky)] bg-[image:var(--gradient-blue)] shadow-floating">
-      {/* Fio dourado — assina a barra e a separa do conteúdo. */}
-      <div aria-hidden className="h-[3px] bg-[image:var(--gradient-gold)]" />
-
+    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-[var(--z-sticky)] border-t border-white/10 bg-[image:var(--gradient-blue)] shadow-floating">
       <div className="mx-auto flex max-w-lg items-center justify-around px-2 py-1.5">
         {items.map(({ to, icon: Icon, label, end }) => (
           <NavLink

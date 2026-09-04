@@ -323,12 +323,11 @@ body {
     background: var(--gradient-blue);
     color: var(--color-ivory);
   }
-  /* Fio dourado no pé da faixa: o "raio" que assina a marca. */
-  .hero-blue::after {
-    content: '';
-    display: block;
-    height: 3px;
-    background: var(--gradient-gold);
+  /* No tema claro o marfim do conteúdo já separa a barra sozinho. No escuro a
+     página também é azul, então sem um traço a barra se dissolveria — daí uma
+     linha neutra, discreta o bastante para não virar enfeite. */
+  .dark .hero-blue {
+    border-bottom: 1px solid rgba(220, 230, 245, 0.12);
   }
 
   /* Cartão que levanta ao passar o mouse (assinatura do site). */
