@@ -1,5 +1,4 @@
 import { useNavigate, useLocation } from 'react-router';
-import { Music } from 'lucide-react';
 import { SignInForm } from '@/components/auth/SignInForm';
 import { Button } from '@/components/ui/button';
 import { useGuestMode } from '@/hooks/useGuestMode';
@@ -40,9 +39,15 @@ export function LoginPage() {
 
       <div className="w-full max-w-sm">
         <div className="mb-7 flex flex-col items-center text-center">
-          <span className="mb-4 flex size-16 items-center justify-center rounded-full bg-[image:var(--gradient-gold)] text-navy-900 shadow-gilded">
-            <Music className="size-8" />
-          </span>
+          {/* A marca de verdade, grande: é a porta de entrada. O 192px basta
+              (12 KB) e o fundo branco da arte vira o disco. */}
+          <img
+            src="/icons/icon-192.jpg"
+            alt=""
+            width={88}
+            height={88}
+            className="mb-4 size-22 rounded-full bg-white object-cover shadow-gilded ring-1 ring-gold-400/40"
+          />
           <p className="eyebrow text-gold-400">Capela N. S. de Fátima</p>
           <h1 className="font-display mt-1 text-4xl text-ivory">Biblioteca de Cifras</h1>
           <p className="mt-2 text-sm text-navy-100/80">
