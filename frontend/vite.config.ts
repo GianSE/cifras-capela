@@ -11,7 +11,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.png', 'favicon.svg', 'icons/apple-touch-icon.png'],
+      includeAssets: ['favicon.png', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Minha Biblioteca de Cifras',
         short_name: 'Cifras',
@@ -25,20 +25,23 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         categories: ['music', 'productivity'],
+        // JPEG, não PNG: a arte é fotográfica e em PNG o ícone de 512 pesava
+        // 408 KB contra 54 KB aqui. Como o fundo é branco e não há
+        // transparência a preservar, não se perde nada.
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-192.jpg', sizes: '192x192', type: 'image/jpeg', purpose: 'any' },
+          { src: '/icons/icon-512.jpg', sizes: '512x512', type: 'image/jpeg', purpose: 'any' },
           {
-            src: '/icons/maskable-512.png',
+            src: '/icons/maskable-512.jpg',
             sizes: '512x512',
-            type: 'image/png',
+            type: 'image/jpeg',
             purpose: 'maskable',
           },
         ],
       },
       workbox: {
         // Pré-cacheia o app + todas as músicas (offline total).
-        globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2,ttf,json,cho}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff,woff2,ttf,json,cho}'],
         navigateFallback: '/index.html',
         runtimeCaching: [
           {
