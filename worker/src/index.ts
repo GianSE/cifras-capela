@@ -20,15 +20,14 @@ import {
   type GenerateResult,
   type CandidatesResult,
 } from './format-prompt';
+import { json } from './lib/http';
+import type { Env } from './types';
+import { login, logout, me } from './api/auth';
+import { songsRoute } from './api/songs';
+import { playlistsRoute } from './api/playlists';
 
-export interface Env {
-  /** Binding para os assets estáticos (configurado em wrangler.toml). */
-  ASSETS: Fetcher;
-  /** URL pública do site, usada no sitemap. */
-  SITE_URL?: string;
-  /** Chave da API do Gemini (secret: `wrangler secret put GEMINI_API_KEY`). */
-  GEMINI_API_KEY?: string;
-}
+export type { Env };
+
 
 /** Modelo do Gemini. `gemini-flash-latest` aponta sempre para o Flash atual. */
 const MODEL = 'gemini-flash-latest';
@@ -56,13 +55,6 @@ function withSecurityHeaders(response: Response): Response {
     status: response.status,
     statusText: response.statusText,
     headers,
-  });
-}
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8' },
   });
 }
 
@@ -426,6 +418,31 @@ export default {
         return withSecurityHeaders(await findCandidates(request, env));
       }
       return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
+    }
+
+    // ---- Sessão de quem edita (JWT em cookie httpOnly) ----
+    if (url.pathname === '/api/auth/login') {
+      if (request.method === 'POST') return withSecurityHeaders(await login(request, env));
+      return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
+    }
+
+    if (url.pathname === '/api/auth/logout') {
+      if (request.method === 'POST') return withSecurityHeaders(logout(env));
+      return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
+    }
+
+    if (url.pathname === '/api/auth/me') {
+      if (request.method === 'GET') return withSecurityHeaders(await me(request, env));
+      return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
+    }
+
+    // ---- Biblioteca (ler é público; escrever exige sessão) ----
+    if (url.pathname === '/api/songs' || url.pathname.startsWith('/api/songs/')) {
+      return withSecurityHeaders(await songsRoute(request, env, url.pathname));
+    }
+
+    if (url.pathname === '/api/playlists' || url.pathname.startsWith('/api/playlists/')) {
+      return withSecurityHeaders(await playlistsRoute(request, env, url.pathname));
     }
 
     if (url.pathname.startsWith('/api/')) {

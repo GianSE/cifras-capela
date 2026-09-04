@@ -16,5 +16,18 @@ type = "Text"
 globs = ["**/*.md"]
 fallthrough = true
 
+# Banco D1 (SQLite). Guarda músicas, administradores e playlists — é o que
+# substituiu o Supabase. Criado com `wrangler d1 create cifras-db`.
+[[d1_databases]]
+binding = "DB"
+database_name = "cifras-db"
+database_id = "5b8c9b40-7994-450f-85b1-3f7be7228130"
+migrations_dir = "migrations"
+
+# Segredos (defina com `wrangler secret put NOME`):
+#   JWT_SECRET  → assina o cookie de sessão de quem edita
+[vars]
+APP_ENV = "production"
+
 [observability]
 enabled = true
