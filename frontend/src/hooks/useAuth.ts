@@ -1,64 +1,89 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Session } from '@supabase/supabase-js';
-import { supabase, isSupabaseEnabled } from '@/lib/supabase/client';
+import { playlistStorage } from '@/lib/storage/playlists';
 
-/** Deixa os erros de login legíveis em português. */
-function traduzirErroAuth(message: string): string {
-  if (/Invalid login credentials/i.test(message)) return 'E-mail ou senha incorretos.';
-  if (/Email not confirmed/i.test(message)) {
-    return 'E-mail ainda não confirmado. Confirme-o no painel do Supabase.';
-  }
-  if (/Failed to fetch|NetworkError/i.test(message)) return 'Sem conexão.';
-  return message;
+/** Quem está logado, do ponto de vista do app. */
+export interface SessionUser {
+  readonly id: number;
+  readonly email: string;
+  readonly name: string;
 }
 
 /**
- * Sessão do Supabase (login por e-mail e senha).
+ * Sessão de quem edita a biblioteca.
  *
- * A anon key é pública, então é o login que autoriza a escrita: as políticas
- * de RLS só liberam insert/update/delete para e-mails listados na tabela
- * `editors`. Ler é público — quem abre o app não precisa entrar para ver as
- * cifras.
+ * O token é um JWT assinado pelo Worker e guardado num cookie **httpOnly** —
+ * o JavaScript da página não o alcança, então nem um XSS levaria a sessão
+ * embora. O preço é que não dá para "ler" a sessão localmente: saber se há
+ * alguém logado exige perguntar ao servidor (`GET /api/auth/me`).
  *
- * Não há tela de cadastro de propósito: o usuário é criado uma vez no painel
- * do Supabase (Authentication → Users → Add user). É uma biblioteca pessoal;
- * cadastro aberto só ampliaria a superfície de ataque.
+ * Não há cadastro pelo site: os administradores são criados por SQL
+ * (`worker/scripts/criar-admin.mjs`). É o acervo de uma comunidade, não um
+ * serviço com inscrição aberta.
  */
 export function useAuth() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(isSupabaseEnabled);
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!supabase) {
-      setIsLoading(false);
-      return;
-    }
+    let mounted = true;
 
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setIsLoading(false);
-    });
+    fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then((res) => (res.ok ? (res.json() as Promise<SessionUser>) : null))
+      .catch(() => null) // Offline: segue como visitante, sem quebrar a tela.
+      .then((data) => {
+        if (!mounted) return;
+        setUser(data);
+        // O cookie é httpOnly: as playlists não têm como saber quem entrou.
+        playlistStorage.setSession(data?.id ?? null);
+        setIsLoading(false);
+      });
 
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
-    return () => data.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  /** Entra com e-mail e senha. */
   const signIn = useCallback(async (email: string, password: string): Promise<void> => {
-    if (!supabase) throw new Error('Supabase não está configurado.');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(traduzirErroAuth(error.message));
+    let res: Response;
+    try {
+      res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ email, password }),
+      });
+    } catch {
+      throw new Error('Sem conexão.');
+    }
+
+    const data = (await res.json().catch(() => ({}))) as Partial<SessionUser> & { error?: string };
+    if (!res.ok) throw new Error(data.error ?? 'Não foi possível entrar.');
+
+    const signed = { id: data.id ?? 0, email: data.email ?? email, name: data.name ?? '' };
+    setUser(signed);
+    playlistStorage.setSession(signed.id);
   }, []);
 
   const signOut = useCallback(async (): Promise<void> => {
-    await supabase?.auth.signOut();
+    // Quem apaga o cookie é o servidor: httpOnly não se apaga pelo cliente.
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(
+      () => undefined,
+    );
+    setUser(null);
+    playlistStorage.setSession(null);
   }, []);
 
   return {
-    /** Supabase configurado? Se não, o app é somente leitura. */
-    isEnabled: isSupabaseEnabled,
-    session,
-    isSignedIn: session !== null,
+    /**
+     * Mantido por compatibilidade com as telas: agora a escrita é sempre
+     * possível em princípio (o Worker é parte do próprio site), então isto é
+     * constante. Some quando as telas pararem de perguntar.
+     */
+    isEnabled: true,
+    user,
+    /** Formato antigo (`session.user.email`), para não mexer nas telas. */
+    session: user ? { user: { email: user.email } } : null,
+    isSignedIn: user !== null,
     isLoading,
     signIn,
     signOut,

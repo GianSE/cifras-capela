@@ -110,7 +110,7 @@ export function SettingsPage() {
           </Row>
         </Section>
 
-        {/* Conta — só faz sentido quando o Supabase está configurado */}
+        {/* Conta — é ela que libera criar e editar músicas */}
         <Section title="Conta">
           <AccountRow />
         </Section>
@@ -188,21 +188,11 @@ export function SettingsPage() {
 }
 
 /**
- * Login por magic link. Só aparece quando o Supabase está configurado —
- * é ele que autoriza criar/editar músicas (ler é público).
+ * Login com e-mail e senha: é ele que autoriza criar e editar músicas.
+ * Ler é público — quem abre o app não precisa entrar para ver as cifras.
  */
 function AccountRow() {
-  const { isEnabled, isSignedIn, session, signOut, isLoading } = useAuth();
-
-  if (!isEnabled) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Biblioteca somente leitura. Configure o Supabase (veja{' '}
-        <code className="font-mono text-xs">frontend/.env.example</code>) para criar e editar
-        músicas pelo app, sincronizadas entre o celular e o PC.
-      </p>
-    );
-  }
+  const { isSignedIn, session, signOut, isLoading } = useAuth();
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Carregando…</p>;

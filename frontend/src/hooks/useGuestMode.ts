@@ -5,7 +5,7 @@ const KEY = 'cifras-capela:guest';
 /**
  * Modo convidado: a pessoa escolheu usar o app só para ver (sem entrar). A
  * escolha fica salva, então a tela de boas-vindas não incomoda a cada abertura.
- * Entrar de verdade (Supabase) é o que libera criar/editar.
+ * Entrar de verdade é o que libera criar/editar.
  */
 export function useGuestMode() {
   const [isGuest, setIsGuest] = useState<boolean>(() => {

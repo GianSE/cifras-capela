@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useGuestMode } from '@/hooks/useGuestMode';
 
 /**
- * Página `/login`. Aparece quando o Supabase está ligado e ninguém entrou (o
+ * Página `/login`. Aparece quando ninguém entrou (o
  * guard redireciona para cá) e também é para onde o logout leva. Oferece o
  * login (criar/editar) ou seguir como convidado (só ver).
  *

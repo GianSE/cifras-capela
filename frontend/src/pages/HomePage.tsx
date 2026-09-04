@@ -24,7 +24,7 @@ export function HomePage() {
 
   const { favorites } = useFavorites();
 
-  const { songs, results, allCategories, isLoading, staleSince } = useLibrary({
+  const { songs, results, allCategories, isLoading, source, staleSince } = useLibrary({
     query,
     categories: activeCategory ? [activeCategory] : [],
     ids: onlyFavorites ? favorites : undefined,
@@ -81,7 +81,7 @@ export function HomePage() {
       </PageHeader>
 
       <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8">
-        <OfflineNotice staleSince={staleSince} />
+        <OfflineNotice source={source} staleSince={staleSince} />
 
         {/* Recentes */}
         {isBrowsing && recentEntries.length > 0 && (

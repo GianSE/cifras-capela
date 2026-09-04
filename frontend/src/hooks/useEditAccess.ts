@@ -3,10 +3,9 @@ import { useAuth } from './useAuth';
 /**
  * Acesso de escrita (criar / editar / importar / excluir músicas).
  *
- * - Supabase **desligado**: modo somente-arquivo — o editor ainda serve para
- *   montar e baixar `.cho`, então é liberado.
- * - Supabase **ligado**: escrever exige login (o RLS só libera os e-mails da
- *   tabela `editors`).
+ * Salvar na biblioteca exige sessão: as rotas de escrita do Worker recusam
+ * quem não apresenta o cookie. O editor em si continua aberto — ele serve
+ * para montar e baixar um `.cho` mesmo sem conta.
  */
 export function useEditAccess() {
   const { isEnabled, isSignedIn, isLoading } = useAuth();
@@ -16,7 +15,7 @@ export function useEditAccess() {
     canEdit,
     /** Sessão ainda carregando (evita decidir cedo demais). */
     isLoading,
-    /** Supabase ligado, mas ninguém entrou — precisa logar. */
+    /** Ninguém entrou — precisa logar para salvar. */
     needsLogin: isEnabled && !isSignedIn,
     /**
      * Mostrar botões/atalhos de escrita? Otimista enquanto a sessão carrega,

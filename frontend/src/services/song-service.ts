@@ -2,17 +2,20 @@
  * @module services/song-service
  * @description Ponto único de acesso às músicas.
  *
- * Escolhe o repositório conforme a configuração: Supabase (CRUD sincronizado)
- * quando há credenciais, senão o estático (arquivos do Git, somente leitura).
- * O resto do app não precisa saber qual está ativo.
+ * Fala com o Worker (D1) e, quando ele não responde, com a cópia local ou
+ * com os `.cho` versionados. O resto do app não precisa saber de onde veio.
  */
 
-import { isSupabaseEnabled } from '@/lib/supabase/client';
 import type { LibraryLoad, SaveSongInput, SongRepository } from './song-repository';
-import { staticRepository } from './static-repository';
-import { supabaseRepository } from './supabase-repository';
+import { workerRepository } from './worker-repository';
 
-const repository: SongRepository = isSupabaseEnabled ? supabaseRepository : staticRepository;
+/**
+ * A API do Worker vive na mesma origem do site, então está sempre disponível
+ * — não há mais o "configurou ou não configurou" de quando os dados moravam
+ * num serviço externo. Quando ela cai, quem cobre é o próprio repositório
+ * (cache local e, no limite, os `.cho` versionados).
+ */
+const repository: SongRepository = workerRepository;
 
 class SongService {
   /** `true` quando dá para criar/editar/excluir pelo app. */

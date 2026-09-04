@@ -310,7 +310,7 @@ export function EditorPage() {
         )}
         {!songService.canWrite && (
           <p className="mb-3 rounded-lg bg-[var(--color-surface-container)] p-3 text-xs text-muted-foreground">
-            Biblioteca somente leitura. Configure o Supabase para salvar músicas pelo app — por
+            Biblioteca somente leitura. Entre na sua conta para salvar músicas pelo app — por
             enquanto, use <strong className="text-foreground">.cho</strong> e coloque o arquivo em{' '}
             <code>frontend/public/songs/</code>.
           </p>

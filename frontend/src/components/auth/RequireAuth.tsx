@@ -6,9 +6,9 @@ import { SignInForm } from './SignInForm';
 /**
  * Gate das páginas de escrita (Importar, Editor).
  *
- * Quando o Supabase está ligado e ninguém entrou, mostra um aviso claro com o
+ * Quando ninguém entrou, mostra um aviso claro com o
  * login inline — em vez de deixar a pessoa mexer numa página que só vai falhar
- * ao salvar. Sem Supabase (ou já logado), renderiza o conteúdo normalmente.
+ * ao salvar. Já logado, renderiza o conteúdo normalmente.
  */
 export function RequireAuth({
   title,

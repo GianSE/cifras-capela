@@ -5,17 +5,16 @@
  * Store observável (`subscribe`/`getSnapshot`) compatível com
  * `useSyncExternalStore`, mesmo padrão de `preferences.ts`.
  *
- * Sem login (ou sem Supabase configurado): fica só no `localStorage`,
+ * Sem login: fica só no `localStorage`,
  * sincronizado entre abas do mesmo aparelho. Logado, passa a espelhar a
- * tabela `playlists` do Supabase — assim uma playlist montada no celular
+ * tabela `playlists` do D1 — assim uma playlist montada no celular
  * aparece ao abrir no tablet. O `localStorage` continua servindo de cache
- * (deixa a UI instantânea; escreve no Supabase em segundo plano) e de
+ * (deixa a UI instantânea; escreve no servidor em segundo plano) e de
  * fallback caso a rede caia.
  */
 
 import type { Playlist } from '@/types/playlist';
-import { supabase, isSupabaseEnabled } from '@/lib/supabase/client';
-import type { PlaylistRow } from '@/lib/supabase/types';
+import { deleteRemotePlaylist, fetchRemotePlaylists, pushPlaylist } from './playlist-sync';
 
 const STORAGE_KEY = 'cifras-capela:playlists';
 
@@ -26,16 +25,6 @@ function createId(): string {
 
 function now(): string {
   return new Date().toISOString();
-}
-
-function rowToPlaylist(row: PlaylistRow): Playlist {
-  return {
-    id: row.id,
-    name: row.name,
-    songIds: row.song_ids,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
 }
 
 class PlaylistStorage {
@@ -55,21 +44,25 @@ class PlaylistStorage {
         }
       });
     }
-    if (isSupabaseEnabled && supabase) {
-      supabase.auth.onAuthStateChange((_event, session) => {
-        const nextUserId = session?.user.id ?? null;
-        if (nextUserId === this.userId) return;
-        this.userId = nextUserId;
-        if (nextUserId) {
-          void this.syncFromRemote(nextUserId);
-        } else {
-          // Logout: volta a refletir só o que está salvo neste aparelho.
-          this.playlists = this.load();
-          this.notify();
-        }
-      });
-    }
   }
+
+  /**
+   * Avisa quem está logado. Chamado pelo `useAuth` — o cookie de sessão é
+   * httpOnly, então não há como este módulo descobrir isso sozinho.
+   */
+  readonly setSession = (userId: number | null): void => {
+    const next = userId === null ? null : String(userId);
+    if (next === this.userId) return;
+    this.userId = next;
+
+    if (next) {
+      void this.syncFromRemote();
+    } else {
+      // Logout: volta a refletir só o que está salvo neste aparelho.
+      this.playlists = this.load();
+      this.notify();
+    }
+  };
 
   private load(): readonly Playlist[] {
     try {
@@ -116,45 +109,36 @@ class PlaylistStorage {
   }
 
   /**
-   * Ao logar: busca as playlists remotas. Se o Supabase ainda não tem
-   * nenhuma e este aparelho tem playlists locais, sobe elas uma vez (só
-   * acontece no primeiro login). Depois disso, o Supabase manda.
+   * Ao logar: busca as playlists remotas. Se a conta ainda não tem nenhuma e
+   * este aparelho tem playlists locais, sobe elas uma vez (só acontece no
+   * primeiro login). Depois disso, o servidor manda.
    */
-  private async syncFromRemote(userId: string): Promise<void> {
-    if (!supabase) return;
-    try {
-      const { data, error } = await supabase
-        .from('playlists')
-        .select('*')
-        .order('updated_at', { ascending: false });
-      if (error) throw error;
+  private async syncFromRemote(): Promise<void> {
+    const remote = await fetchRemotePlaylists();
+    if (remote === null) return; // Offline: segue com o que há neste aparelho.
 
-      if (data.length === 0 && this.playlists.length > 0) {
-        const rows: PlaylistRow[] = this.playlists.map((p) => ({
-          id: p.id,
-          user_id: userId,
-          name: p.name,
-          song_ids: [...p.songIds],
-          created_at: p.createdAt,
-          updated_at: p.updatedAt,
-        }));
-        const { error: insertError } = await supabase.from('playlists').insert(rows);
-        if (insertError) throw insertError;
-        this.commit(rows.map(rowToPlaylist));
-      } else {
-        this.commit(data.map(rowToPlaylist));
-      }
-    } catch (e) {
-      console.warn('Falha ao sincronizar playlists com o Supabase', e);
+    if (remote.length === 0 && this.playlists.length > 0) {
+      // Primeiro login neste acervo: sobe o que já existia no aparelho.
+      const local = this.playlists;
+      await Promise.all(local.map((playlist) => pushPlaylist(playlist)));
+      return;
     }
+
+    this.commit(remote);
   }
 
-  /** Espelha uma mutação local no Supabase, se logado. Falha em silêncio (offline-first). */
-  private persist(op: () => PromiseLike<{ error: unknown }>): void {
-    if (!this.userId || !supabase) return;
-    void op().then(({ error }) => {
-      if (error) console.warn('Falha ao sincronizar playlist com o Supabase', error);
+  /** Espelha uma mutação local na API, se logado. Falha em silêncio (offline-first). */
+  private persist(op: () => Promise<boolean>): void {
+    if (!this.userId) return;
+    void op().then((ok) => {
+      if (!ok) console.warn('Falha ao sincronizar a playlist com o servidor.');
     });
+  }
+
+  /** Sobe a playlist inteira — a API grava por upsert, então serve para tudo. */
+  private push(id: string): void {
+    const playlist = this.playlists.find((p) => p.id === id);
+    if (playlist) this.persist(() => pushPlaylist(playlist));
   }
 
   readonly subscribe = (listener: () => void): (() => void) => {
@@ -182,32 +166,18 @@ class PlaylistStorage {
       updatedAt: timestamp,
     };
     this.commit([...this.playlists, playlist]);
-    if (this.userId) {
-      const userId = this.userId;
-      this.persist(() =>
-        supabase!.from('playlists').insert({
-          id,
-          user_id: userId,
-          name: playlist.name,
-          song_ids: [...songIds],
-          created_at: timestamp,
-          updated_at: timestamp,
-        }),
-      );
-    }
+    this.persist(() => pushPlaylist(playlist));
     return id;
   }
 
   rename(id: string, name: string): void {
-    const updated = this.patch(id, (p) => ({ ...p, name: name.trim() || p.name }));
-    if (updated) {
-      this.persist(() => supabase!.from('playlists').update({ name: updated.name }).eq('id', id));
-    }
+    this.patch(id, (p) => ({ ...p, name: name.trim() || p.name }));
+    this.push(id);
   }
 
   remove(id: string): void {
     this.commit(this.playlists.filter((p) => p.id !== id));
-    this.persist(() => supabase!.from('playlists').delete().eq('id', id));
+    this.persist(() => deleteRemotePlaylist(id));
   }
 
   /** Adiciona a música ao fim (ignora duplicatas). */
@@ -245,13 +215,7 @@ class PlaylistStorage {
   }
 
   private persistSongIds(id: string, updated: Playlist | undefined): void {
-    if (!updated) return;
-    this.persist(() =>
-      supabase!
-        .from('playlists')
-        .update({ song_ids: [...updated.songIds] })
-        .eq('id', id),
-    );
+    if (updated) this.push(id);
   }
 
   /** True se a música já está na playlist. */

@@ -35,7 +35,7 @@ function PageFallback() {
 }
 
 /**
- * Guard de entrada: com o Supabase ligado e ninguém logado (nem convidado),
+ * Guard de entrada: com ninguém logado (nem convidado),
  * redireciona para `/login`. Quem já entrou (a sessão persiste) ou já escolheu
  * convidado passa direto. `/login` fica fora deste guard.
  */

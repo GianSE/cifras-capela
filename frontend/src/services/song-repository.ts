@@ -2,12 +2,13 @@
  * @module services/song-repository
  * @description Abstração de onde as músicas vivem.
  *
- * Duas implementações, escolhidas pela presença das credenciais do Supabase:
+ * Duas implementações:
  *
- *  - **estática** (padrão): lê os `.cho` versionados em `public/songs/` via o
- *    índice gerado no build. Somente leitura, funciona 100% offline.
- *  - **Supabase**: CRUD real sincronizado entre dispositivos, com cache local
- *    para continuar lendo sem internet.
+ *  - **estática**: lê os `.cho` versionados em `public/songs/` via o índice
+ *    gerado no build. Somente leitura, funciona 100% offline — é o piso a que
+ *    o app recorre quando tudo o mais falha.
+ *  - **Worker**: CRUD real no D1, sincronizado entre dispositivos, com cache
+ *    local para continuar lendo sem internet.
  *
  * O resto do app fala só com esta interface e não sabe de onde vêm os dados.
  */
@@ -31,9 +32,18 @@ export interface SaveSongInput {
  */
 export interface LibraryLoad {
   readonly entries: SongIndexEntry[];
-  /** `true` quando a rede falhou e isto veio da cópia local. */
+  /**
+   * De onde vieram estes dados:
+   *  - `network`: o servidor respondeu, está fresco;
+   *  - `cache`: a rede falhou e isto é a última cópia local;
+   *  - `static`: nem rede nem cache — são os `.cho` versionados no Git, que
+   *    vêm junto com o app e sempre existem. É o piso que garante que a
+   *    biblioteca nunca apareça vazia.
+   */
+  readonly source: 'network' | 'cache' | 'static';
+  /** `true` quando os dados podem estar desatualizados (cache ou estático). */
   readonly fromCache: boolean;
-  /** Quando a cópia local foi gravada (ISO), se `fromCache`. */
+  /** Quando a cópia local foi gravada (ISO), se veio do cache. */
   readonly cachedAt?: string;
 }
 
@@ -58,7 +68,7 @@ export interface SongRepository {
 export class ReadOnlyLibraryError extends Error {
   constructor() {
     super(
-      'Esta biblioteca é somente leitura. Configure o Supabase para criar e editar músicas pelo app.',
+      'Esta biblioteca é somente leitura. Entre na sua conta para criar e editar músicas pelo app.',
     );
     this.name = 'ReadOnlyLibraryError';
   }

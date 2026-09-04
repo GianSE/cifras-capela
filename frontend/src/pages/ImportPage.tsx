@@ -701,7 +701,7 @@ function ReviewForm({
       )}
       {!songService.canWrite && (
         <p className="rounded-lg bg-[var(--color-surface-container)] p-3 text-xs text-muted-foreground">
-          Biblioteca somente leitura. Configure o Supabase para salvar pelo app — por enquanto,
+          Biblioteca somente leitura. Entre na sua conta para salvar pelo app — por enquanto,
           baixe o <strong className="text-foreground">.cho</strong> e coloque em{' '}
           <code>frontend/public/songs/</code>.
         </p>

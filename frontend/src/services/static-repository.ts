@@ -3,8 +3,8 @@
  * @description Biblioteca somente leitura, servida pelos arquivos versionados
  * no Git (`public/songs/`) + o índice gerado no build.
  *
- * É o modo padrão quando o Supabase não está configurado. Funciona 100%
- * offline porque o service worker pré-cacheia o índice e os `.cho`.
+ * É a rede de segurança da biblioteca: funciona 100% offline porque o
+ * service worker pré-cacheia o índice e os `.cho`.
  */
 
 import type { SongIndexEntry } from '@/types/library';
@@ -26,7 +26,7 @@ class StaticSongRepository implements SongRepository {
    * tela mostraria como "Nenhuma música encontrada".
    */
   async listSongs(): Promise<LibraryLoad> {
-    if (this.indexCache) return { entries: this.indexCache, fromCache: false };
+    if (this.indexCache) return { entries: this.indexCache, source: 'static', fromCache: false };
 
     this.inFlight ??= fetch('/songs/index.json')
       .then((res) => {
@@ -41,7 +41,7 @@ class StaticSongRepository implements SongRepository {
         this.inFlight = null;
       });
 
-    return { entries: await this.inFlight, fromCache: false };
+    return { entries: await this.inFlight, source: 'static', fromCache: false };
   }
 
   async getSource(id: string): Promise<string> {

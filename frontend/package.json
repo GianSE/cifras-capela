@@ -9,12 +9,12 @@
     "build": "npm run build:index && tsc -b && vite build",
     "build:index": "tsx scripts/build-song-index.ts",
     "seed:sql": "tsx scripts/generate-seed-sql.ts",
-    "seed": "tsx --env-file=.env.local scripts/seed-supabase.ts",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\""
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\"",
+    "seed:d1": "tsx --tsconfig tsconfig.app.json scripts/seed-d1.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -29,7 +29,6 @@
     "@radix-ui/react-switch": "^1.1.3",
     "@radix-ui/react-tabs": "^1.1.3",
     "@radix-ui/react-tooltip": "^1.1.8",
-    "@supabase/supabase-js": "^2.110.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jspdf": "^4.2.1",

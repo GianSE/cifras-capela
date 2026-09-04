@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { songService } from '@/services/song-service';
 import { searchEngine } from '@/lib/search/search-engine';
 import type { SongIndexEntry } from '@/types/library';
+import type { LibraryLoad } from '@/services/song-repository';
 
 /**
  * Carrega a biblioteca e mantém o índice de busca sincronizado.
@@ -13,6 +14,8 @@ export function useSongLibrary() {
   const [songs, setSongs] = useState<SongIndexEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** De onde veio a biblioteca em exibição (rede, cache local ou Git). */
+  const [source, setSource] = useState<LibraryLoad['source']>('network');
   /** Data da cópia em cache quando a rede falhou (nulo = dados frescos). */
   const [staleSince, setStaleSince] = useState<string | null>(null);
 
@@ -22,12 +25,13 @@ export function useSongLibrary() {
     const load = () => {
       songService
         .getSongIndex()
-        .then(({ entries: index, fromCache, cachedAt }) => {
+        .then(({ entries: index, source: from, cachedAt }) => {
           if (!mounted) return;
           setSongs(index);
           searchEngine.init(index);
           setError(null);
-          setStaleSince(fromCache ? (cachedAt ?? '') : null);
+          setSource(from);
+          setStaleSince(cachedAt ?? null);
           setIsLoading(false);
         })
         .catch(() => {
@@ -47,12 +51,13 @@ export function useSongLibrary() {
   }, []);
 
   const reload = useCallback(() => {
-    songService.getSongIndex().then(({ entries: index, fromCache, cachedAt }) => {
+    songService.getSongIndex().then(({ entries: index, source: from, cachedAt }) => {
       setSongs(index);
       searchEngine.init(index);
-      setStaleSince(fromCache ? (cachedAt ?? '') : null);
+      setSource(from);
+      setStaleSince(cachedAt ?? null);
     });
   }, []);
 
-  return { songs, isLoading, error, staleSince, reload };
+  return { songs, isLoading, error, source, staleSince, reload };
 }

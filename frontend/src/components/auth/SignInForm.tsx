@@ -16,12 +16,11 @@ function readLastEmail(): string {
 }
 
 /**
- * Formulário de login (e-mail + senha). É o Supabase que autoriza a escrita:
- * as políticas de RLS só liberam criar/editar músicas para e-mails da tabela
- * `editors`. Reutilizado nas Configurações e na Importação.
+ * Formulário de login (e-mail + senha). Quem autoriza a escrita é o Worker:
+ * a sessão vira um JWT num cookie httpOnly, e as rotas de criar/editar só
+ * aceitam quem o apresenta. Reutilizado nas Configurações e na Importação.
  *
- * A sessão em si é mantida pelo Supabase (`persistSession`), então normalmente
- * o login é uma vez só; aqui só facilitamos quando ele for necessário.
+ * O cookie dura 30 dias, então normalmente o login é uma vez só.
  */
 export function SignInForm({ onSignedIn }: { onSignedIn?: () => void }) {
   const { signIn } = useAuth();

@@ -114,7 +114,7 @@ function SidebarAccount() {
     navigate('/login', { replace: true });
   };
 
-  // Sem Supabase não há conta — mantém o rótulo simples.
+  // Enquanto a sessão carrega, mantém o rótulo simples.
   if (!isEnabled) {
     return (
       <div className="shrink-0 border-t border-white/10 p-3">
