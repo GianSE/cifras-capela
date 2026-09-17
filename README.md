@@ -4,8 +4,8 @@ Biblioteca pessoal de cifras musicais — **rápida, offline, instalável (PWA)*
 transposição robusta, busca instantânea, playlists (setlists), histórico, modo
 apresentação, auto-scroll, editor e importação.
 
-As músicas ficam em **arquivos versionados no Git** (sem banco de dados). Hospedada no
-**Cloudflare Pages/Workers**.
+As músicas ficam num banco **D1**, cadastradas pelo próprio app (Editor ou Importar).
+Hospedada no **Cloudflare Workers**.
 
 ---
 
@@ -46,15 +46,13 @@ As músicas ficam em **arquivos versionados no Git** (sem banco de dados). Hospe
 ```
 cifras-capela/
 ├── frontend/           # App React (PWA)
-│   ├── public/songs/   # 🎵 Suas músicas (.cho) + index.json (gerado)
-│   ├── scripts/        # build-song-index.ts (gera o índice de busca)
 │   └── src/
 │       ├── components/ # ui (shadcn), layout, song, library, editor
 │       ├── hooks/      # useTranspose, useAutoScroll, useFavorites, useTheme…
 │       ├── lib/        # parser, transpose, import, search, storage, export
 │       ├── pages/      # Home, Song, Favorites, Editor, Import, Settings
 │       └── types/      # modelo de dados (AST)
-└── worker/             # Cloudflare Worker (sitemap.xml, headers, futuras APIs)
+└── worker/             # Cloudflare Worker (API, login, D1, sitemap.xml, headers)
 ```
 
 Camadas de domínio reutilizáveis e desacopladas:
@@ -80,7 +78,7 @@ npm run dev
 # testes (parser, transposição, renderização)
 npm run test
 
-# build de produção (gera o índice + bundle em frontend/dist)
+# build de produção (bundle em frontend/dist)
 npm run build
 
 # pré-visualizar o build
@@ -95,11 +93,10 @@ A biblioteca mora num banco **D1** (SQLite da Cloudflare), servido pelo próprio
 Worker em `/api/*` — mesma origem do site, sem serviço externo. Ler é público;
 criar, editar e excluir exigem login.
 
-Se o banco não responder, o app não fica vazio. A leitura cai em três níveis:
-
-1. **D1** — sempre que houver rede;
-2. **cache local** — a última cópia bem-sucedida, com as cifras inteiras;
-3. **`.cho` do Git** — as músicas em `frontend/public/songs/`, que vêm junto com o app.
+Não há músicas de exemplo nem carga inicial: a biblioteca começa vazia e só tem o
+que for salvo pelo app. Se o banco não responder, a leitura cai para a **cópia local**
+— a última lista bem-sucedida, com as cifras inteiras. Sem rede e sem cópia, a tela
+avisa que não conseguiu carregar.
 
 ### Login
 
@@ -129,14 +126,6 @@ npx wrangler d1 migrations apply cifras-db --remote
 npx wrangler secret put JWT_SECRET          # um valor aleatório longo
 ```
 
-**Carregar no banco as músicas que estão no Git** (idempotente; o `--silent` importa —
-sem ele o npm escreve o próprio cabeçalho dentro do `.sql`):
-
-```bash
-npm run seed:d1 --silent --workspace=frontend > worker/seed.sql
-cd worker && npx wrangler d1 execute cifras-db --remote --file seed.sql
-```
-
 Para desenvolver localmente, crie `worker/.dev.vars` com `JWT_SECRET=...` e
 `APP_ENV=development`, e aplique as migrações com `--local` em vez de `--remote`.
 
@@ -144,15 +133,10 @@ Para desenvolver localmente, crie `worker/.dev.vars` com `JWT_SECRET=...` e
 
 ## ➕ Como adicionar músicas
 
-**Pelo app (o jeito normal):** entre com sua conta, use o **Editor** (menu → Editor)
-ou o **Importar**, e clique em **Salvar**. A música vai para o D1 e aparece na hora em
-todos os seus dispositivos.
+Entre com sua conta, use o **Editor** (menu → Editor) ou o **Importar**, e clique em
+**Salvar**. A música vai para o D1 e aparece na hora em todos os seus dispositivos.
 
-**Direto no repositório** — para as músicas que devem vir sempre junto com o app,
-inclusive quando o banco estiver fora do ar:
-
-1. Crie um arquivo `.cho` em `frontend/public/songs/<coleção>/<slug>.cho`.
-2. Use o **formato híbrido** (frontmatter YAML + corpo ChordPro):
+No Editor, a cifra é escrita no **formato híbrido** (frontmatter YAML + corpo ChordPro):
 
 ```
 ---
@@ -173,8 +157,6 @@ capo: 0
 {refrão}
 [G]Porque Ele [G7]vive
 ```
-
-3. Rode `npm run build:index` (ou `npm run build`) para atualizar a busca.
 
 ### Regras do formato
 
@@ -198,26 +180,14 @@ várias de uma vez, separe-as com uma linha de `---`.
 
 ## ☁️ Deploy no Cloudflare
 
-O app é um SPA estático servido pelo **Cloudflare Pages**; o **Worker** adiciona
-`sitemap.xml` e headers.
-
-### Opção A — Cloudflare Pages (mais simples)
-
-1. Faça push do repositório para o GitHub.
-2. No painel Cloudflare → **Pages** → **Connect to Git**.
-3. Configure:
-   - **Build command**: `npm run build`
-   - **Build output directory**: `frontend/dist`
-   - **Root directory**: `/`
-4. Deploy. Cada `git push` publica automaticamente.
-
-### Opção B — Worker servindo os assets
+O **Worker** serve o SPA (`frontend/dist`), a API com o D1, o login e o `sitemap.xml`
+(gerado a partir das músicas do banco).
 
 ```bash
 # build do frontend
 npm run build
 
-# publicar o Worker (serve frontend/dist + sitemap.xml)
+# publicar o Worker
 npm run worker:deploy
 ```
 

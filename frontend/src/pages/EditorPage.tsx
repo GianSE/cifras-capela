@@ -308,13 +308,6 @@ export function EditorPage() {
             {saveError}
           </p>
         )}
-        {!songService.canWrite && (
-          <p className="mb-3 rounded-lg bg-[var(--color-surface-container)] p-3 text-xs text-muted-foreground">
-            Biblioteca somente leitura. Entre na sua conta para salvar músicas pelo app — por
-            enquanto, use <strong className="text-foreground">.cho</strong> e coloque o arquivo em{' '}
-            <code>frontend/public/songs/</code>.
-          </p>
-        )}
         {/* Alternador Editar/Prévia — apenas no mobile */}
         <Tabs
           value={pane}

@@ -6,13 +6,13 @@ import { transposeSong } from '../../src/lib/transpose';
 import type { Song } from '../../src/types/song';
 
 /**
- * Verificação end-to-end sobre um arquivo de música REAL da biblioteca.
+ * Verificação end-to-end sobre cifras reais (cópias em `tests/fixtures`).
  *
  * Garante o requisito central da especificação: ao transpor, **todos** os
  * acordes mudam e a **letra permanece exatamente igual**.
  */
 
-const SONGS_DIR = path.resolve(__dirname, '../../public/songs');
+const SONGS_DIR = path.resolve(__dirname, '../fixtures');
 
 function readSong(relative: string): string {
   return fs.readFileSync(path.join(SONGS_DIR, relative), 'utf-8');
@@ -33,7 +33,7 @@ function chordsOf(song: Song): string[] {
 }
 
 describe('Música real: culto/maos-ao-alto.cho', () => {
-  const raw = readSong('culto/maos-ao-alto.cho');
+  const raw = readSong('maos-ao-alto.cho');
   const { song, errors } = parse(raw);
 
   it('parseia sem erros e lê o frontmatter', () => {
@@ -96,7 +96,7 @@ describe('Música real: culto/maos-ao-alto.cho', () => {
   });
 });
 
-describe('Toda a biblioteca', () => {
+describe('Todas as cifras de exemplo (tests/fixtures)', () => {
   const files = fs
     .readdirSync(SONGS_DIR, { recursive: true, withFileTypes: true })
     .filter((d) => d.isFile() && d.name.endsWith('.cho'))

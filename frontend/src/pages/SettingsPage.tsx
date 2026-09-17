@@ -15,7 +15,6 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { usePlaylists } from '@/hooks/usePlaylists';
 import { useAuth } from '@/hooks/useAuth';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
-import { songService } from '@/services/song-service';
 import { preferencesStorage, type ThemePreference } from '@/lib/storage/preferences';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SectionTitle } from '@/components/layout/SectionTitle';
@@ -176,10 +175,8 @@ export function SettingsPage() {
           <Info className="mt-0.5 size-4 shrink-0 text-gold-600 dark:text-gold-400" />
           <p>
             <strong className="text-foreground">Minha Biblioteca de Cifras</strong> — funciona
-            offline. Preferências, playlists e tons ficam neste dispositivo.{' '}
-            {songService.canWrite
-              ? 'As músicas são sincronizadas na sua conta.'
-              : 'As músicas vivem em arquivos .cho versionados no Git.'}
+            offline. Preferências e tons ficam neste dispositivo; as músicas ficam no servidor, e
+            as playlists sincronizam quando você entra na conta.
           </p>
         </div>
       </div>

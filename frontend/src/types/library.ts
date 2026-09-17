@@ -2,13 +2,12 @@
  * @module types/library
  * @description Tipos do índice da biblioteca de músicas.
  *
- * Compartilhado entre o script de build (`scripts/build-song-index.ts`) e o
- * runtime (serviços/hooks), para não haver import de código fora de `src`.
+ * Formato em que o Worker devolve a biblioteca e que serviços e hooks consomem.
  */
 
 /**
- * Entrada do índice de busca, gerada em build time a partir dos metadados
- * (frontmatter YAML ou diretivas ChordPro) de cada arquivo de música.
+ * Entrada do índice de busca, derivada dos metadados (frontmatter YAML ou
+ * diretivas ChordPro) de cada música ao salvá-la.
  */
 export interface SongIndexEntry {
   /** Caminho/ID da música, ex: `harpa-crista/porque-ele-vive`. */

@@ -54,8 +54,8 @@ export function deriveIndexEntry(id: string, source: string, parsed?: Song): Son
 }
 
 /**
- * Gera um id no formato `categoria/slug` a partir do título e da 1ª categoria.
- * É o mesmo formato dos arquivos versionados (`harpa-crista/porque-ele-vive`).
+ * Gera um id no formato `categoria/slug` a partir do título e da 1ª categoria
+ * (ex.: `harpa-crista/porque-ele-vive`).
  */
 export function buildSongId(title: string, categories: readonly string[] = []): string {
   const slug = (text: string): string =>

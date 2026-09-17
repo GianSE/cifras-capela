@@ -14,7 +14,7 @@ function agoLabel(iso: string): string | null {
 
 interface OfflineNoticeProps {
   /** De onde veio a biblioteca em exibição. */
-  source?: 'network' | 'cache' | 'static';
+  source?: 'network' | 'cache';
   /** Data da cópia em cache em uso, quando `source` é `cache`. */
   staleSince?: string | null;
 }
@@ -30,9 +30,8 @@ interface OfflineNoticeProps {
 export function OfflineNotice({ source = 'network', staleSince }: OfflineNoticeProps) {
   const online = useOnlineStatus();
   const usingCache = source === 'cache';
-  const usingStatic = source === 'static';
 
-  if (online && !usingCache && !usingStatic) return null;
+  if (online && !usingCache) return null;
 
   const age = staleSince ? agoLabel(staleSince) : null;
 
@@ -43,12 +42,7 @@ export function OfflineNotice({ source = 'network', staleSince }: OfflineNoticeP
     >
       <CloudOff className="size-4 shrink-0 text-gold-600 dark:text-gold-400" />
       <p>
-        {usingStatic ? (
-          <>
-            <strong className="font-semibold">Servidor fora do ar.</strong> Mostrando só as
-            músicas que vêm com o app — as demais voltam quando a conexão voltar.
-          </>
-        ) : usingCache ? (
+        {usingCache ? (
           <>
             <strong className="font-semibold">Sem conexão.</strong> Mostrando a lista salva
             {age ? ` ${age}` : ''} — as músicas já baixadas continuam abrindo.

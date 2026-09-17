@@ -468,13 +468,6 @@ function ReviewForm({
       {saveError && (
         <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{saveError}</p>
       )}
-      {!songService.canWrite && (
-        <p className="rounded-lg bg-[var(--color-surface-container)] p-3 text-xs text-muted-foreground">
-          Biblioteca somente leitura. Entre na sua conta para salvar pelo app — por enquanto,
-          baixe o <strong className="text-foreground">.cho</strong> e coloque em{' '}
-          <code>frontend/public/songs/</code>.
-        </p>
-      )}
 
       {draft.warnings.length > 0 && (
         <div className="flex flex-col gap-2 rounded-lg bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] p-3 text-xs text-foreground">

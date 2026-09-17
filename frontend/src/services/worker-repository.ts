@@ -17,7 +17,6 @@
 import type { SongIndexEntry } from '@/types/library';
 import { deriveIndexEntry } from '@/lib/library/derive';
 import { parse } from '@/lib/parser';
-import { staticRepository } from './static-repository';
 import type { LibraryLoad, SaveSongInput, SongRepository } from './song-repository';
 
 const CACHE_KEY = 'cifras-capela:songs-cache';
@@ -86,11 +85,9 @@ class WorkerSongRepository implements SongRepository {
         };
       }
 
-      // Último recurso: as músicas versionadas, que vêm com o app. Se nem
-      // isso responder, aí sim propaga — não há mais de onde tirar.
-      console.warn('Sem cache local — caindo nas músicas versionadas.', err);
-      const fallback = await staticRepository.listSongs();
-      return { entries: fallback.entries, source: 'static', fromCache: true };
+      // Sem servidor e sem cópia local não há de onde tirar as músicas:
+      // propaga, para a tela mostrar o erro em vez de "biblioteca vazia".
+      throw err instanceof Error ? err : new Error('Falha ao carregar a biblioteca.');
     }
   }
 
@@ -103,10 +100,7 @@ class WorkerSongRepository implements SongRepository {
     } catch (err) {
       const cached = readCache()?.sources[id];
       if (cached) return cached;
-      // Pode ser uma das músicas que vêm com o app.
-      return staticRepository.getSource(id).catch(() => {
-        throw err instanceof Error ? err : new Error(`Não foi possível carregar "${id}".`);
-      });
+      throw err instanceof Error ? err : new Error(`Não foi possível carregar "${id}".`);
     }
   }
 

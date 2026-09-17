@@ -6,14 +6,12 @@
   "description": "Minha Biblioteca de Cifras — app React (Vite + TS + Tailwind + shadcn/ui).",
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:index && tsc -b && vite build",
-    "build:index": "tsx scripts/build-song-index.ts",
+    "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\"",
-    "seed:d1": "tsx --tsconfig tsconfig.app.json scripts/seed-d1.ts"
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

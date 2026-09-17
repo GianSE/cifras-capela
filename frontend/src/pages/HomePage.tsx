@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { SearchX, History, Plus, Library, Star } from 'lucide-react';
+import { SearchX, History, Plus, Library, Star, CloudOff } from 'lucide-react';
 import { useLibrary } from '@/hooks/useLibrary';
 import { useHistory } from '@/hooks/useHistory';
 import { useEditAccess } from '@/hooks/useEditAccess';
@@ -31,7 +31,7 @@ export function HomePage() {
   const { recentSongs } = useHistory();
   const { showEditUI } = useEditAccess();
 
-  const { songs, results, allCategories, isLoading, source, staleSince } = useLibrary({
+  const { songs, results, allCategories, isLoading, error, source, staleSince } = useLibrary({
     query,
     categories: activeCategory ? [activeCategory] : [],
     ids:
@@ -61,8 +61,8 @@ export function HomePage() {
         actions={
           showEditUI && (
             <Button asChild variant="gold" size="sm" className="gap-1.5">
-              <Link to="/editor">
-                <Plus className="size-4" /> <span className="hidden sm:inline">Nova</span>
+              <Link to="/importar" aria-label="Nova Música">
+                <Plus className="size-4" /> <span className="hidden sm:inline">Nova Música</span>
               </Link>
             </Button>
           )
@@ -132,17 +132,21 @@ export function HomePage() {
             </div>
           ) : results.length === 0 ? (
             <EmptyState
-              icon={onlyFavorites ? Star : onlyRecents ? History : SearchX}
+              icon={error ? CloudOff : onlyFavorites ? Star : onlyRecents ? History : SearchX}
               title={
-                onlyFavorites
+                error
+                  ? 'Não foi possível carregar a biblioteca'
+                  : onlyFavorites
                   ? 'Nenhuma favorita por aqui'
                   : onlyRecents
                     ? 'Nenhuma recente por aqui'
                     : 'Nenhuma música encontrada'
               }
               description={
-                songs.length === 0
-                  ? 'Adicione arquivos .cho em public/songs para começar.'
+                error
+                  ? 'O servidor não respondeu e ainda não há cópia salva neste aparelho. Tente de novo quando a conexão voltar.'
+                  : songs.length === 0
+                  ? 'Importe ou crie a primeira música para começar.'
                   : onlyFavorites
                     ? 'Suas favoritas não batem com a busca ou a categoria escolhida.'
                     : onlyRecents

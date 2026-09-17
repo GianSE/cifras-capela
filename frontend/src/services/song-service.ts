@@ -2,8 +2,7 @@
  * @module services/song-service
  * @description Ponto único de acesso às músicas.
  *
- * Fala com o Worker (D1) e, quando ele não responde, com a cópia local ou
- * com os `.cho` versionados. O resto do app não precisa saber de onde veio.
+ * Fala com o Worker (D1) e, quando ele não responde, com a cópia local. O resto do app não precisa saber de onde veio.
  */
 
 import type { LibraryLoad, SaveSongInput, SongRepository } from './song-repository';
@@ -13,7 +12,7 @@ import { workerRepository } from './worker-repository';
  * A API do Worker vive na mesma origem do site, então está sempre disponível
  * — não há mais o "configurou ou não configurou" de quando os dados moravam
  * num serviço externo. Quando ela cai, quem cobre é o próprio repositório
- * (cache local e, no limite, os `.cho` versionados).
+ * (cache local).
  */
 const repository: SongRepository = workerRepository;
 

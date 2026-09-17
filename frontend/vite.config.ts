@@ -40,19 +40,10 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Pré-cacheia o app + todas as músicas (offline total).
-        globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff,woff2,ttf,json,cho}'],
+        // Pré-cacheia o app; offline, as músicas vêm da cópia local da biblioteca.
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff,woff2,ttf,json}'],
         navigateFallback: '/index.html',
         runtimeCaching: [
-          {
-            // Músicas adicionadas depois do build.
-            urlPattern: ({ url }) => url.pathname.startsWith('/songs/'),
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'songs',
-              expiration: { maxEntries: 1000, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
-          },
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',

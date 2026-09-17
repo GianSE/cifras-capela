@@ -18,11 +18,6 @@ import { playlistsRoute } from './api/playlists';
 export type { Env };
 
 
-interface SongIndexEntry {
-  readonly id: string;
-  readonly title: string;
-}
-
 const SECURITY_HEADERS: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
@@ -45,21 +40,21 @@ function withSecurityHeaders(response: Response): Response {
 async function buildSitemap(request: Request, env: Env): Promise<Response> {
   const origin = env.SITE_URL ?? new URL(request.url).origin;
 
-  let entries: readonly SongIndexEntry[] = [];
+  // As músicas moram no D1; se ele falhar, o sitemap sai só com as páginas fixas.
+  let ids: string[] = [];
   try {
-    const indexResponse = await env.ASSETS.fetch(new URL('/songs/index.json', origin));
-    if (indexResponse.ok) {
-      const data = (await indexResponse.json()) as { songs?: SongIndexEntry[] } | SongIndexEntry[];
-      entries = Array.isArray(data) ? data : (data.songs ?? []);
-    }
+    const { results } = await env.DB.prepare('SELECT id FROM songs ORDER BY id').all<{
+      id: string;
+    }>();
+    ids = results.map((row) => row.id);
   } catch {
-    entries = [];
+    ids = [];
   }
 
-  const staticPaths = ['/', '/playlists', '/editor', '/importar'];
+  const staticPaths = ['/', '/home', '/playlists', '/importar'];
   const urls = [
     ...staticPaths.map((p) => `${origin}${p}`),
-    ...entries.map((song) => `${origin}/musica/${encodeURI(song.id)}`),
+    ...ids.map((id) => `${origin}/musica/${encodeURI(id)}`),
   ];
 
   const body = `<?xml version="1.0" encoding="UTF-8"?>
