@@ -74,3 +74,11 @@ describe('transpose (string → string)', () => {
     expect(transpose(chord, semi, flats)).toBe(expected);
   });
 });
+
+describe('transpor sétima maior brasileira', () => {
+  it('Bb7M sobe um tom e continua escrito como 7M', () => {
+    expect(transpose('Bb7M', 2)).toBe('C7M');
+    expect(transpose('G7M/B', 2)).toBe('A7M/C#');
+    expect(transpose('C7+', -2, true)).toBe('Bb7+');
+  });
+});

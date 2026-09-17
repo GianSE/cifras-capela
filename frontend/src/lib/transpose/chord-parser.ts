@@ -28,9 +28,13 @@ const VALID_NOTES: ReadonlySet<string> = new Set<string>([
  * As extensões aceitam tanto a forma entre parênteses `7(b5)` quanto a forma
  * "solta" `7b5`, `9#11`, além de `add9`, `sus2`, `no3`, etc. Como a transposição
  * só toca em raiz/baixo, qualquer sufixo é preservado verbatim.
+ *
+ * Um número pode vir seguido de `M` ou `+`: é a notação brasileira de sétima
+ * maior (`C7M`, `Bb7M`, `C7+` = `Cmaj7`), muito comum em cifras daqui. Sem ela,
+ * esses acordes não eram reconhecidos — sumiam do leitor e não transpunham.
  */
 const CHORD_REGEX =
-  /^(?<root>[A-G])(?<accidental>[#b])?(?<quality>maj|min|dim|aug|sus|m|M|\+|°|ø|Δ)?(?<extensions>(?:\d+|add\d+|sus\d+|no\d+|maj\d+|[#b]\d+|\([-\w#b,+]+\))*)?(?:\/(?<bassRoot>[A-G])(?<bassAccidental>[#b])?)?$/;
+  /^(?<root>[A-G])(?<accidental>[#b])?(?<quality>maj|min|dim|aug|sus|m|M|\+|°|ø|Δ)?(?<extensions>(?:\d+(?:M|\+)?|add\d+|sus\d+|no\d+|maj\d+|[#b]\d+|\([-\w#b,+]+\))*)?(?:\/(?<bassRoot>[A-G])(?<bassAccidental>[#b])?)?$/;
 
 /**
  * Analisa uma string de acorde e retorna uma representação estruturada.

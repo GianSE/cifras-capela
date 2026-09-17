@@ -302,3 +302,25 @@ describe('parseChordString', () => {
     expect(result!.raw).toBe('F#m7(b5)/E');
   });
 });
+
+describe('notação brasileira de sétima maior (7M, 7+)', () => {
+  // Comum em cifras brasileiras: C7M = Cmaj7. Sem reconhecer, o acorde sumia
+  // do leitor (o segmento ficava sem acorde) e não era transposto.
+  it.each(['C7M', 'Bb7M', 'F#m7M', 'G7M/B', 'C7+', 'Eb9M'])('reconhece %s', (acorde) => {
+    const chord = parseChordString(acorde);
+    expect(chord).not.toBeNull();
+    expect(chord!.raw).toBe(acorde);
+  });
+
+  it('separa a raiz do sufixo, para a transposição mexer só na nota', () => {
+    const chord = parseChordString('Bb7M')!;
+    expect(chord.root).toBe('B');
+    expect(chord.accidental).toBe('b');
+    expect(chord.extensions).toBe('7M');
+  });
+
+  it('não aceita lixo parecido', () => {
+    expect(parseChordString('C7MM')).toBeNull();
+    expect(parseChordString('7M')).toBeNull();
+  });
+});
