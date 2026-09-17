@@ -7,8 +7,6 @@ export interface Env {
   DB: D1Database;
   /** URL pública do site, usada no sitemap. */
   SITE_URL?: string;
-  /** Chave da API do Gemini (secret: `wrangler secret put GEMINI_API_KEY`). */
-  GEMINI_API_KEY?: string;
   /** Assina o cookie de sessão (secret: `wrangler secret put JWT_SECRET`). */
   JWT_SECRET?: string;
   /** `development` afrouxa o `Secure` do cookie, para o dev em http. */

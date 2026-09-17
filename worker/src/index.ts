@@ -4,22 +4,11 @@
  * Responsabilidades:
  *  - Servir os assets estáticos do build do frontend (SPA fallback).
  *  - Gerar `/sitemap.xml` dinamicamente a partir do índice de músicas.
- *  - `/api/format`: formatar cifra colada em ChordPro usando o Gemini (Google).
- *    A chave da API é um secret do Worker — nunca vai ao navegador.
+ *  - `/api/fetch-page`: baixar a página de uma cifra (o navegador não pode, por CORS).
+ *  - `/api/auth/*`, `/api/songs`, `/api/playlists`: login e a biblioteca no D1.
  *  - Headers de segurança e cache.
  */
 
-import {
-  FORMAT_SYSTEM,
-  FORMAT_SCHEMA,
-  GENERATE_SYSTEM,
-  GENERATE_SCHEMA,
-  CANDIDATES_SYSTEM,
-  CANDIDATES_SCHEMA,
-  type FormatResult,
-  type GenerateResult,
-  type CandidatesResult,
-} from './format-prompt';
 import { json } from './lib/http';
 import type { Env } from './types';
 import { login, logout, me } from './api/auth';
@@ -28,11 +17,6 @@ import { playlistsRoute } from './api/playlists';
 
 export type { Env };
 
-
-/** Modelo do Gemini. `gemini-flash-latest` aponta sempre para o Flash atual. */
-const MODEL = 'gemini-flash-latest';
-/** Limite de texto aceito (evita abusos e custo). */
-const MAX_INPUT_CHARS = 20_000;
 
 interface SongIndexEntry {
   readonly id: string;
@@ -89,169 +73,6 @@ ${urls.map((loc) => `  <url><loc>${loc}</loc></url>`).join('\n')}
       'Cache-Control': 'public, max-age=3600',
     },
   });
-}
-
-/** Resposta (parcial) do endpoint generateContent do Gemini. */
-interface GeminiResponse {
-  candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> };
-    finishReason?: string;
-  }>;
-  promptFeedback?: { blockReason?: string };
-}
-
-type GeminiCall =
-  | { ok: true; raw: string }
-  | { ok: false; status: number; error: string };
-
-/** Chamada única ao Gemini com saída estruturada (JSON pelo schema). */
-async function callGemini(
-  env: Env,
-  system: string,
-  schema: unknown,
-  userText: string,
-): Promise<GeminiCall> {
-  const endpoint =
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent` +
-    `?key=${encodeURIComponent(env.GEMINI_API_KEY!)}`;
-
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [{ role: 'user', parts: [{ text: userText }] }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: schema,
-        temperature: 0.2,
-        maxOutputTokens: 4096,
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    console.error('Gemini erro HTTP', res.status, detail);
-    const error =
-      res.status === 429
-        ? 'Limite de uso da IA atingido. Tente daqui a pouco.'
-        : 'Não foi possível processar agora. Verifique a chave da IA.';
-    return { ok: false, status: 502, error };
-  }
-
-  // Decodifica explicitamente como UTF-8 — evita mojibake em acentos (ã, ç…)
-  // caso o runtime erre o charset do corpo da resposta.
-  const decoded = new TextDecoder('utf-8').decode(await res.arrayBuffer());
-  const data = JSON.parse(decoded) as GeminiResponse;
-  if (data.promptFeedback?.blockReason) {
-    return { ok: false, status: 422, error: 'A IA recusou processar este conteúdo.' };
-  }
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!raw) return { ok: false, status: 502, error: 'Resposta vazia da IA.' };
-  return { ok: true, raw };
-}
-
-/** Converte texto bruto de cifra em ChordPro. */
-async function formatWithAI(request: Request, env: Env): Promise<Response> {
-  if (!env.GEMINI_API_KEY) return json({ error: 'IA não configurada neste servidor.' }, 501);
-
-  let text: string;
-  try {
-    const payload = (await request.json()) as { text?: unknown };
-    text = typeof payload.text === 'string' ? payload.text.trim() : '';
-  } catch {
-    return json({ error: 'Corpo inválido.' }, 400);
-  }
-  if (!text) return json({ error: 'Envie o texto da cifra.' }, 400);
-  if (text.length > MAX_INPUT_CHARS) {
-    return json({ error: 'Texto muito longo. Cole uma música por vez.' }, 413);
-  }
-
-  try {
-    const result = await callGemini(env, FORMAT_SYSTEM, FORMAT_SCHEMA, text);
-    if (!result.ok) return json({ error: result.error }, result.status);
-    return json(JSON.parse(result.raw) as FormatResult);
-  } catch (err) {
-    console.error('Falha ao formatar com IA:', err);
-    return json({ error: 'Não foi possível formatar agora. Tente novamente.' }, 502);
-  }
-}
-
-/** Gera a cifra de uma música conhecida a partir do nome. */
-async function generateWithAI(request: Request, env: Env): Promise<Response> {
-  if (!env.GEMINI_API_KEY) return json({ error: 'IA não configurada neste servidor.' }, 501);
-
-  let title: string;
-  let artist: string;
-  let key: string;
-  let excerpt: string;
-  try {
-    const payload = (await request.json()) as {
-      title?: unknown;
-      artist?: unknown;
-      key?: unknown;
-      excerpt?: unknown;
-    };
-    title = typeof payload.title === 'string' ? payload.title.trim() : '';
-    artist = typeof payload.artist === 'string' ? payload.artist.trim() : '';
-    key = typeof payload.key === 'string' ? payload.key.trim() : '';
-    excerpt = typeof payload.excerpt === 'string' ? payload.excerpt.trim().slice(0, 500) : '';
-  } catch {
-    return json({ error: 'Corpo inválido.' }, 400);
-  }
-  if (!title) return json({ error: 'Informe o nome da música.' }, 400);
-  if (title.length > 200) return json({ error: 'Nome muito longo.' }, 413);
-
-  const userText = [
-    `Música: ${title}`,
-    `Artista: ${artist || '(não informado)'}`,
-    `Tom desejado: ${key || '(use o tom original)'}`,
-    excerpt ? `Trecho da letra (é a fonte da verdade sobre QUAL música é): ${excerpt}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
-
-  try {
-    const result = await callGemini(env, GENERATE_SYSTEM, GENERATE_SCHEMA, userText);
-    if (!result.ok) return json({ error: result.error }, result.status);
-    return json(JSON.parse(result.raw) as GenerateResult);
-  } catch (err) {
-    console.error('Falha ao gerar com IA:', err);
-    return json({ error: 'Não foi possível gerar agora. Tente novamente.' }, 502);
-  }
-}
-
-/** Lista músicas conhecidas com um dado nome, ordenadas por confiança. */
-async function findCandidates(request: Request, env: Env): Promise<Response> {
-  if (!env.GEMINI_API_KEY) return json({ error: 'IA não configurada neste servidor.' }, 501);
-
-  let title: string;
-  let artist: string;
-  try {
-    const payload = (await request.json()) as { title?: unknown; artist?: unknown };
-    title = typeof payload.title === 'string' ? payload.title.trim() : '';
-    artist = typeof payload.artist === 'string' ? payload.artist.trim() : '';
-  } catch {
-    return json({ error: 'Corpo inválido.' }, 400);
-  }
-  if (!title) return json({ error: 'Informe o nome da música.' }, 400);
-  if (title.length > 200) return json({ error: 'Nome muito longo.' }, 413);
-
-  const userText = `Nome: ${title}\nArtista: ${artist || '(não informado)'}`;
-  const order = { alta: 0, media: 1, baixa: 2 };
-
-  try {
-    const result = await callGemini(env, CANDIDATES_SYSTEM, CANDIDATES_SCHEMA, userText);
-    if (!result.ok) return json({ error: result.error }, result.status);
-    const data = JSON.parse(result.raw) as CandidatesResult;
-    // Garante a ordenação por confiança mesmo se o modelo não ordenar.
-    data.candidates.sort((a, b) => (order[a.confidence] ?? 3) - (order[b.confidence] ?? 3));
-    return json(data);
-  } catch (err) {
-    console.error('Falha ao buscar candidatas:', err);
-    return json({ error: 'Não foi possível buscar agora. Tente novamente.' }, 502);
-  }
 }
 
 /* ==========================================================================
@@ -388,34 +209,9 @@ export default {
       return withSecurityHeaders(await buildSitemap(request, env));
     }
 
-    if (url.pathname === '/api/format') {
-      // GET informa se a IA está disponível (o app usa para mostrar o botão).
-      if (request.method === 'GET') {
-        return withSecurityHeaders(json({ available: Boolean(env.GEMINI_API_KEY) }));
-      }
-      if (request.method === 'POST') {
-        return withSecurityHeaders(await formatWithAI(request, env));
-      }
-      return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
-    }
-
-    if (url.pathname === '/api/generate') {
-      if (request.method === 'POST') {
-        return withSecurityHeaders(await generateWithAI(request, env));
-      }
-      return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
-    }
-
     if (url.pathname === '/api/fetch-page') {
       if (request.method === 'POST') {
         return withSecurityHeaders(await fetchSongPage(request));
-      }
-      return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
-    }
-
-    if (url.pathname === '/api/song-candidates') {
-      if (request.method === 'POST') {
-        return withSecurityHeaders(await findCandidates(request, env));
       }
       return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
     }

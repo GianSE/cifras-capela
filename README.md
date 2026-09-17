@@ -196,52 +196,6 @@ várias de uma vez, separe-as com uma linha de `---`.
 
 ---
 
-## 🤖 Formatar com IA (opcional)
-
-Um botão **"Formatar com IA"** no /importar usa o **Gemini (Google)** para limpar
-e formatar textos bagunçados (PDF exportado, cópia torta) em ChordPro. A chamada
-acontece **no Worker** — a chave da API é um *secret* e **nunca** vai ao navegador.
-Sem a chave configurada, o botão simplesmente não aparece.
-
-**Pegue a chave** (grátis) em <https://aistudio.google.com/apikey> — ela começa
-com `AIza...`. Nunca cole a chave em código, chat ou commit; ela só entra como
-secret.
-
-Para ativar no site publicado:
-
-```bash
-# 1. Configure a chave como secret do Worker (não vai para o Git nem o bundle)
-cd worker && npx wrangler secret put GEMINI_API_KEY   # cole a chave quando pedir
-
-# 2. Publique
-npm run build --workspace=frontend
-npm run worker:deploy
-```
-
-Para testar localmente com `wrangler dev`, crie `worker/.dev.vars` (já ignorado
-pelo Git) com:
-
-```
-GEMINI_API_KEY=AIza...
-```
-
-- Modelo padrão: `gemini-2.0-flash` (constante `MODEL` em `worker/src/index.ts`),
-  rápido e com free tier generoso.
-- A IA **não inventa acordes**: se o texto não tinha cifra, ela formata só a letra
-  e avisa. Sempre há uma tela de revisão antes de salvar.
-- Como o Worker é quem chama o Gemini, a IA funciona no site publicado (ou em
-  `wrangler dev`), não no `npm run dev` (que roda só o Vite).
-
-Também há **"Gerar música"**: você digita o nome (e opcionalmente artista/tom) e a
-IA escreve letra + cifra de músicas que conhece — ótimo para **hinos**. Tem trava
-**anti-alucinação**: se não conhecer a música com segurança, ela avisa (confiança
-baixa) em vez de inventar. **Sempre revise**, principalmente os acordes.
-
-Os *system prompts* da IA ficam em `worker/src/prompts/*.md` — fáceis de ajustar
-sem mexer em código.
-
----
-
 ## ☁️ Deploy no Cloudflare
 
 O app é um SPA estático servido pelo **Cloudflare Pages**; o **Worker** adiciona

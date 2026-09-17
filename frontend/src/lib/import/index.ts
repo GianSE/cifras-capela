@@ -12,7 +12,6 @@ import { importMarkdown } from './markdown-importer';
 import { importJson } from './json-importer';
 import { importPdf } from './pdf-importer';
 import { importImage } from './image-importer';
-import { isAiFormatterAvailable, formatWithAI } from './ai';
 import type { ImportedSong } from './types';
 
 export type { ImportedSong } from './types';
@@ -57,33 +56,23 @@ export async function importFile(
 }
 
 /**
- * Importa a imagem por OCR (script, sem IA). Se a heurística não encontrar
- * nenhum acorde no resultado — sinal de que o alinhamento do OCR bagunçou o
- * texto —, manda automaticamente para a IA arrumar, só nesse caso.
+ * Importa a imagem por OCR (Tesseract, no próprio aparelho). Quando não acha
+ * nenhum acorde — sinal de que o alinhamento da foto bagunçou o texto —, avisa
+ * em vez de fingir que deu certo: o texto vem cru para ser ajustado na revisão.
  */
 async function importImageWithFallback(
   file: File,
   onProgress?: (fraction: number) => void,
 ): Promise<ImportedSong> {
   const result = await importImage(file, onProgress);
-  if (result.body.includes('[') || !(await isAiFormatterAvailable())) {
-    return result;
-  }
-
-  try {
-    const { source, warnings } = await formatWithAI(result.body);
-    const reformatted = importChordPro(source);
-    return {
-      ...reformatted,
-      warnings: [
-        ...warnings,
-        ...reformatted.warnings,
-        'Nenhum acorde reconhecido no OCR — a IA reformatou automaticamente.',
-      ],
-    };
-  } catch {
-    return result;
-  }
+  if (result.body.includes('[')) return result;
+  return {
+    ...result,
+    warnings: [
+      ...result.warnings,
+      'Nenhum acorde reconhecido na foto — ajuste a cifra no campo abaixo ou cole o texto.',
+    ],
+  };
 }
 
 /** ChordPro/`.cho`: normaliza para o formato de autoria e extrai metadados. */
