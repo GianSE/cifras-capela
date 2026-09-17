@@ -8,7 +8,6 @@
     "dev": "vite",
     "build": "npm run build:index && tsc -b && vite build",
     "build:index": "tsx scripts/build-song-index.ts",
-    "seed:sql": "tsx scripts/generate-seed-sql.ts",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",

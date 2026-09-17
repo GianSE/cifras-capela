@@ -89,65 +89,67 @@ npm run preview
 
 ---
 
-## 🗄️ Onde as músicas ficam (dois modos)
+## 🗄️ Onde as músicas ficam
 
-O app funciona de dois jeitos, escolhidos automaticamente pela presença das
-credenciais do Supabase:
+A biblioteca mora num banco **D1** (SQLite da Cloudflare), servido pelo próprio
+Worker em `/api/*` — mesma origem do site, sem serviço externo. Ler é público;
+criar, editar e excluir exigem login.
 
-| | **Modo estático** (padrão) | **Modo Supabase** |
-|---|---|---|
-| Fonte da verdade | arquivos `.cho` no Git | tabela `songs` no Postgres |
-| Criar/editar/excluir no app | ❌ somente leitura | ✅ CRUD completo |
-| Sincroniza celular ↔ PC | via commit + deploy | ✅ na hora |
-| Ler offline | ✅ (service worker) | ✅ (cache local) |
-| Precisa de login | — | só para **escrever** |
+Se o banco não responder, o app não fica vazio. A leitura cai em três níveis:
 
-### Ativando o modo Supabase (CRUD)
+1. **D1** — sempre que houver rede;
+2. **cache local** — a última cópia bem-sucedida, com as cifras inteiras;
+3. **`.cho` do Git** — as músicas em `frontend/public/songs/`, que vêm junto com o app.
 
-1. Crie um projeto em [supabase.com](https://supabase.com).
-2. Abra [`supabase/schema.sql`](supabase/schema.sql), **troque `SEU-EMAIL-AQUI@exemplo.com`
-   pelo seu e-mail**, e execute o arquivo inteiro no **SQL Editor**. Isso cria a tabela
-   `songs`, a lista de `editors` e as políticas de RLS.
-3. **Project Settings → API**: copie a *Project URL* (`https://xxxx.supabase.co` — **não**
-   a URL do painel) e a chave *anon public* (ou *Publishable key*).
-4. Copie `frontend/.env.example` para `frontend/.env.local` e preencha:
-   ```bash
-   VITE_SUPABASE_URL=https://xxxx.supabase.co
-   VITE_SUPABASE_ANON_KEY=sb_publishable_...
-   ```
-5. **Crie seu usuário**: Authentication → Users → **Add user** → o mesmo e-mail do passo 2,
-   com uma senha, e marque *Auto Confirm User*.
-6. **Suba as músicas que já estão no Git** (uma vez só):
-   ```bash
-   npm run seed:sql --workspace=frontend   # gera supabase/seed.sql
-   ```
-   Cole o `supabase/seed.sql` no SQL Editor e execute. (É idempotente — rodar de novo só
-   atualiza. Usa o SQL Editor em vez da API justamente para nenhuma chave secreta
-   precisar sair do painel.)
-7. Reinicie o `npm run dev`. Em **/config → Conta**, entre com e-mail e senha. Pronto:
-   os botões **Salvar** e **Excluir** aparecem no editor e no importador.
+### Login
 
-### Segurança — por que a lista de `editors`
+JWT (HS256) num cookie **httpOnly**, assinado pelo Worker — o JavaScript da página
+não alcança o token. Senhas em PBKDF2-SHA256. Não há cadastro pelo site: quem edita
+é criado por SQL.
 
-A anon key **vai no bundle do app** (é pública por design), então quem protege a escrita é
-o RLS. Só exigir "autenticado" **não basta**: o cadastro público do Supabase vem ligado por
-padrão, e qualquer pessoa poderia criar uma conta e editar sua biblioteca. Por isso as
-policies checam a tabela `editors` — mesmo com cadastro aberto, só os e-mails de lá
-escrevem. Leitura é pública (ninguém precisa entrar para ver as cifras).
+**Criar ou trocar a senha de um administrador** (a senha não sai da sua máquina, o
+script só gera o hash):
 
-> Reforço opcional: Authentication → Providers → Email → desligue *Enable sign ups*.
+```powershell
+cd worker
+$SQL = node scripts/criar-admin.mjs "voce@exemplo.com" "Seu Nome" "sua-senha"
+npx wrangler d1 execute cifras-db --remote --command $SQL
+```
 
-> No deploy do Cloudflare Pages, defina `VITE_SUPABASE_URL` e
-> `VITE_SUPABASE_ANON_KEY` nas variáveis de ambiente do projeto.
+Sem `--remote`, o usuário vai para o banco local de desenvolvimento, não para o site.
+
+### Configuração (uma vez só)
+
+Já feita neste projeto — fica registrada para recriar do zero:
+
+```bash
+cd worker
+npx wrangler d1 create cifras-db            # cole o database_id no wrangler.toml
+npx wrangler d1 migrations apply cifras-db --remote
+npx wrangler secret put JWT_SECRET          # um valor aleatório longo
+```
+
+**Carregar no banco as músicas que estão no Git** (idempotente; o `--silent` importa —
+sem ele o npm escreve o próprio cabeçalho dentro do `.sql`):
+
+```bash
+npm run seed:d1 --silent --workspace=frontend > worker/seed.sql
+cd worker && npx wrangler d1 execute cifras-db --remote --file seed.sql
+```
+
+Para desenvolver localmente, crie `worker/.dev.vars` com `JWT_SECRET=...` e
+`APP_ENV=development`, e aplique as migrações com `--local` em vez de `--remote`.
 
 ---
 
 ## ➕ Como adicionar músicas
 
-**Com o Supabase ativo:** use o **Editor** (menu → Editor) ou o **Importar**, e
-clique em **Salvar**. A música aparece na hora em todos os seus dispositivos.
+**Pelo app (o jeito normal):** entre com sua conta, use o **Editor** (menu → Editor)
+ou o **Importar**, e clique em **Salvar**. A música vai para o D1 e aparece na hora em
+todos os seus dispositivos.
 
-**No modo estático**, crie o arquivo à mão:
+**Direto no repositório** — para as músicas que devem vir sempre junto com o app,
+inclusive quando o banco estiver fora do ar:
 
 1. Crie um arquivo `.cho` em `frontend/public/songs/<coleção>/<slug>.cho`.
 2. Use o **formato híbrido** (frontmatter YAML + corpo ChordPro):
