@@ -38,6 +38,12 @@ function docToText(doc: Document): string {
   // Muitos sites de cifra usam <pre> com o alinhamento por espaços.
   const pre = doc.querySelector('pre');
   if (pre?.textContent && pre.textContent.trim().length > 0) {
+    // Tablaturas saem inteiras. O botão "ocultar tablaturas" do CifraClub só
+    // age no navegador; o HTML que chega aqui sempre as traz, embrulhadas em
+    // `.tabs > .tab`. O traçado (`E|---|`) já era descartado como lixo, mas o
+    // rótulo "Parte 1 de 2" e os acordes em cima dele vazavam para a cifra.
+    // Diferente das classes geradas do site, `tabs`/`tab` têm nome estável.
+    pre.querySelectorAll('.tabs, .tab').forEach((el) => el.remove());
     return pre.textContent;
   }
 

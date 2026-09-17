@@ -44,3 +44,42 @@ describe('importar cifra de página HTML', () => {
     expect(song.artist).toBe('Domínio Público');
   });
 });
+
+describe('tablatura no CifraClub', () => {
+  // Estrutura real ("Tu És o Centro", Frei Gilson): a intro em acordes e,
+  // logo depois, a tablatura dividida em partes, dentro de `.tabs > .tab`.
+  // O botão "ocultar tablaturas" do site só existe no navegador; o HTML que o
+  // Worker baixa sempre traz as duas coisas.
+  const HTML = `<!doctype html><html><head>
+<title>Tu És o Centro - Frei Gilson - Cifra Club</title></head><body>
+<pre><div class="kvMV">[Intro] <b data-chord-name="F">F</b>  <b data-chord-name="Dm7">Dm7</b>  <b data-chord-name="Bb">Bb</b>
+
+</div><div class="kvMV"><div class="tabs"><span class="tab">Parte 1 de 2
+           <b data-chord-name="F">F</b>                     <b data-chord-name="Dm7">Dm7</b>
+E|------------------------------------------|
+D|-----3---3h5--5/7-7~-------3---3h5--5/7-7~|
+</span>
+<span class="tab">Parte 2 de 2
+           <b data-chord-name="Bb">Bb</b>                     <b data-chord-name="F">F</b>
+E|------------------------------------------|
+</span></div>
+</div><div class="kvMV">[Primeira Parte]
+
+             <b data-chord-name="F">F</b>
+Quero Te louvar
+</div></pre></body></html>`;
+
+  it('não traz os rótulos nem os acordes da tablatura', () => {
+    const body = importHtml(HTML).body;
+    expect(body).not.toMatch(/Parte \d de \d/);
+    // Só a intro e o verso: F Dm7 Bb na intro, F no verso — nada da tab.
+    expect(body.match(/\[Dm7\]/g) ?? []).toHaveLength(1);
+  });
+
+  it('mantém a intro em acordes e a letra', () => {
+    const body = importHtml(HTML).body;
+    expect(body).toMatch(/\{Intro\}/);
+    expect(body).toMatch(/\[F\] \[Dm7\] \[Bb\]/);
+    expect(body).toContain('Quero Te louv');
+  });
+});
