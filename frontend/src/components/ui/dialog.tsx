@@ -32,7 +32,10 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 z-[var(--z-modal)] grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl border border-border bg-popover p-6 text-popover-foreground shadow-floating animate-scale-in',
+        // `[&>*]:min-w-0`: num grid os filhos não encolhem sozinhos, e um texto
+        // longo (id de música, link, nome sem espaços) alargaria as colunas
+        // além da caixa — o diálogo aparecia cortado no celular.
+        'fixed left-1/2 top-1/2 z-[var(--z-modal)] grid w-[calc(100%-2rem)] max-w-lg [&>*]:min-w-0 -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl border border-border bg-popover p-6 text-popover-foreground shadow-floating animate-scale-in',
         /* Fio dourado no topo — a mesma assinatura das faixas azuis. */
         'before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-[image:var(--gradient-gold)] before:content-[""]',
         className,

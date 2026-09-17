@@ -82,7 +82,7 @@ export function VideoLinkDialog({
 
         <Button asChild variant="outline" className="gap-2">
           <a href={youtubeSearchUrl(title, artist)} target="_blank" rel="noreferrer noopener">
-            <Search className="size-4" /> Procurar “{title}” no YouTube
+            <Search className="size-4" /> Procurar no YouTube
             <ExternalLink className="size-3.5 opacity-60" />
           </a>
         </Button>

@@ -341,7 +341,7 @@ export function ImportPage() {
                 onClick={() => void writeSong(nextFreeSongId(conflictId ?? '', songs.map((s) => s.id)))}
                 className="justify-start gap-2"
               >
-                <Copy className="size-4" /> Guardar como nova, sem mexer na antiga
+                <Copy className="size-4" /> Guardar como nova
               </Button>
               <Button
                 variant="outline"
