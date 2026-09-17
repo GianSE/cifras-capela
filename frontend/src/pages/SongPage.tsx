@@ -58,7 +58,7 @@ export function SongPage() {
     onFontIncrease: font.increase,
     onFontDecrease: font.decrease,
     onStage: () => setStageOpen(true),
-    onExit: () => navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/'),
+    onExit: () => navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/home'),
   });
 
   /** Exporta a cifra no tom atual em PDF (jsPDF carregado sob demanda). */
@@ -144,7 +144,7 @@ export function SongPage() {
       <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
         <AlertCircle className="size-10 text-destructive" />
         <p className="text-muted-foreground">{fetchError ?? 'Erro ao renderizar a música.'}</p>
-        <Button variant="secondary" onClick={() => navigate('/')} className="gap-2">
+        <Button variant="secondary" onClick={() => navigate('/home')} className="gap-2">
           <ChevronLeft className="size-4" /> Voltar à biblioteca
         </Button>
       </div>
@@ -161,7 +161,7 @@ export function SongPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/')}
+              onClick={() => navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/home')}
               aria-label="Voltar"
               className="text-navy-100 hover:bg-white/10 hover:text-ivory"
             >

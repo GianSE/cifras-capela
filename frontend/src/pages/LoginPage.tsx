@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useGuestMode } from '@/hooks/useGuestMode';
 
 /**
- * Página `/login`. Aparece quando ninguém entrou (o
+ * Entrada do site, em `/`. Aparece quando ninguém entrou (o
  * guard redireciona para cá) e também é para onde o logout leva. Oferece o
  * login (criar/editar) ou seguir como convidado (só ver).
  *
@@ -16,8 +16,8 @@ export function LoginPage() {
   const location = useLocation();
   const { enterAsGuest } = useGuestMode();
 
-  // Volta para a página de origem (se veio de um redirecionamento) ou à raiz.
-  const from = (location.state as { from?: string } | null)?.from ?? '/';
+  // Volta para a página de origem (se veio de um redirecionamento) ou à biblioteca.
+  const from = (location.state as { from?: string } | null)?.from ?? '/home';
   const goToApp = () => navigate(from, { replace: true });
 
   const handleGuest = () => {

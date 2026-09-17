@@ -59,7 +59,7 @@ export function PlaylistsPage() {
                   <Plus className="size-4" /> Criar playlist
                 </Button>
                 <Button asChild variant="outline" className="gap-2">
-                  <Link to="/">
+                  <Link to="/home">
                     <Library className="size-4" /> Biblioteca
                   </Link>
                 </Button>

@@ -6,7 +6,7 @@ import { useGuestMode } from '@/hooks/useGuestMode';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { name: 'Biblioteca', path: '/', icon: Library },
+  { name: 'Biblioteca', path: '/home', icon: Library },
   { name: 'Playlists', path: '/playlists', icon: ListMusic },
   { name: 'Editor', path: '/editor', icon: PenLine },
   { name: 'Configurações', path: '/config', icon: Settings },
@@ -33,7 +33,7 @@ export function Sidebar() {
   const { pathname } = useLocation();
   const { showEditUI } = useEditAccess();
 
-  const isActive = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path));
+  const isActive = (path: string) => pathname.startsWith(path);
 
   // O Editor só aparece para quem pode escrever (logado, ou modo arquivo).
   const items = NAV_ITEMS.filter((item) => item.path !== '/editor' || showEditUI);
@@ -111,7 +111,7 @@ function SidebarAccount() {
   const handleExit = async () => {
     if (isSignedIn) await signOut();
     else clearGuest();
-    navigate('/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   // Enquanto a sessão carrega, mantém o rótulo simples.

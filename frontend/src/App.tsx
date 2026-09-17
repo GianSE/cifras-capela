@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useTheme } from '@/hooks/useTheme';
 import { useEditAccess } from '@/hooks/useEditAccess';
 import { useGuestMode } from '@/hooks/useGuestMode';
+import { useAuth } from '@/hooks/useAuth';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
 
@@ -35,9 +36,9 @@ function PageFallback() {
 }
 
 /**
- * Guard de entrada: com ninguém logado (nem convidado),
- * redireciona para `/login`. Quem já entrou (a sessão persiste) ou já escolheu
- * convidado passa direto. `/login` fica fora deste guard.
+ * Guard das telas do app: com ninguém logado (nem convidado), manda para a
+ * entrada (`/`), lembrando de onde veio. Quem já entrou (a sessão persiste) ou
+ * já escolheu convidado passa direto — um link para uma música abre a música.
  */
 function RequireEntry() {
   const { needsLogin, isLoading } = useEditAccess();
@@ -47,9 +48,32 @@ function RequireEntry() {
   if (isLoading) return <PageFallback />;
   if (needsLogin && !isGuest) {
     const from = location.pathname + location.search;
-    return <Navigate to="/login" replace state={{ from }} />;
+    return <Navigate to="/" replace state={{ from }} />;
   }
   return <Outlet />;
+}
+
+/**
+ * `/` é a porta de entrada do site: quem chega pelo endereço principal vê o
+ * login primeiro. Quem já tem sessão válida segue direto para a biblioteca —
+ * pedir a senha de novo a quem acabou de entrar não protege nada.
+ */
+function EntryRoute() {
+  const { isSignedIn, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) return <PageFallback />;
+  if (isSignedIn) {
+    const from = (location.state as { from?: string } | null)?.from ?? '/home';
+    return <Navigate to={from} replace />;
+  }
+  return <LoginPage />;
+}
+
+/** `/login` virou `/`; o antigo continua valendo para links e favoritos salvos. */
+function LegacyLoginRedirect() {
+  const location = useLocation();
+  return <Navigate to="/" replace state={location.state} />;
 }
 
 export function App() {
@@ -60,14 +84,15 @@ export function App() {
     <TooltipProvider delayDuration={300}>
       <Suspense fallback={<PageFallback />}>
         <Routes>
-          {/* Entrada (fora do guard) */}
-          <Route path="login" element={<LoginPage />} />
+          {/* Entrada (fora do guard): o endereço principal abre o login */}
+          <Route index element={<EntryRoute />} />
+          <Route path="login" element={<LegacyLoginRedirect />} />
 
           {/* Tudo o mais exige ter entrado (ou ser convidado) */}
           <Route element={<RequireEntry />}>
             {/* Rotas com a "casca" do app (sidebar + navegação inferior) */}
             <Route element={<AppShell />}>
-              <Route index element={<HomePage />} />
+              <Route path="home" element={<HomePage />} />
               <Route path="playlists" element={<PlaylistsPage />} />
               <Route path="playlists/:id" element={<PlaylistPage />} />
               {/* `editor/*` aceita ids com barra: /editor/harpa-crista/porque-ele-vive */}

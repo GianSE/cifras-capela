@@ -163,7 +163,7 @@ export function EditorPage() {
     setSaveError(null);
     try {
       await songService.deleteSong(savedId);
-      navigate('/');
+      navigate('/home');
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Não foi possível excluir.');
     } finally {

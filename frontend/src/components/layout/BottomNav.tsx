@@ -4,7 +4,7 @@ import { useEditAccess } from '@/hooks/useEditAccess';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { to: '/', icon: Library, label: 'Biblioteca', end: true },
+  { to: '/home', icon: Library, label: 'Biblioteca', end: true },
   { to: '/playlists', icon: ListMusic, label: 'Playlists', end: false },
   { to: '/editor', icon: PenLine, label: 'Editor', end: false },
   { to: '/config', icon: Settings, label: 'Config', end: false },
