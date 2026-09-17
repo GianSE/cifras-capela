@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { parseYoutubeId, youtubeSearchUrl, youtubeThumbnailUrl } from '@/lib/youtube';
+import { VideoSearch } from './VideoSearch';
 
 interface VideoLinkDialogProps {
   open: boolean;
@@ -23,14 +24,16 @@ interface VideoLinkDialogProps {
   canEdit: boolean;
   /** Grava o vídeo (`undefined` remove). Rejeita com mensagem em caso de erro. */
   onSave: (videoId: string | undefined) => Promise<void>;
+  /** Texto do botão que confirma (na importação não se salva nada ainda). */
+  saveLabel?: string;
 }
 
 /**
- * Adicionar, trocar ou remover o vídeo de uma música.
+ * Escolher o vídeo de uma música.
  *
- * O caminho é: "Procurar no YouTube" abre a busca já com título e artista,
- * copia-se o link do vídeo certo e cola aqui. A miniatura confirma que é o
- * vídeo esperado antes de salvar.
+ * O caminho normal é procurar pelo nome aqui mesmo, ouvir o resultado e
+ * escolher. Colar o link continua valendo — e é o único caminho quando o
+ * servidor está sem a chave da API do YouTube.
  */
 export function VideoLinkDialog({
   open,
@@ -40,10 +43,13 @@ export function VideoLinkDialog({
   videoId,
   canEdit,
   onSave,
+  saveLabel = 'Salvar vídeo',
 }: VideoLinkDialogProps) {
   const [link, setLink] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Worker sem `YOUTUBE_API_KEY`: some a busca interna, fica o modo manual. */
+  const [searchAvailable, setSearchAvailable] = useState(true);
 
   useEffect(() => {
     if (open) {
@@ -70,28 +76,41 @@ export function VideoLinkDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[88dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{videoId ? 'Trocar o vídeo' : 'Vídeo da música'}</DialogTitle>
           <DialogDescription>
-            {canEdit
-              ? 'Procure a música no YouTube, copie o link do vídeo e cole abaixo.'
-              : 'Esta música ainda não tem vídeo. Dá para procurar direto no YouTube.'}
+            {!canEdit
+              ? 'Esta música ainda não tem vídeo. Dá para procurar direto no YouTube.'
+              : searchAvailable
+                ? 'Procure pelo nome, toque no play para conferir e escolha o vídeo.'
+                : 'Procure a música no YouTube, copie o link do vídeo e cole abaixo.'}
           </DialogDescription>
         </DialogHeader>
 
-        <Button asChild variant="outline" className="gap-2">
-          <a href={youtubeSearchUrl(title, artist)} target="_blank" rel="noreferrer noopener">
-            <Search className="size-4" /> Procurar no YouTube
-            <ExternalLink className="size-3.5 opacity-60" />
-          </a>
-        </Button>
+        {(!canEdit || !searchAvailable) && (
+          <Button asChild variant="outline" className="gap-2">
+            <a href={youtubeSearchUrl(title, artist)} target="_blank" rel="noreferrer noopener">
+              <Search className="size-4" /> Procurar no YouTube
+              <ExternalLink className="size-3.5 opacity-60" />
+            </a>
+          </Button>
+        )}
 
         {canEdit && (
           <>
+            {searchAvailable && (
+              <VideoSearch
+                initialQuery={[title, artist].filter(Boolean).join(' ')}
+                selectedId={parsed}
+                onSelect={(result) => setLink(`https://youtu.be/${result.id}`)}
+                onUnavailable={() => setSearchAvailable(false)}
+              />
+            )}
+
             <div>
               <Label htmlFor="video-link" className="mb-1.5 block text-sm">
-                Link do vídeo
+                {searchAvailable ? 'Ou cole o link do vídeo' : 'Link do vídeo'}
               </Label>
               <Input
                 id="video-link"
@@ -112,7 +131,8 @@ export function VideoLinkDialog({
               )}
             </div>
 
-            {parsed && (
+            {/* Confirmação visual do que será salvo — vindo da busca ou do link. */}
+            {parsed && !searchAvailable && (
               <img
                 src={youtubeThumbnailUrl(parsed)}
                 alt=""
@@ -143,7 +163,7 @@ export function VideoLinkDialog({
                 onClick={() => parsed && void save(parsed)}
               >
                 {saving && <Loader2 className="size-4 animate-spin" />}
-                Salvar vídeo
+                {saveLabel}
               </Button>
             </div>
           </>

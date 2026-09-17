@@ -30,7 +30,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { downloadTextFile, slugify } from '@/lib/export/download';
-import { parseYoutubeId, youtubeSearchUrl, youtubeThumbnailUrl } from '@/lib/youtube';
+import { parseYoutubeId, youtubeThumbnailUrl } from '@/lib/youtube';
+import { VideoLinkDialog } from '@/components/video/VideoLinkDialog';
 import { buildSongId, nextFreeSongId } from '@/lib/library/derive';
 import { songService } from '@/services/song-service';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
@@ -499,6 +500,7 @@ function VideoField({
 }) {
   const videoId = parseYoutubeId(draft.youtube);
   const invalid = draft.youtube.trim() !== '' && !videoId;
+  const [searching, setSearching] = useState(false);
 
   return (
     <Field label="Vídeo do YouTube (opcional)">
@@ -519,16 +521,29 @@ function VideoField({
               placeholder="https://youtu.be/..."
               aria-invalid={invalid}
             />
-            <Button asChild variant="outline" className="shrink-0 gap-1.5">
-              <a
-                href={youtubeSearchUrl(draft.title || 'cifra', draft.artist)}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <Search className="size-4" /> Procurar
-              </a>
+            <Button
+              variant="outline"
+              className="shrink-0 gap-1.5"
+              onClick={() => setSearching(true)}
+            >
+              <Search className="size-4" /> Procurar
             </Button>
           </div>
+
+          {/* A mesma busca do leitor: aqui ela só preenche o campo — quem grava
+              é o "Salvar na biblioteca" da revisão. */}
+          <VideoLinkDialog
+            open={searching}
+            onOpenChange={setSearching}
+            title={draft.title || 'cifra'}
+            artist={draft.artist || undefined}
+            videoId={videoId}
+            canEdit
+            saveLabel="Usar este vídeo"
+            onSave={(id) =>
+              Promise.resolve(onUpdate({ youtube: id ? `https://youtu.be/${id}` : '' }))
+            }
+          />
           <p className={invalid ? 'mt-1 text-xs text-destructive' : 'mt-1 text-xs text-muted-foreground'}>
             {invalid
               ? 'Não reconheci esse link — o vídeo não será salvo.'

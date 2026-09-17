@@ -9,6 +9,8 @@ export interface Env {
   SITE_URL?: string;
   /** Assina o cookie de sessão (secret: `wrangler secret put JWT_SECRET`). */
   JWT_SECRET?: string;
+  /** Chave da YouTube Data API v3 (secret). Sem ela, a busca interna some. */
+  YOUTUBE_API_KEY?: string;
   /** `development` afrouxa o `Secure` do cookie, para o dev em http. */
   APP_ENV?: string;
 }

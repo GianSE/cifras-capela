@@ -14,6 +14,7 @@ import type { Env } from './types';
 import { login, logout, me } from './api/auth';
 import { songsRoute } from './api/songs';
 import { playlistsRoute } from './api/playlists';
+import { youtubeRoute } from './api/youtube';
 
 export type { Env };
 
@@ -234,6 +235,10 @@ export default {
 
     if (url.pathname === '/api/playlists' || url.pathname.startsWith('/api/playlists/')) {
       return withSecurityHeaders(await playlistsRoute(request, env, url.pathname));
+    }
+
+    if (url.pathname === '/api/youtube/search') {
+      return withSecurityHeaders(await youtubeRoute(request, env));
     }
 
     if (url.pathname.startsWith('/api/')) {

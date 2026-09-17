@@ -19,7 +19,9 @@ database_id = "5b8c9b40-7994-450f-85b1-3f7be7228130"
 migrations_dir = "migrations"
 
 # Segredos (defina com `wrangler secret put NOME`):
-#   JWT_SECRET  → assina o cookie de sessão de quem edita
+#   JWT_SECRET      → assina o cookie de sessão de quem edita
+#   YOUTUBE_API_KEY → busca de vídeos dentro do app (opcional; sem ela o app
+#                     só aceita o link colado à mão)
 [vars]
 APP_ENV = "production"
 

@@ -130,6 +130,18 @@ npx wrangler d1 migrations apply cifras-db --remote
 npx wrangler secret put JWT_SECRET          # um valor aleatório longo
 ```
 
+**Busca de vídeos dentro do app** (opcional). Sem ela, o app só aceita o link do
+YouTube colado à mão; com ela, dá para procurar pelo nome e ouvir antes de escolher.
+Crie uma chave da **YouTube Data API v3** no Google Cloud e guarde-a no Worker:
+
+```bash
+cd worker
+npx wrangler secret put YOUTUBE_API_KEY
+```
+
+A cota gratuita dá cerca de 100 buscas por dia (cada busca custa 100 das 10.000
+unidades diárias). A busca exige login e as respostas ficam em cache por 6h.
+
 Para desenvolver localmente, crie `worker/.dev.vars` com `JWT_SECRET=...` e
 `APP_ENV=development`, e aplique as migrações com `--local` em vez de `--remote`.
 
