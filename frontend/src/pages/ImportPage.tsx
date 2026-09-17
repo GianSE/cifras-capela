@@ -50,6 +50,9 @@ import { buildSongId, nextFreeSongId } from '@/lib/library/derive';
 import { songService } from '@/services/song-service';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
 
+/** Casas em que o capo pode ficar — o menu da revisão vai da 1ª à 12ª. */
+const CAPO_FRETS = Array.from({ length: 12 }, (_, i) => i + 1);
+
 interface Draft {
   title: string;
   artist: string;
@@ -751,22 +754,24 @@ function ReviewForm({
             onChange={(e) => onUpdate({ categories: e.target.value })}
           />
         </Field>
-        <Field label="Tags (vírgula)">
-          <Input value={draft.tags} onChange={(e) => onUpdate({ tags: e.target.value })} />
-        </Field>
-        <Field label="BPM">
-          <Input
-            value={draft.tempo}
-            inputMode="numeric"
-            onChange={(e) => onUpdate({ tempo: e.target.value })}
-          />
-        </Field>
+        {/* BPM e Tags saíram da revisão: ninguém os preenche ao importar. Se o
+            arquivo de origem já trouxer, continuam sendo gravados — só não
+            ocupam mais o formulário. */}
         <Field label="Capo">
-          <Input
+          {/* Menu em vez de texto livre: capo só existe da 1ª à 12ª casa, e
+              digitar "2ª", "casa 2" ou "II" não daria um número válido. */}
+          <select
             value={draft.capo}
-            inputMode="numeric"
             onChange={(e) => onUpdate({ capo: e.target.value })}
-          />
+            className="flex h-11 w-full rounded-xl border border-input bg-[var(--color-surface-container-lowest)] px-4 text-sm text-foreground transition-colors hover:border-[var(--color-outline)] focus-visible:border-gold-500"
+          >
+            <option value="">Sem capo</option>
+            {CAPO_FRETS.map((fret) => (
+              <option key={fret} value={String(fret)}>
+                {fret}ª casa
+              </option>
+            ))}
+          </select>
         </Field>
       </div>
 

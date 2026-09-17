@@ -24,10 +24,11 @@ describe('importar cifra de página HTML', () => {
   it('preserva uma linha por linha da cifra', () => {
     const text = htmlToText(CIFRA_HTML);
     const lines = text.split('\n').filter((l) => l.trim());
-    // Título + 4 linhas (2 pares de acorde/letra).
-    expect(lines).toHaveLength(5);
-    expect(lines[1]).toContain('C');
-    expect(lines[2]).toContain('Vou seguir com alegria');
+    // 4 linhas (2 pares de acorde/letra). O <title> não entra no texto: ele é
+    // lido à parte, porque misturado à cifra era descartado como lixo do site.
+    expect(lines).toHaveLength(4);
+    expect(lines[0]).toContain('C');
+    expect(lines[1]).toContain('Vou seguir com alegria');
   });
 
   it('junta acorde e letra na posição certa', () => {
@@ -38,6 +39,8 @@ describe('importar cifra de página HTML', () => {
   });
 
   it('usa o <title> da página quando não há título no corpo', () => {
-    expect(htmlToText(CIFRA_HTML).split('\n')[0]).toContain('Alegria no Caminho');
+    const song = importHtml(CIFRA_HTML);
+    expect(song.title).toBe('Alegria no Caminho');
+    expect(song.artist).toBe('Domínio Público');
   });
 });

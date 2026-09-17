@@ -37,6 +37,12 @@ export function splitPastedSongs(raw: string): string[] {
   return blocks.length > 0 ? blocks : [raw];
 }
 
+/**
+ * Aviso de que o título foi adivinhado a partir do texto. Exportado para quem
+ * tem uma fonte melhor (o `<title>` de uma página) saber que pode substituí-lo.
+ */
+export const DEDUCED_TITLE_WARNING = 'Título deduzido da primeira linha — confira.';
+
 /** Converte um bloco de texto em uma música importada (corpo ChordPro inline). */
 export function importPlainText(raw: string): ImportedSong {
   const warnings: string[] = [];
@@ -78,22 +84,30 @@ export function importPlainText(raw: string): ImportedSong {
   const contentLines = allLines.filter((_, i) => !consumed.has(i));
 
   const isProse = (l: string) => l.trim() !== '' && !isChordLine(l) && !detectSectionHeader(l);
+  const isMusic = (l: string) => isChordLine(l) || Boolean(detectSectionHeader(l));
 
-  // Título implícito: primeira linha de texto (não acorde, não seção).
+  // Título implícito: só no cabeçalho, isto é, nas linhas de texto que vêm
+  // ANTES do primeiro acorde ou seção. Procurar no arquivo inteiro fazia a
+  // primeira frase da letra virar título — e sumir do corpo — sempre que a
+  // cifra começava direto na música, como no CifraClub (`[Intro] G A ...`).
   if (!meta.title) {
-    const firstText = contentLines.find(isProse);
+    const firstMusic = contentLines.findIndex(isMusic);
+    const header = firstMusic < 0 ? contentLines : contentLines.slice(0, firstMusic);
+    const firstText = header.find(isProse);
     if (firstText) {
       meta.title = firstText.trim();
       contentLines.splice(contentLines.indexOf(firstText), 1);
-      warnings.push('Título deduzido da primeira linha — confira.');
+      warnings.push(DEDUCED_TITLE_WARNING);
 
-      // Artista implícito: a linha curta logo abaixo do título (antes de
-      // qualquer acorde/seção) costuma ser o artista.
+      // Artista implícito: a linha curta logo abaixo do título, também ainda
+      // no cabeçalho — depois do primeiro acorde, já é letra.
       if (!meta.artist) {
         const idx = contentLines.findIndex((l) => l.trim() !== '');
         const candidate = idx >= 0 ? contentLines[idx]! : undefined;
+        const musicStart = contentLines.findIndex(isMusic);
         if (
           candidate &&
+          (musicStart < 0 || idx < musicStart) &&
           isProse(candidate) &&
           candidate.trim().length <= 40 &&
           !/[.[\]]/.test(candidate)
