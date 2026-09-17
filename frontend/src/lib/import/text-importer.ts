@@ -43,6 +43,10 @@ export function splitPastedSongs(raw: string): string[] {
  */
 export const DEDUCED_TITLE_WARNING = 'Título deduzido da primeira linha — confira.';
 
+/** Início do aviso de tom adivinhado — o acorde varia, então compara-se o começo. */
+export const DEDUCED_KEY_WARNING_PREFIX = 'Tom deduzido do primeiro acorde';
+export const MISSING_KEY_WARNING = 'Tonalidade não identificada — defina manualmente.';
+
 /** Converte um bloco de texto em uma música importada (corpo ChordPro inline). */
 export function importPlainText(raw: string): ImportedSong {
   const warnings: string[] = [];
@@ -124,9 +128,9 @@ export function importPlainText(raw: string): ImportedSong {
     const inferred = inferKeyFromText(contentLines);
     if (inferred) {
       meta.key = inferred;
-      warnings.push(`Tom deduzido do primeiro acorde (${inferred}) — confira.`);
+      warnings.push(`${DEDUCED_KEY_WARNING_PREFIX} (${inferred}) — confira.`);
     } else {
-      warnings.push('Tonalidade não identificada — defina manualmente.');
+      warnings.push(MISSING_KEY_WARNING);
     }
   }
 

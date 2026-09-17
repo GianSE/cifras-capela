@@ -3,7 +3,12 @@
  * @description Converte HTML (ex.: página de cifra salva) em texto e reaproveita
  * o importador de texto. Prioriza blocos <pre> (comuns em sites de cifra).
  */
-import { DEDUCED_TITLE_WARNING, importPlainText } from './text-importer';
+import {
+  DEDUCED_KEY_WARNING_PREFIX,
+  DEDUCED_TITLE_WARNING,
+  MISSING_KEY_WARNING,
+  importPlainText,
+} from './text-importer';
 import type { ImportedSong } from './types';
 
 /** Nomes de site que aparecem no fim do `<title>` e não fazem parte da música. */
@@ -50,25 +55,61 @@ export function htmlToText(html: string): string {
   return docToText(new DOMParser().parseFromString(html, 'text/html'));
 }
 
+/** Um tom, e só um tom: `D`, `Em`, `F#m`, `Bb`. */
+const KEY_VALUE_RE = /^[A-G][#b]?m?$/;
+
+/**
+ * Tom informado pela própria página.
+ *
+ * No CifraClub fica no seletor `id="key"`: um `<p>` com o rótulo "Tom" e outro
+ * com o valor, entre os botões de subir e descer. As classes são geradas e
+ * mudam a cada versão do site, então a busca ancora no `id` e só aceita o que
+ * tem forma de tom — outro site com um `id="key"` qualquer não vira tom.
+ */
+export function parsePageKey(doc: Document): string | undefined {
+  const box = doc.querySelector('#key');
+  if (!box) return undefined;
+  for (const el of box.querySelectorAll('p, span')) {
+    const text = el.textContent?.trim() ?? '';
+    if (KEY_VALUE_RE.test(text)) return text;
+  }
+  return undefined;
+}
+
+const isKeyGuessWarning = (w: string) =>
+  w.startsWith(DEDUCED_KEY_WARNING_PREFIX) || w === MISSING_KEY_WARNING;
+
 export function importHtml(html: string): ImportedSong {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const song = importPlainText(docToText(doc));
-  const page = parsePageTitle(doc.querySelector('title')?.textContent ?? '');
+  let song = importPlainText(docToText(doc));
 
   // O `<title>` não entra mais como linha do texto: no CifraClub ele termina
   // em "- Cifra Club", o filtro de lixo do site o descartava, e sem título o
   // importador ia buscá-lo na letra. Agora é lido à parte.
-  if (!page.title) return song;
-
   // Um título escrito no próprio texto ("Título: ...") vale mais que o da
-  // página; só o adivinhado é substituído.
+  // página; só o adivinhado é substituído. O mesmo vale para o tom.
+  const page = parsePageTitle(doc.querySelector('title')?.textContent ?? '');
   const titleWasGuessed = !song.title || song.warnings.includes(DEDUCED_TITLE_WARNING);
-  if (!titleWasGuessed) return song;
+  if (page.title && titleWasGuessed) {
+    song = {
+      ...song,
+      title: page.title,
+      artist: song.artist ?? page.artist,
+      warnings: song.warnings.filter((w) => w !== DEDUCED_TITLE_WARNING),
+    };
+  }
 
-  return {
-    ...song,
-    title: page.title,
-    artist: song.artist ?? page.artist,
-    warnings: song.warnings.filter((w) => w !== DEDUCED_TITLE_WARNING),
-  };
+  // Tom: adivinhar pelo primeiro acorde erra fácil — em "Terra Seca" dava Em,
+  // porque a linha do [Intro] é pulada. A página sabe o tom de verdade.
+  const pageKey = parsePageKey(doc);
+  const keyWasGuessed = !song.key || song.warnings.some(isKeyGuessWarning);
+  if (pageKey && keyWasGuessed) {
+    song = {
+      ...song,
+      key: pageKey,
+      warnings: song.warnings.filter((w) => !isKeyGuessWarning(w)),
+    };
+  }
+
+  return song;
 }

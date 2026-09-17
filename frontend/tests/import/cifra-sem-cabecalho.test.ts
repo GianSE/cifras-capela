@@ -67,3 +67,37 @@ describe('página do CifraClub', () => {
     expect(importHtml(HTML).warnings).not.toContain(DEDUCED_TITLE_WARNING);
   });
 });
+
+describe('tom informado pela página do CifraClub', () => {
+  // Bloco real do seletor de tom (classes são geradas e mudam; `id="key"` e
+  // os aria-labels não). O "Tom" é o rótulo; o valor é o `<p>` entre os botões.
+  const KEY_BOX = `<div class="bentoCardContent eDVGi" id="key"><div class="DCqes"><p class="_5QAC">Tom</p></div>
+<div class="N0qCA"><button aria-label="Diminuir tom"></button><span class="_QG2y"><p class="_5QAC HjnxC">D</p></span>
+<button aria-label="Aumentar tom"></button></div></div>`;
+
+  const pagina = (extra: string) => `<!doctype html><html><head>
+<title>Terra Seca - Fraternidade São João Paulo II - Cifra Club</title></head>
+<body>${extra}<pre>${PRE}</pre></body></html>`;
+
+  it('usa o tom da página em vez de adivinhar pelo primeiro acorde', () => {
+    // Pelo primeiro acorde daria "Em" (a linha do [Intro] é pulada); é D.
+    expect(importHtml(pagina(KEY_BOX)).key).toBe('D');
+  });
+
+  it('tira o aviso de tom deduzido quando o tom veio da página', () => {
+    const avisos = importHtml(pagina(KEY_BOX)).warnings.join(' ');
+    expect(avisos).not.toMatch(/Tom deduzido|Tonalidade não identificada/);
+  });
+
+  it('sem o bloco de tom, continua deduzindo (e avisando)', () => {
+    const song = importHtml(pagina(''));
+    expect(song.key).toBeTruthy();
+    expect(song.warnings.join(' ')).toMatch(/Tom deduzido/);
+  });
+
+  it('ignora um id="key" que não traga um tom válido', () => {
+    const song = importHtml(pagina('<div id="key"><p>Tom</p><p>Chave de acesso</p></div>'));
+    expect(song.key).not.toBe('Chave de acesso');
+    expect(song.warnings.join(' ')).toMatch(/Tom deduzido/);
+  });
+});
