@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { usePlaylist } from './usePlaylists';
+import { useRemotePlaylist } from './useRemotePlaylist';
 
 export interface PlaylistNav {
   /** Playlist ativa (quando o leitor foi aberto a partir de uma). */
@@ -18,12 +19,15 @@ export interface PlaylistNav {
  * Contexto de playlist no leitor.
  *
  * O leitor sabe que faz parte de um setlist pela query `?playlist=<id>`, o que
- * mantém a URL compartilhável e o estado fora do componente.
+ * mantém a URL compartilhável e o estado fora do componente. A playlist pode
+ * ser deste aparelho ou a compartilhada de outra pessoa (buscada no servidor).
  */
 export function usePlaylistNav(songId: string): PlaylistNav | null {
   const [params] = useSearchParams();
   const playlistId = params.get('playlist') ?? undefined;
-  const playlist = usePlaylist(playlistId);
+  const local = usePlaylist(playlistId);
+  const remote = useRemotePlaylist(playlistId, !local);
+  const playlist = local ?? (remote.status === 'found' ? remote.playlist : undefined);
 
   return useMemo(() => {
     if (!playlist) return null;

@@ -180,6 +180,21 @@ class PlaylistStorage {
     this.persist(() => deleteRemotePlaylist(id));
   }
 
+  /**
+   * Liga/desliga o compartilhamento. Diferente das outras mutações, espera o
+   * servidor: o link só funciona depois de gravado lá, então a tela precisa
+   * saber se deu certo. Se falhar, desfaz a mudança local.
+   */
+  async setShared(id: string, shared: boolean): Promise<boolean> {
+    if (!this.userId) return false;
+    const updated = this.patch(id, (p) => ({ ...p, shared }));
+    if (!updated) return false;
+
+    const ok = await pushPlaylist(updated);
+    if (!ok) this.patch(id, (p) => ({ ...p, shared: !shared }));
+    return ok;
+  }
+
   /** Adiciona a música ao fim (ignora duplicatas). */
   addSong(id: string, songId: string): void {
     const updated = this.patch(id, (p) =>
