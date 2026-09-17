@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { SearchX, Clock, Plus, Library, Star } from 'lucide-react';
+import { SearchX, History, Plus, Library, Star } from 'lucide-react';
 import { useLibrary } from '@/hooks/useLibrary';
 import { useHistory } from '@/hooks/useHistory';
 import { useEditAccess } from '@/hooks/useEditAccess';
@@ -13,34 +13,44 @@ import { SearchBar } from '@/components/library/SearchBar';
 import { CategoryFilter } from '@/components/library/CategoryFilter';
 import { filterChipClass } from '@/components/library/filter-chip';
 import { SongListItem } from '@/components/library/SongListItem';
-import { SongCard } from '@/components/library/SongCard';
 import { EmptyState } from '@/components/library/EmptyState';
 import { Button } from '@/components/ui/button';
+
+/** Quantas músicas o filtro "Recentes" mostra. */
+const RECENT_LIMIT = 10;
+
+/** Filtro de coleção pessoal: só um por vez, combinável com busca e categoria. */
+type Collection = 'favorites' | 'recents' | null;
 
 export function HomePage() {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [collection, setCollection] = useState<Collection>(null);
 
   const { favorites } = useFavorites();
+  const { recentSongs } = useHistory();
+  const { showEditUI } = useEditAccess();
 
   const { songs, results, allCategories, isLoading, source, staleSince } = useLibrary({
     query,
     categories: activeCategory ? [activeCategory] : [],
-    ids: onlyFavorites ? favorites : undefined,
+    ids:
+      collection === 'favorites' ? favorites : collection === 'recents' ? recentSongs : undefined,
+    keepIdOrder: collection === 'recents',
+    maxIds: collection === 'recents' ? RECENT_LIMIT : undefined,
   });
-  const { recentSongs } = useHistory();
-  const { showEditUI } = useEditAccess();
 
-  const recentEntries = useMemo(() => {
-    const byId = new Map(songs.map((s) => [s.id, s]));
-    return recentSongs
-      .map((id) => byId.get(id))
-      .filter((s) => s !== undefined)
-      .slice(0, 8);
+  const hasRecents = useMemo(() => {
+    const existing = new Set(songs.map((s) => s.id));
+    return recentSongs.some((id) => existing.has(id));
   }, [songs, recentSongs]);
 
-  const isBrowsing = query.trim() === '' && !activeCategory && !onlyFavorites;
+  const toggle = (value: Exclude<Collection, null>) =>
+    setCollection((current) => (current === value ? null : value));
+
+  const onlyFavorites = collection === 'favorites';
+  const onlyRecents = collection === 'recents';
+  const isBrowsing = query.trim() === '' && !activeCategory && !collection;
 
   return (
     <>
@@ -65,35 +75,36 @@ export function HomePage() {
           onChange={setActiveCategory}
           className="mt-3"
           leading={
-            favorites.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setOnlyFavorites((v) => !v)}
-                aria-pressed={onlyFavorites}
-                className={filterChipClass(onlyFavorites)}
-              >
-                <Star className={cn('size-4', onlyFavorites && 'fill-current')} />
-                Favoritas
-              </button>
-            )
+            <>
+              {hasRecents && (
+                <button
+                  type="button"
+                  onClick={() => toggle('recents')}
+                  aria-pressed={onlyRecents}
+                  className={filterChipClass(onlyRecents)}
+                >
+                  <History className="size-4" />
+                  Recentes
+                </button>
+              )}
+              {favorites.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => toggle('favorites')}
+                  aria-pressed={onlyFavorites}
+                  className={filterChipClass(onlyFavorites)}
+                >
+                  <Star className={cn('size-4', onlyFavorites && 'fill-current')} />
+                  Favoritas
+                </button>
+              )}
+            </>
           }
         />
       </PageHeader>
 
       <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8">
         <OfflineNotice source={source} staleSince={staleSince} />
-
-        {/* Recentes */}
-        {isBrowsing && recentEntries.length > 0 && (
-          <section className="mb-8">
-            <SectionTitle icon={Clock}>Abertas recentemente</SectionTitle>
-            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {recentEntries.map((song) => (
-                <SongCard key={song.id} song={song} />
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* Lista de resultados */}
         <section>
@@ -104,7 +115,13 @@ export function HomePage() {
                 : `${results.length} ${results.length === 1 ? 'resultado' : 'resultados'}`
             }
           >
-            {isBrowsing ? 'Todas as músicas' : onlyFavorites && !query ? 'Favoritas' : 'Busca'}
+            {isBrowsing
+              ? 'Todas as músicas'
+              : onlyFavorites && !query
+                ? 'Favoritas'
+                : onlyRecents && !query
+                  ? 'Recentes'
+                  : 'Busca'}
           </SectionTitle>
 
           {isLoading ? (
@@ -115,15 +132,21 @@ export function HomePage() {
             </div>
           ) : results.length === 0 ? (
             <EmptyState
-              icon={onlyFavorites ? Star : SearchX}
+              icon={onlyFavorites ? Star : onlyRecents ? History : SearchX}
               title={
-                onlyFavorites ? 'Nenhuma favorita por aqui' : 'Nenhuma música encontrada'
+                onlyFavorites
+                  ? 'Nenhuma favorita por aqui'
+                  : onlyRecents
+                    ? 'Nenhuma recente por aqui'
+                    : 'Nenhuma música encontrada'
               }
               description={
                 songs.length === 0
                   ? 'Adicione arquivos .cho em public/songs para começar.'
                   : onlyFavorites
                     ? 'Suas favoritas não batem com a busca ou a categoria escolhida.'
+                    : onlyRecents
+                      ? 'Suas últimas músicas não batem com a busca ou a categoria escolhida.'
                     : 'Tente outro termo ou remova os filtros.'
               }
             />

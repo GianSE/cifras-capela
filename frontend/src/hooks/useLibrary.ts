@@ -10,6 +10,16 @@ export interface LibraryFilter {
   categories?: readonly string[];
   /** Restringe a um conjunto de IDs (ex.: favoritos, histórico). */
   ids?: readonly string[];
+  /**
+   * Sem busca, mantém a ordem de `ids` em vez da alfabética — os recentes
+   * precisam aparecer do mais novo para o mais antigo.
+   */
+  keepIdOrder?: boolean;
+  /**
+   * Usa só os primeiros N de `ids` que ainda existem na biblioteca — uma
+   * música apagada não ocupa vaga entre as recentes.
+   */
+  maxIds?: number;
 }
 
 /** Ordena por título com colação pt-BR. */
@@ -23,7 +33,7 @@ function byTitle(a: SongIndexEntry, b: SongIndexEntry): number {
  */
 export function useLibrary(filter: LibraryFilter = {}) {
   const { songs, isLoading, error, source, staleSince } = useSongLibrary();
-  const { query = '', categories = [], ids } = filter;
+  const { query = '', categories = [], ids, keepIdOrder = false, maxIds } = filter;
 
   const allCategories = useMemo(() => {
     const set = new Set<string>();
@@ -44,12 +54,18 @@ export function useLibrary(filter: LibraryFilter = {}) {
     }
 
     if (ids) {
-      const allow = new Set(ids);
+      const existing = new Set(songs.map((song) => song.id));
+      const allowed = ids.filter((id) => existing.has(id)).slice(0, maxIds);
+      const allow = new Set(allowed);
       list = list.filter((song) => allow.has(song.id));
+      if (keepIdOrder && !trimmed) {
+        const rank = new Map(allowed.map((id, i) => [id, i]));
+        list.sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
+      }
     }
 
     return list;
-  }, [songs, query, categories, ids]);
+  }, [songs, query, categories, ids, keepIdOrder, maxIds]);
 
   return { songs, results, allCategories, isLoading, error, source, staleSince };
 }
