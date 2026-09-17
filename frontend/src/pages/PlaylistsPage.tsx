@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ListMusic, Plus, Trash2, ChevronRight, Library } from 'lucide-react';
+import { ListMusic, Plus, Trash2, ChevronRight, Library, History } from 'lucide-react';
 import { usePlaylists } from '@/hooks/usePlaylists';
+import { RECENT_LIMIT, useHistory } from '@/hooks/useHistory';
+import { useLibrary } from '@/hooks/useLibrary';
 import { playlistStorage } from '@/lib/storage/playlists';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/library/EmptyState';
@@ -41,13 +43,18 @@ export function PlaylistsPage() {
         icon={ListMusic}
         subtitle={`${playlists.length} ${playlists.length === 1 ? 'playlist' : 'playlists'} montadas`}
         actions={
-          <Button variant="gold" size="sm" className="gap-1.5" onClick={() => setCreating(true)}>
-            <Plus className="size-4" /> <span className="hidden sm:inline">Nova</span>
+          <Button variant="gold" size="sm" className="gap-1.5"
+            onClick={() => setCreating(true)}
+            aria-label="Nova Playlist"
+          >
+            <Plus className="size-4" /> <span className="hidden sm:inline">Nova Playlist</span>
           </Button>
         }
       />
 
       <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8">
+        <RecentsShortcut />
+
         {playlists.length === 0 ? (
           <EmptyState
             icon={ListMusic}
@@ -131,5 +138,41 @@ export function PlaylistsPage() {
         </Dialog>
       </div>
     </>
+  );
+}
+
+/**
+ * Atalho para as últimas músicas abertas, no topo das playlists: é o
+ * "repertório" que se monta sozinho. Abre a biblioteca com o filtro Recentes.
+ */
+function RecentsShortcut() {
+  const { recentSongs } = useHistory();
+  const { results } = useLibrary({ ids: recentSongs, keepIdOrder: true, maxIds: RECENT_LIMIT });
+
+  if (results.length === 0) return null;
+
+  const preview = results
+    .slice(0, 3)
+    .map((song) => song.title)
+    .join(', ');
+
+  return (
+    <Link
+      to="/home?filtro=recentes"
+      className="group card-lift mb-6 flex items-center gap-3.5 rounded-2xl border border-gold-400/40 bg-card p-3.5 hover:border-gold-400/70"
+    >
+      <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[image:var(--gradient-gold)] text-navy-900 shadow-gilded">
+        <History className="size-5" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="font-display truncate text-lg text-foreground">Abertas recentemente</p>
+        <p className="truncate text-sm text-muted-foreground">
+          {results.length} {results.length === 1 ? 'música' : 'músicas'} · {preview}
+        </p>
+      </div>
+
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+    </Link>
   );
 }

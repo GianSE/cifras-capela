@@ -22,6 +22,8 @@ export interface UserPreferences {
   readonly favorites: readonly string[];
   /** Tamanho da fonte da letra (px). */
   readonly fontSize: number;
+  /** Tamanho da fonte no modo apresentação (px) — independente do leitor. */
+  readonly stageFontSize: number;
   /** Velocidade padrão do auto-scroll (0.25–3). */
   readonly autoScrollSpeed: number;
   /** Cifra em duas colunas em telas largas (>=1024px). */
@@ -39,6 +41,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   recentSongs: [],
   favorites: [],
   fontSize: 18,
+  stageFontSize: 24,
   autoScrollSpeed: 1,
   readerTwoColumns: true,
   transpositions: {},

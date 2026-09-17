@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { SearchX, History, Plus, Library, Star, CloudOff } from 'lucide-react';
 import { useLibrary } from '@/hooks/useLibrary';
-import { useHistory } from '@/hooks/useHistory';
+import { RECENT_LIMIT, useHistory } from '@/hooks/useHistory';
 import { useEditAccess } from '@/hooks/useEditAccess';
 import { useFavorites } from '@/hooks/useFavorites';
 import { cn } from '@/lib/utils';
@@ -16,16 +16,29 @@ import { SongListItem } from '@/components/library/SongListItem';
 import { EmptyState } from '@/components/library/EmptyState';
 import { Button } from '@/components/ui/button';
 
-/** Quantas músicas o filtro "Recentes" mostra. */
-const RECENT_LIMIT = 10;
-
 /** Filtro de coleção pessoal: só um por vez, combinável com busca e categoria. */
 type Collection = 'favorites' | 'recents' | null;
+
+/**
+ * O filtro de coleção mora na URL (`/home?filtro=recentes`): assim o atalho de
+ * /playlists abre a biblioteca já filtrada, e voltar de uma música mantém o filtro.
+ */
+const COLLECTION_PARAM: Record<Exclude<Collection, null>, string> = {
+  favorites: 'favoritas',
+  recents: 'recentes',
+};
+
+function collectionFromParam(value: string | null): Collection {
+  if (value === COLLECTION_PARAM.favorites) return 'favorites';
+  if (value === COLLECTION_PARAM.recents) return 'recents';
+  return null;
+}
 
 export function HomePage() {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [collection, setCollection] = useState<Collection>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const collection = collectionFromParam(searchParams.get('filtro'));
 
   const { favorites } = useFavorites();
   const { recentSongs } = useHistory();
@@ -46,7 +59,15 @@ export function HomePage() {
   }, [songs, recentSongs]);
 
   const toggle = (value: Exclude<Collection, null>) =>
-    setCollection((current) => (current === value ? null : value));
+    setSearchParams(
+      (params) => {
+        const next = new URLSearchParams(params);
+        if (collection === value) next.delete('filtro');
+        else next.set('filtro', COLLECTION_PARAM[value]);
+        return next;
+      },
+      { replace: true },
+    );
 
   const onlyFavorites = collection === 'favorites';
   const onlyRecents = collection === 'recents';
@@ -76,7 +97,8 @@ export function HomePage() {
           className="mt-3"
           leading={
             <>
-              {hasRecents && (
+              {/* Um filtro vindo da URL continua desligável mesmo sem itens. */}
+              {(hasRecents || onlyRecents) && (
                 <button
                   type="button"
                   onClick={() => toggle('recents')}
@@ -87,7 +109,7 @@ export function HomePage() {
                   Recentes
                 </button>
               )}
-              {favorites.length > 0 && (
+              {(favorites.length > 0 || onlyFavorites) && (
                 <button
                   type="button"
                   onClick={() => toggle('favorites')}

@@ -283,7 +283,6 @@ export function SongPage() {
           song={transposedSong}
           title={transposedSong.metadata.title}
           transpose={transpose}
-          font={font}
           onExit={() => setStageOpen(false)}
         />
       )}

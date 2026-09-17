@@ -9,13 +9,12 @@ import { useWakeLock } from '@/hooks/useWakeLock';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useReaderShortcuts } from '@/hooks/useReaderShortcuts';
 import type { UseTransposeResult } from '@/hooks/useTranspose';
-import type { UseFontSizeResult } from '@/hooks/useFontSize';
+import { useFontSize } from '@/hooks/useFontSize';
 
 interface StageModeProps {
   song: Song;
   title: string;
   transpose: UseTransposeResult;
-  font: UseFontSizeResult;
   onExit: () => void;
 }
 
@@ -27,7 +26,10 @@ interface StageModeProps {
  * mesmo com o app no tema claro: no palco, tela clara ofusca quem toca. A
  * classe `dark` na raiz redeclara os tokens só dentro desta tela.
  */
-export function StageMode({ song, title, transpose, font, onExit }: StageModeProps) {
+export function StageMode({ song, title, transpose, onExit }: StageModeProps) {
+  // Tamanho próprio: no palco a pessoa costuma querer outro, e atrelado ao
+  // do leitor (+6) ele nunca descia de 18.
+  const font = useFontSize('stage');
   const { readerTwoColumns: twoColumns } = usePreferences();
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScroll = useAutoScroll(scrollRef, 1);
@@ -58,7 +60,7 @@ export function StageMode({ song, title, transpose, font, onExit }: StageModePro
         <div className={twoColumns ? 'mx-auto max-w-7xl' : 'mx-auto max-w-4xl'}>
           <SongRenderer
             song={song}
-            fontSize={font.fontSize + 6}
+            fontSize={font.fontSize}
             twoColumns={twoColumns}
           />
           <div className="h-[40vh]" aria-hidden />
@@ -78,15 +80,17 @@ export function StageMode({ song, title, transpose, font, onExit }: StageModePro
             variant="ghost"
             size="icon-sm"
             onClick={font.decrease}
+            disabled={!font.canDecrease}
             aria-label="Diminuir fonte"
           >
             <Minus />
           </Button>
-          <span className="min-w-8 text-center text-sm font-semibold">{font.fontSize + 6}</span>
+          <span className="min-w-8 text-center text-sm font-semibold">{font.fontSize}</span>
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={font.increase}
+            disabled={!font.canIncrease}
             aria-label="Aumentar fonte"
           >
             <Plus />
