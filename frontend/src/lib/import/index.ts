@@ -74,6 +74,7 @@ export function buildSource(s: ImportedSong): string {
   fm.push(`categories: [${(s.categories ?? []).join(', ')}]`);
   fm.push(`tags: [${(s.tags ?? []).join(', ')}]`);
   fm.push(`language: ${s.language ?? 'pt'}`);
+  if (s.youtube) fm.push(`youtube: ${s.youtube}`);
   fm.push('---', '');
   return `${fm.join('\n')}\n${s.body}\n`;
 }

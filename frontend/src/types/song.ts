@@ -186,6 +186,8 @@ export interface SongMetadata {
   readonly category?: string;
   /** Idioma da letra (ex: 'pt', 'en', 'es'). */
   readonly language?: string;
+  /** Id do vídeo de referência no YouTube (11 caracteres). */
+  readonly youtube?: string;
   /** Diretivas personalizadas não reconhecidas */
   readonly custom: Readonly<Record<string, string>>;
 }

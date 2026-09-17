@@ -5,6 +5,7 @@
  * lança exceções, reportando problemas através da lista de ParseError.
  */
 
+import { parseYoutubeId } from '@/lib/youtube';
 import type {
   Chord,
   Line,
@@ -47,7 +48,7 @@ export function parseChord(raw: string): Chord | undefined {
 const METADATA_DIRECTIVES: ReadonlySet<string> = new Set([
   'title', 'subtitle', 'artist', 'key', 'tempo', 'time',
   'capo', 'album', 'year', 'copyright', 'category', 'categories',
-  'tag', 'tags', 'language', 'lang',
+  'tag', 'tags', 'language', 'lang', 'youtube',
 ]);
 
 /**
@@ -67,6 +68,7 @@ function createEmptyMetadata(): {
   categories?: string[];
   category?: string;
   language?: string;
+  youtube?: string;
   custom: Record<string, string>;
 } {
   return {
@@ -131,6 +133,19 @@ function applyDirective(
     case 'time':
       metadata.time = value;
       break;
+    case 'youtube': {
+      const id = parseYoutubeId(value);
+      if (id) {
+        metadata.youtube = id;
+      } else if (value.trim()) {
+        errors.push({
+          line: lineNumber,
+          message: `Link do YouTube não reconhecido: "${value}".`,
+          severity: 'warning',
+        });
+      }
+      break;
+    }
     case 'capo': {
       const parsed = Number.parseInt(value, 10);
       if (Number.isNaN(parsed)) {

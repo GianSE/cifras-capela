@@ -26,6 +26,8 @@ export interface SongIndexEntry {
   readonly language?: string;
   /** Andamento em BPM. */
   readonly tempo?: number;
+  /** Id do vídeo no YouTube — mostra o play nos cards sem abrir a cifra. */
+  readonly youtube?: string;
   /** Nome do arquivo de origem. */
   readonly filename: string;
   /**

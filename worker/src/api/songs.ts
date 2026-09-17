@@ -23,6 +23,7 @@ interface SongEntry {
   language?: string;
   tempo?: number;
   capo?: number;
+  youtube?: string;
   lyrics?: string;
 }
 
@@ -51,6 +52,7 @@ function rowToEntry(row: SongRow): SongEntry {
     ...(row.language && { language: row.language }),
     ...(row.tempo !== null && { tempo: row.tempo }),
     ...(row.capo !== null && { capo: row.capo }),
+    ...(row.youtube && { youtube: row.youtube }),
     ...(row.lyrics && { lyrics: row.lyrics }),
   };
 }
@@ -90,6 +92,7 @@ interface SaveBody {
   categories: string[];
   tags: string[];
   language: string | null;
+  youtube: string | null;
   lyrics: string | null;
 }
 
@@ -111,11 +114,16 @@ export async function saveSong(request: Request, env: Env, id: string): Promise<
     typeof v === 'string' && v.trim() ? v.trim() : null;
   const nullableInt = (v: unknown): number | null =>
     typeof v === 'number' && Number.isFinite(v) ? Math.trunc(v) : null;
+  // Só aceita um id de vídeo de verdade: o valor vai parar num src de iframe.
+  const youtube =
+    typeof body.youtube === 'string' && /^[A-Za-z0-9_-]{11}$/.test(body.youtube)
+      ? body.youtube
+      : null;
 
   await env.DB.prepare(
     `INSERT INTO songs
-       (id, title, artist, song_key, tempo, capo, categories, tags, language, lyrics, source, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+       (id, title, artist, song_key, tempo, capo, categories, tags, language, youtube, lyrics, source, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
      ON CONFLICT (id) DO UPDATE SET
        title = excluded.title,
        artist = excluded.artist,
@@ -125,6 +133,7 @@ export async function saveSong(request: Request, env: Env, id: string): Promise<
        categories = excluded.categories,
        tags = excluded.tags,
        language = excluded.language,
+       youtube = excluded.youtube,
        lyrics = excluded.lyrics,
        source = excluded.source,
        updated_at = datetime('now')`,
@@ -139,6 +148,7 @@ export async function saveSong(request: Request, env: Env, id: string): Promise<
       list(body.categories),
       list(body.tags),
       nullableText(body.language),
+      youtube,
       nullableText(body.lyrics),
       source,
     )

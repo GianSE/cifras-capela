@@ -85,9 +85,27 @@ export function parsePageKey(doc: Document): string | undefined {
 const isKeyGuessWarning = (w: string) =>
   w.startsWith(DEDUCED_KEY_WARNING_PREFIX) || w === MISSING_KEY_WARNING;
 
+/**
+ * Vídeo da música. O CifraClub não põe o player no HTML inicial, mas manda o
+ * id nos dados da página (`"youtubeID":"vpp-DP1JTLk"`, às vezes com as aspas
+ * escapadas por estar dentro de outro JSON). Links comuns do YouTube na página
+ * servem de reserva para outros sites.
+ */
+export function parsePageYoutube(html: string): string | undefined {
+  const fromData = html.match(/youtubeID\\?"\s*:\s*\\?"([A-Za-z0-9_-]{11})\\?"/)?.[1];
+  if (fromData) return fromData;
+  const fromLink = html.match(
+    /(?:youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?v=)|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+  )?.[1];
+  return fromLink;
+}
+
 export function importHtml(html: string): ImportedSong {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   let song = importPlainText(docToText(doc));
+
+  const youtube = parsePageYoutube(html);
+  if (youtube) song = { ...song, youtube };
 
   // O `<title>` não entra mais como linha do texto: no CifraClub ele termina
   // em "- Cifra Club", o filtro de lixo do site o descartava, e sem título o

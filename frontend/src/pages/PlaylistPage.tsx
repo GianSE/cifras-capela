@@ -53,6 +53,8 @@ import {
 } from '@/components/ui/dialog';
 import type { Playlist } from '@/types/playlist';
 import type { SongIndexEntry } from '@/types/library';
+import { SongByline } from '@/components/library/SongByline';
+import { VideoButton } from '@/components/video/VideoButton';
 
 /**
  * `/playlists/:id` — a playlist deste aparelho (editável) ou, quando não está
@@ -584,27 +586,30 @@ function SharedSongItem({
   onOpen: () => void;
 }) {
   return (
-    <li>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3.5 text-left shadow-soft transition-colors hover:border-gold-400/60"
-      >
-        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-navy-700 font-mono text-sm font-semibold text-gold-300">
-          {position}
+    // O card é uma div com o botão principal esticado por cima (`after:inset-0`):
+    // o botão do vídeo não pode ficar *dentro* de outro botão.
+    <li className="relative flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-soft transition-colors hover:border-gold-400/60">
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-navy-700 font-mono text-sm font-semibold text-gold-300">
+        {position}
+      </span>
+      <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="font-display block w-full truncate text-left text-lg text-foreground after:absolute after:inset-0 after:rounded-2xl"
+        >
+          {song.title}
+        </button>
+        <SongByline song={song} />
+      </div>
+      {song.youtube && (
+        <VideoButton videoId={song.youtube} title={song.title} className="relative z-10" />
+      )}
+      {displayKey && (
+        <span className="shrink-0 rounded-full border border-gold-500/40 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 font-mono text-sm font-semibold text-accent">
+          {displayKey}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="font-display block truncate text-lg text-foreground">{song.title}</span>
-          {song.artist && (
-            <span className="block truncate text-sm text-muted-foreground">{song.artist}</span>
-          )}
-        </span>
-        {displayKey && (
-          <span className="shrink-0 rounded-full border border-gold-500/40 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 font-mono text-sm font-semibold text-accent">
-            {displayKey}
-          </span>
-        )}
-      </button>
+      )}
     </li>
   );
 }

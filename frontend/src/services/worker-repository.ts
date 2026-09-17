@@ -127,6 +127,7 @@ class WorkerSongRepository implements SongRepository {
         categories: [...(entry.categories ?? [])],
         tags: [...(entry.tags ?? [])],
         language: entry.language ?? null,
+        youtube: entry.youtube ?? null,
         lyrics: entry.lyrics ?? null,
       }),
     }).catch(() => null);

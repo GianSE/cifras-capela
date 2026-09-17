@@ -13,6 +13,8 @@ export interface ImportedSong {
   language?: string;
   tempo?: number;
   capo?: number;
+  /** Id do vídeo no YouTube (o CifraClub informa na página). */
+  youtube?: string;
   /** Corpo já no formato ChordPro inline (seções + `[acordes]`). */
   body: string;
   /** Avisos das heurísticas (campos que podem precisar de revisão). */

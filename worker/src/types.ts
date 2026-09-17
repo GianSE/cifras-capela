@@ -21,6 +21,7 @@ export interface SongRow {
   song_key: string | null;
   tempo: number | null;
   capo: number | null;
+  youtube: string | null;
   categories: string;
   tags: string;
   language: string | null;

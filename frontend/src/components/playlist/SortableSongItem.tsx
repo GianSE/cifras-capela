@@ -4,6 +4,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, X } from 'lucide-react';
 import type { SongIndexEntry } from '@/types/library';
 import { cn } from '@/lib/utils';
+import { SongByline } from '@/components/library/SongByline';
+import { VideoButton } from '@/components/video/VideoButton';
 
 /** Movimento (px) acima do qual o gesto é considerado arraste, não clique. */
 const CLICK_SLOP = 6;
@@ -91,19 +93,15 @@ export function SortableSongItem({
         {position}
       </span>
 
-      <GripVertical className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      {/* No celular a alça sai: o card inteiro já arrasta, e o espaço vai para o título. */}
+      <GripVertical className="hidden size-4 shrink-0 text-muted-foreground sm:block" aria-hidden />
 
       <div className="min-w-0 flex-1">
         <p className="font-display truncate text-lg text-foreground">{song.title}</p>
-        {song.artist && <p className="truncate text-sm text-muted-foreground">{song.artist}</p>}
+        <SongByline song={song} />
       </div>
 
-      {/* Categoria da música, quando houver. */}
-      {song.categories?.[0] && (
-        <span className="hidden shrink-0 rounded-full border border-[var(--color-outline)] px-2.5 py-0.5 text-xs capitalize text-muted-foreground sm:inline-block">
-          {song.categories[0]}
-        </span>
-      )}
+      {song.youtube && <VideoButton videoId={song.youtube} title={song.title} />}
 
       {/* Tom de execução (o transposto), com o quanto foi movido do original. */}
       {(displayKey ?? song.key) && (

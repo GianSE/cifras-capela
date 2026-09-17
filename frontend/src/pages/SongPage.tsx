@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { ChevronLeft, ChevronRight, AlertCircle, PenLine, FileDown, Loader2 } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+  PenLine,
+  FileDown,
+  Loader2,
+  Youtube,
+} from 'lucide-react';
 import { useSong } from '@/hooks/useSong';
 import { useTranspose } from '@/hooks/useTranspose';
 import { useFontSize } from '@/hooks/useFontSize';
@@ -19,8 +27,11 @@ import { ReaderControls } from '@/components/song/ReaderControls';
 import { StageMode } from '@/components/song/StageMode';
 import { AddToPlaylist } from '@/components/playlist/AddToPlaylist';
 import { FavoriteButton } from '@/components/library/FavoriteButton';
+import { VideoDock } from '@/components/video/VideoDock';
+import { VideoLinkDialog } from '@/components/video/VideoLinkDialog';
 import { Button } from '@/components/ui/button';
 import { songService } from '@/services/song-service';
+import { setYoutubeInSource } from '@/lib/youtube';
 import { cn } from '@/lib/utils';
 
 export function SongPage() {
@@ -33,6 +44,10 @@ export function SongPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [stageOpen, setStageOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  /** Player acoplado aberto (só quando a música tem vídeo). */
+  const [videoOpen, setVideoOpen] = useState(false);
+  /** Diálogo de adicionar/trocar o vídeo. */
+  const [videoEditing, setVideoEditing] = useState(false);
 
   // Passar o songId faz o tom ser salvo e restaurado por música.
   const transpose = useTranspose(song, songId);
@@ -43,7 +58,12 @@ export function SongPage() {
 
   const { record } = useHistory();
   const playlistNav = usePlaylistNav(songId);
-  const { showEditUI } = useEditAccess();
+  const { showEditUI, canEdit } = useEditAccess();
+
+  // Trocar de música (anterior/próxima do setlist) fecha o vídeo da anterior.
+  useEffect(() => {
+    setVideoOpen(false);
+  }, [songId]);
 
   // Impede a tela de apagar enquanto a cifra está aberta para leitura.
   useWakeLock(!isFetching && !isParsing && !fetchError);
@@ -152,6 +172,23 @@ export function SongPage() {
   }
 
   const { transposedSong } = transpose;
+  const videoId = transposedSong.metadata.youtube;
+
+  /** Sem vídeo, o botão leva a achar um; com vídeo, abre/fecha o player. */
+  const handleVideoButton = () => {
+    if (videoId) setVideoOpen((open) => !open);
+    else setVideoEditing(true);
+  };
+
+  /** Grava só a linha `youtube:` do .cho e recarrega a música. */
+  const saveVideo = async (id: string | undefined) => {
+    const source = await songService.getSongContent(songId);
+    const next = setYoutubeInSource(source, id);
+    await songService.saveSong({ id: songId, source: next });
+    parseSong(next);
+    setVideoOpen(Boolean(id));
+  };
+
   return (
     <div className="flex h-dvh flex-col bg-background">
       {/* Barra superior — some durante a rolagem automática, para sobrar tela. */}
@@ -183,6 +220,22 @@ export function SongPage() {
             </div>
             <FavoriteButton songId={songId} onDark />
             <AddToPlaylist songId={songId} onDark />
+
+            {/* Vídeo da música: o logo fica vermelho quando há vídeo salvo. */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleVideoButton}
+              aria-pressed={videoId ? videoOpen : undefined}
+              aria-label={videoId ? (videoOpen ? 'Fechar o vídeo' : 'Ver o vídeo') : 'Adicionar vídeo'}
+              title={videoId ? 'Vídeo da música' : 'Adicionar vídeo'}
+              className={cn(
+                'text-navy-100 hover:bg-white/10 hover:text-ivory',
+                videoOpen && 'bg-white/10',
+              )}
+            >
+              <Youtube className={cn(videoId && 'text-[#ff4e45]')} />
+            </Button>
 
             {/* Exportar a cifra (no tom atual) em PDF. */}
             <Button
@@ -275,6 +328,26 @@ export function SongPage() {
         font={font}
         autoScroll={autoScroll}
         onEnterStage={() => setStageOpen(true)}
+      />
+
+      {/* Vídeo: fora do cabeçalho, que some na rolagem automática — o player
+          não pode ser desmontado (e parar) quando a rolagem começa. */}
+      {videoOpen && videoId && (
+        <VideoDock
+          videoId={videoId}
+          title={transposedSong.metadata.title}
+          onClose={() => setVideoOpen(false)}
+          onEdit={canEdit ? () => setVideoEditing(true) : undefined}
+        />
+      )}
+      <VideoLinkDialog
+        open={videoEditing}
+        onOpenChange={setVideoEditing}
+        title={transposedSong.metadata.title}
+        artist={transposedSong.metadata.artist}
+        videoId={videoId}
+        canEdit={canEdit}
+        onSave={saveVideo}
       />
 
       {/* Modo apresentação */}

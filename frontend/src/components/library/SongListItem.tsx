@@ -2,26 +2,36 @@ import { Link } from 'react-router';
 import { Music4 } from 'lucide-react';
 import type { SongIndexEntry } from '@/types/library';
 import { AddToPlaylist } from '@/components/playlist/AddToPlaylist';
+import { VideoButton } from '@/components/video/VideoButton';
 import { FavoriteButton } from './FavoriteButton';
+import { SongByline } from './SongByline';
 
 interface SongListItemProps {
   song: SongIndexEntry;
 }
 
-/** Linha da lista de músicas: título, artista, tom, favoritar e playlist. */
+/**
+ * Linha da lista de músicas: título, artista e categoria, tom, favoritar e
+ * playlist. Com vídeo, o ícone da esquerda vira a miniatura com play — ajuda a
+ * reconhecer a música e toca sem precisar abrir a cifra.
+ */
 export function SongListItem({ song }: SongListItemProps) {
   return (
     <Link
       to={`/musica/${song.id}`}
       className="group card-lift flex items-center gap-2 rounded-2xl border border-border bg-card p-3 hover:border-gold-400/60 sm:gap-3.5 sm:p-3.5"
     >
-      <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-navy-700 text-gold-300 transition-colors group-hover:bg-navy-600">
-        <Music4 className="size-5" />
-      </div>
+      {song.youtube ? (
+        <VideoButton videoId={song.youtube} title={song.title} variant="thumbnail" />
+      ) : (
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-navy-700 text-gold-300 transition-colors group-hover:bg-navy-600">
+          <Music4 className="size-5" />
+        </div>
+      )}
 
       <div className="min-w-0 flex-1">
         <p className="font-display truncate text-lg text-foreground">{song.title}</p>
-        {song.artist && <p className="truncate text-sm text-muted-foreground">{song.artist}</p>}
+        <SongByline song={song} />
       </div>
 
       {song.key && (

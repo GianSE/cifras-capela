@@ -49,6 +49,7 @@ export function deriveIndexEntry(id: string, source: string, parsed?: Song): Son
     ...(m.tags && m.tags.length > 0 && { tags: [...m.tags] }),
     ...(m.language && { language: m.language }),
     ...(m.tempo !== undefined && { tempo: m.tempo }),
+    ...(m.youtube && { youtube: m.youtube }),
     ...(lyrics && { lyrics }),
   };
 }

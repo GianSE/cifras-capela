@@ -23,6 +23,10 @@ Hospedada no **Cloudflare Workers**.
   PDF único** (com índice e uma música por página).
 - **Histórico** das músicas abertas recentemente (localStorage).
 - **Modo apresentação** (tela cheia, fonte grande, alto contraste, tela sempre acesa).
+- **Vídeo da música** (YouTube): vem sozinho ao importar do CifraClub ou colando o link;
+  toca nos cards da biblioteca e da playlist, e dentro da música fica num player
+  acoplado para ouvir enquanto lê a cifra.
+- **Playlist compartilhada**: um toggle libera o link para quem entrar como convidado.
 - **Auto-scroll** com velocidade ajustável.
 - **Editor** interno com preview ao vivo, **exportação em PDF** e **importação**
   (link do CifraClub e afins, PDF, `.cho` e foto JPG/PNG).

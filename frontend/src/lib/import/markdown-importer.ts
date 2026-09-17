@@ -31,6 +31,7 @@ export function importMarkdown(md: string): ImportedSong {
       language: song.metadata.language,
       tempo: song.metadata.tempo,
       capo: song.metadata.capo,
+      youtube: song.metadata.youtube,
       body: body.trim(),
       warnings: [],
     };

@@ -9,6 +9,7 @@ import {
   Loader2,
   Save,
   Undo2,
+  Search,
   Link as LinkIcon,
   Copy,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { downloadTextFile, slugify } from '@/lib/export/download';
+import { parseYoutubeId, youtubeSearchUrl, youtubeThumbnailUrl } from '@/lib/youtube';
 import { buildSongId, nextFreeSongId } from '@/lib/library/derive';
 import { songService } from '@/services/song-service';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
@@ -45,6 +47,8 @@ interface Draft {
   language: string;
   tempo: string;
   capo: string;
+  /** Link (ou id) do vídeo no YouTube, como a pessoa colou. */
+  youtube: string;
   body: string;
   warnings: string[];
 }
@@ -59,6 +63,7 @@ function toDraft(s: ImportedSong): Draft {
     language: s.language ?? 'pt',
     tempo: s.tempo?.toString() ?? '',
     capo: s.capo?.toString() ?? '',
+    youtube: s.youtube ? `https://youtu.be/${s.youtube}` : '',
     body: s.body,
     warnings: s.warnings,
   };
@@ -84,6 +89,7 @@ function draftToSource(d: Draft): string {
     language: d.language || undefined,
     tempo: d.tempo ? Number.parseInt(d.tempo, 10) : undefined,
     capo: d.capo ? Number.parseInt(d.capo, 10) : undefined,
+    youtube: parseYoutubeId(d.youtube),
     body: d.body,
     warnings: [],
   };
@@ -440,6 +446,8 @@ function ReviewForm({
         </Field>
       </div>
 
+      <VideoField draft={draft} onUpdate={onUpdate} />
+
       <Field label="Corpo (ChordPro)">
         <Textarea
           value={draft.body}
@@ -475,6 +483,62 @@ function ReviewForm({
         </Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Vídeo da música na revisão. Vindo do CifraClub já chega preenchido; senão,
+ * o atalho abre a busca no YouTube com título e artista.
+ */
+function VideoField({
+  draft,
+  onUpdate,
+}: {
+  draft: Draft;
+  onUpdate: (patch: Partial<Draft>) => void;
+}) {
+  const videoId = parseYoutubeId(draft.youtube);
+  const invalid = draft.youtube.trim() !== '' && !videoId;
+
+  return (
+    <Field label="Vídeo do YouTube (opcional)">
+      <div className="flex gap-3">
+        {videoId && (
+          <img
+            src={youtubeThumbnailUrl(videoId)}
+            alt=""
+            className="hidden aspect-video h-[4.5rem] shrink-0 rounded-lg border border-border bg-muted object-cover sm:block"
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              inputMode="url"
+              value={draft.youtube}
+              onChange={(e) => onUpdate({ youtube: e.target.value })}
+              placeholder="https://youtu.be/..."
+              aria-invalid={invalid}
+            />
+            <Button asChild variant="outline" className="shrink-0 gap-1.5">
+              <a
+                href={youtubeSearchUrl(draft.title || 'cifra', draft.artist)}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <Search className="size-4" /> Procurar
+              </a>
+            </Button>
+          </div>
+          <p className={invalid ? 'mt-1 text-xs text-destructive' : 'mt-1 text-xs text-muted-foreground'}>
+            {invalid
+              ? 'Não reconheci esse link — o vídeo não será salvo.'
+              : videoId
+                ? 'O vídeo aparece na música e nos cards para ouvir antes de tocar.'
+                : 'Cole o link para ouvir a música antes de tocar.'}
+          </p>
+        </div>
+      </div>
+    </Field>
   );
 }
 
