@@ -1,7 +1,7 @@
 /**
  * @module lib/import/text-importer
- * @description Importa cifras em texto puro (colado de sites, TXT, PDF/HTML já
- * limpo), extraindo metadados por heurística, reconhecendo seções e
+ * @description Importa cifras em texto puro (páginas de cifra, PDF e fotos já
+ * convertidos em texto), extraindo metadados por heurística, reconhecendo seções e
  * convertendo acordes posicionais (acima da letra) em inline.
  */
 import { isChordLine } from './chord-detection';
@@ -14,28 +14,6 @@ const ARTIST_RE = /(?:artista|int[eé]rprete|banda|autor[a]?)\s*[:-]\s*(.+)/i;
 const TITLE_RE = /(?:t[ií]tulo|title|m[uú]sica)\s*[:-]\s*(.+)/i;
 const TEMPO_RE = /(?:bpm|tempo|andamento)\s*[:-]?\s*(\d{2,3})\b/i;
 const CAPO_RE = /(?:capo|capotraste)(?:\s+na)?\s*[:-]?\s*(\d{1,2})/i;
-
-/** Separadores que dividem várias cifras coladas de uma vez. */
-const SONG_SEPARATOR = /^\s*(?:-{3,}|={3,}|\*{3,}|%{3,})\s*$/;
-
-/**
- * Divide um texto colado em várias músicas, se houver separadores explícitos
- * (`---`, `===`, `***`). Sem separadores, devolve a única música.
- */
-export function splitPastedSongs(raw: string): string[] {
-  const blocks: string[] = [];
-  let current: string[] = [];
-  for (const line of raw.replace(/\r\n?/g, '\n').split('\n')) {
-    if (SONG_SEPARATOR.test(line)) {
-      if (current.some((l) => l.trim() !== '')) blocks.push(current.join('\n'));
-      current = [];
-    } else {
-      current.push(line);
-    }
-  }
-  if (current.some((l) => l.trim() !== '')) blocks.push(current.join('\n'));
-  return blocks.length > 0 ? blocks : [raw];
-}
 
 /**
  * Aviso de que o título foi adivinhado a partir do texto. Exportado para quem

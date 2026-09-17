@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { importPlainText, splitPastedSongs } from '../../src/lib/import/text-importer';
+import { importPlainText } from '../../src/lib/import/text-importer';
 import {
   detectSectionHeader,
   isJunkLine,
@@ -110,26 +110,5 @@ https://www.cifraclub.com.br/harpa`;
     const lyricsOnly = imported.body.replace(/\[[^\]]*\]/g, '');
     expect(lyricsOnly).toContain('Deus enviou Seu Filho amado');
     expect(lyricsOnly).toContain('Porque Ele vive');
-  });
-});
-
-describe('splitPastedSongs', () => {
-  it('divide em várias músicas nos separadores', () => {
-    const blocks = splitPastedSongs('Música A\n[G]letra\n---\nMúsica B\n[C]letra');
-    expect(blocks).toHaveLength(2);
-    expect(blocks[0]).toContain('Música A');
-    expect(blocks[1]).toContain('Música B');
-  });
-
-  it('aceita === e *** como separador', () => {
-    expect(splitPastedSongs('A\n===\nB\n***\nC')).toHaveLength(3);
-  });
-
-  it('devolve uma única música quando não há separador', () => {
-    expect(splitPastedSongs('Só uma música\n[G]aqui')).toHaveLength(1);
-  });
-
-  it('ignora blocos vazios entre separadores', () => {
-    expect(splitPastedSongs('A\n---\n---\nB')).toHaveLength(2);
   });
 });

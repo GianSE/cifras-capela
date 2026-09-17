@@ -8,18 +8,12 @@ import {
   Download,
   Loader2,
   Save,
-  SkipForward,
+  Undo2,
   Link as LinkIcon,
   Copy,
 } from 'lucide-react';
 import { importFromUrl, isUrlImportAvailable } from '@/lib/import/url-importer';
-import {
-  importFile,
-  importFromText,
-  buildSource,
-  splitPastedSongs,
-  type ImportedSong,
-} from '@/lib/import';
+import { ACCEPTED_FILE_TYPES, importFile, buildSource, type ImportedSong } from '@/lib/import';
 import { SongRenderer } from '@/components/song/SongRenderer';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { RequireAuth } from '@/components/auth/RequireAuth';
@@ -100,11 +94,6 @@ export function ImportPage() {
   const navigate = useNavigate();
   const { songs } = useSongLibrary();
   const [draft, setDraft] = useState<Draft | null>(null);
-  // Fila de músicas restantes quando o texto colado tem várias (separadas por ---).
-  const [queue, setQueue] = useState<Draft[]>([]);
-  const [total, setTotal] = useState(0);
-  const [pasteText, setPasteText] = useState('');
-  const [pasteFormat, setPasteFormat] = useState('txt');
   const [pageUrl, setPageUrl] = useState('');
   const [urlLoading, setUrlLoading] = useState(false);
   const [urlAvailable, setUrlAvailable] = useState(false);
@@ -114,49 +103,46 @@ export function ImportPage() {
   const [ocrProgress, setOcrProgress] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Falha ao ler o link ou o arquivo — aparece na tela inicial, não na revisão. */
+  const [importError, setImportError] = useState<string | null>(null);
 
   useEffect(() => {
     // Importar por link depende do Worker; em `vite dev` puro ele não existe.
     isUrlImportAvailable().then(setUrlAvailable);
   }, []);
 
-  /** Inicia a revisão de um lote (1 ou mais músicas). */
-  const startBatch = (drafts: Draft[]) => {
-    if (drafts.length === 0) return;
-    setDraft(drafts[0]!);
-    setQueue(drafts.slice(1));
-    setTotal(drafts.length);
+  /** Abre a revisão de uma música importada. */
+  const startReview = (imported: ImportedSong) => {
+    setDraft(toDraft(imported));
+    setSaveError(null);
+    setImportError(null);
   };
 
   const handleFile = async (file: File) => {
     setLoading(true);
     setOcrProgress(null);
+    setImportError(null);
     try {
-      const isImage = /\.(jpe?g|png|webp)$/i.test(file.name);
-      startBatch([toDraft(await importFile(file, isImage ? (f) => setOcrProgress(f) : undefined))]);
+      const isImage = /\.(jpe?g|png)$/i.test(file.name);
+      startReview(await importFile(file, isImage ? (f) => setOcrProgress(f) : undefined));
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'Não foi possível ler esse arquivo.');
     } finally {
       setLoading(false);
       setOcrProgress(null);
     }
   };
 
-  const handlePaste = () => {
-    if (!pasteText.trim()) return;
-    // Divide em várias músicas se houver separadores (---, ===).
-    const blocks = splitPastedSongs(pasteText);
-    startBatch(blocks.map((block) => toDraft(importFromText(block, pasteFormat))));
-  };
-
   /** Busca a página pelo Worker e abre a revisão com o que veio de lá. */
   const handleUrl = async () => {
     if (!pageUrl.trim()) return;
     setUrlLoading(true);
-    setSaveError(null);
+    setImportError(null);
     try {
-      startBatch([toDraft(await importFromUrl(pageUrl.trim()))]);
+      startReview(await importFromUrl(pageUrl.trim()));
       setPageUrl('');
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Não foi possível ler essa página.');
+      setImportError(e instanceof Error ? e.message : 'Não foi possível ler essa página.');
     } finally {
       setUrlLoading(false);
     }
@@ -164,17 +150,10 @@ export function ImportPage() {
 
   const update = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
 
-  /** Avança para a próxima da fila, ou encerra o lote. */
-  const advance = () => {
-    if (queue.length > 0) {
-      setDraft(queue[0]!);
-      setQueue((q) => q.slice(1));
-      setSaveError(null);
-    } else {
-      setDraft(null);
-      setTotal(0);
-      setPasteText('');
-    }
+  /** Volta para a tela inicial, descartando a revisão. */
+  const restart = () => {
+    setDraft(null);
+    setSaveError(null);
   };
 
   const openInEditor = () => {
@@ -186,7 +165,7 @@ export function ImportPage() {
     if (!draft) return;
     const name = slugify(draft.title || 'musica') || 'musica';
     downloadTextFile(`${name}.cho`, draftToSource(draft));
-    advance();
+    restart();
   };
 
   /** Id que esta revisão vai ocupar na biblioteca. */
@@ -207,11 +186,7 @@ export function ImportPage() {
     try {
       await songService.saveSong({ id, source: draftToSource(draft) });
       setConflictId(null);
-      if (queue.length > 0) {
-        advance();
-      } else {
-        navigate(`/musica/${id}`);
-      }
+      navigate(`/musica/${id}`);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Não foi possível salvar.');
     } finally {
@@ -244,11 +219,20 @@ export function ImportPage() {
           title="Importar cifra"
           icon={Upload}
           contentWidth="max-w-3xl"
-          subtitle="Traga de um arquivo, de um texto colado ou de uma foto da folha"
+          subtitle="Traga de um link, de um arquivo ou de uma foto da folha"
         />
         <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8">
           {!draft ? (
             <div className="flex flex-col gap-5">
+              {importError && (
+                <p
+                  role="alert"
+                  className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive"
+                >
+                  {importError}
+                </p>
+              )}
+
               {/* Link da cifra — o caminho mais curto, então vem primeiro. */}
               {urlAvailable && (
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
@@ -295,7 +279,7 @@ export function ImportPage() {
                 <div>
                   <p className="font-display text-xl text-foreground">Selecione um arquivo</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    .txt · .md · .html · .json · .pdf · .cho · .jpg · .png
+                    .pdf · .cho · .jpg · .png
                   </p>
                   {loading && ocrProgress !== null && (
                     <p className="mt-1 text-xs text-primary">
@@ -305,67 +289,27 @@ export function ImportPage() {
                 </div>
                 <input
                   type="file"
-                  accept=".txt,.md,.markdown,.html,.htm,.json,.pdf,.cho,.chordpro,.chopro,.jpg,.jpeg,.png,.webp,text/*,application/json,application/pdf,image/jpeg,image/png,image/webp"
+                  accept={ACCEPTED_FILE_TYPES}
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
+                    // Limpa a seleção: escolher o mesmo arquivo de novo precisa disparar.
+                    e.target.value = '';
                     if (file) void handleFile(file);
                   }}
                 />
               </label>
-
-              {/* Colar texto */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <Label>Ou cole o texto</Label>
-                  <select
-                    value={pasteFormat}
-                    onChange={(e) => setPasteFormat(e.target.value)}
-                    className="h-9 rounded-md border border-border bg-[var(--color-surface-container-high)] px-2 text-sm text-foreground"
-                  >
-                    <option value="txt">Texto</option>
-                    <option value="cho">ChordPro</option>
-                    <option value="md">Markdown</option>
-                    <option value="html">HTML</option>
-                    <option value="json">JSON</option>
-                  </select>
-                </div>
-                <Textarea
-                  value={pasteText}
-                  onChange={(e) => setPasteText(e.target.value)}
-                  rows={8}
-                  placeholder="Cole aqui a cifra (ex.: copiada do CifraClub)…"
-                  className="font-mono"
-                />
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Cole o texto da cifra — acordes acima da letra viram inline, e Intro/Refrão são
-                  reconhecidos. Para importar várias, separe-as com uma linha de{' '}
-                  <code className="font-mono">---</code>.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button onClick={handlePaste} disabled={!pasteText.trim()} className="gap-1.5">
-                    Analisar <ArrowRight className="size-4" />
-                  </Button>
-                </div>
-              </div>
             </div>
           ) : (
             <ReviewForm
               draft={draft}
-              position={total - queue.length}
-              total={total}
               onUpdate={update}
               onOpenEditor={openInEditor}
               onDownload={download}
               onSave={save}
-              onSkip={advance}
               saving={saving}
               saveError={saveError}
-              onRestart={() => {
-                setDraft(null);
-                setQueue([]);
-                setTotal(0);
-              }}
+              onRestart={restart}
             />
           )}
         </div>
@@ -396,13 +340,10 @@ export function ImportPage() {
               <Button
                 variant="outline"
                 disabled={saving}
-                onClick={() => {
-                  setConflictId(null);
-                  advance();
-                }}
+                onClick={() => setConflictId(null)}
                 className="justify-start gap-2"
               >
-                <SkipForward className="size-4" /> Pular esta
+                <Undo2 className="size-4" /> Voltar e ajustar o título
               </Button>
               <Button
                 variant="destructive"
@@ -422,45 +363,27 @@ export function ImportPage() {
 
 function ReviewForm({
   draft,
-  position,
-  total,
   onUpdate,
   onOpenEditor,
   onDownload,
   onSave,
-  onSkip,
   saving,
   saveError,
   onRestart,
 }: {
   draft: Draft;
-  position: number;
-  total: number;
   onUpdate: (patch: Partial<Draft>) => void;
   onOpenEditor: () => void;
   onDownload: () => void;
   onSave: () => void;
-  onSkip: () => void;
   saving: boolean;
   saveError: string | null;
   onRestart: () => void;
 }) {
   const previewSong = parse(draftToSource(draft)).song;
-  const isBatch = total > 1;
 
   return (
     <div className="flex flex-col gap-5">
-      {isBatch && (
-        <div className="flex items-center justify-between gap-2 rounded-lg bg-[var(--color-surface-container)] px-3 py-2 text-sm">
-          <span className="font-medium text-foreground">
-            Música {position} de {total}
-          </span>
-          <Button variant="ghost" size="sm" onClick={onSkip} className="gap-1.5">
-            <SkipForward className="size-4" /> Pular
-          </Button>
-        </div>
-      )}
-
       <p className="text-sm text-muted-foreground">
         Revise os dados extraídos antes de salvar. Ajuste o que for necessário.
       </p>

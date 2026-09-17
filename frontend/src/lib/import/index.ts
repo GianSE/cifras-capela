@@ -4,40 +4,20 @@
  * para o importador adequado, produzindo um {@link ImportedSong} para revisão.
  */
 import { parse, serializeToFrontmatter } from '@/lib/parser';
-import { importPlainText } from './text-importer';
-
-export { splitPastedSongs } from './text-importer';
-import { importHtml } from './html-importer';
 import { importMarkdown } from './markdown-importer';
-import { importJson } from './json-importer';
 import { importPdf } from './pdf-importer';
 import { importImage } from './image-importer';
 import type { ImportedSong } from './types';
 
 export type { ImportedSong } from './types';
 
-const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png']);
+
+/** O que o seletor de arquivo aceita: PDF, foto (JPG/PNG) e `.cho`. */
+export const ACCEPTED_FILE_TYPES = '.pdf,.cho,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
 
 function extensionOf(name: string): string {
   return name.split('.').pop()?.toLowerCase() ?? '';
-}
-
-/** Importa a partir de texto colado, com o formato informado. */
-export function importFromText(text: string, format: string): ImportedSong {
-  switch (format) {
-    case 'json':
-      return importJson(text);
-    case 'html':
-      return importHtml(text);
-    case 'md':
-    case 'markdown':
-      return importMarkdown(text);
-    case 'cho':
-    case 'chordpro':
-      return importChordPro(text);
-    default:
-      return importPlainText(text);
-  }
 }
 
 /** Importa um arquivo selecionado pelo usuário. */
@@ -52,7 +32,10 @@ export async function importFile(
   if (IMAGE_EXTENSIONS.has(ext)) {
     return importImageWithFallback(file, onProgress);
   }
-  return importFromText(await file.text(), ext);
+  if (ext === 'cho') {
+    return importChordPro(await file.text());
+  }
+  throw new Error('Formato não aceito. Escolha um arquivo .pdf, .cho, .jpg ou .png.');
 }
 
 /**
@@ -70,7 +53,7 @@ async function importImageWithFallback(
     ...result,
     warnings: [
       ...result.warnings,
-      'Nenhum acorde reconhecido na foto — ajuste a cifra no campo abaixo ou cole o texto.',
+      'Nenhum acorde reconhecido na foto — ajuste a cifra no campo abaixo.',
     ],
   };
 }

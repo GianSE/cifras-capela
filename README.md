@@ -25,7 +25,7 @@ Hospedada no **Cloudflare Workers**.
 - **Modo apresentação** (tela cheia, fonte grande, alto contraste, tela sempre acesa).
 - **Auto-scroll** com velocidade ajustável.
 - **Editor** interno com preview ao vivo, **exportação em PDF** e **importação**
-  (TXT, MD, HTML, JSON, PDF).
+  (link do CifraClub e afins, PDF, `.cho` e foto JPG/PNG).
 - **PWA offline**: instala no celular e funciona sem internet.
 - **Tema claro e escuro**.
 
@@ -171,10 +171,10 @@ capo: 0
 
 ### Importar do CifraClub e afins
 
-O **/importar** já converte automaticamente o formato "acordes acima da letra"
-(como o CifraClub mostra): cole o texto, ele reconhece seções (Intro/Refrão),
-deduz o tom pelo 1º acorde e descarta lixo (tablatura, links). Para importar
-várias de uma vez, separe-as com uma linha de `---`.
+O **/importar** aceita o **link** da página (CifraClub e afins) ou um **arquivo**
+`.pdf`, `.cho`, `.jpg` ou `.png`. O formato "acordes acima da letra" vira
+inline automaticamente: ele reconhece seções (Intro/Refrão), lê ou deduz o tom e
+descarta lixo (tablatura, links). Tudo passa por uma revisão antes de salvar.
 
 ---
 

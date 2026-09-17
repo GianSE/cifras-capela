@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { isChordLine } from '../../src/lib/import/chord-detection';
 import { mergeChordLine } from '../../src/lib/import/positional';
 import { importPlainText } from '../../src/lib/import/text-importer';
-import { importFromText } from '../../src/lib/import';
 
 describe('detecção de acordes', () => {
   it('reconhece linha só de acordes', () => {
@@ -36,21 +35,5 @@ describe('importação de texto', () => {
     expect(result.key).toBe('G');
     expect(result.body).toContain('[G]');
     expect(result.body).toContain('[C]');
-  });
-});
-
-describe('importação de JSON', () => {
-  it('mapeia campos comuns', () => {
-    const json = JSON.stringify({
-      title: 'Exemplo',
-      artist: 'Autor',
-      tom: 'D',
-      body: '[D]Linha de teste',
-    });
-    const result = importFromText(json, 'json');
-    expect(result.title).toBe('Exemplo');
-    expect(result.artist).toBe('Autor');
-    expect(result.key).toBe('D');
-    expect(result.body).toContain('[D]');
   });
 });
