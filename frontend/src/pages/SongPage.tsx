@@ -239,7 +239,6 @@ export function SongPage() {
             song={transposedSong}
             fontSize={font.fontSize}
             twoColumns={readerTwoColumns}
-            sectionIdPrefix="secao"
           />
 
           {/* Navegação do setlist */}
@@ -272,7 +271,6 @@ export function SongPage() {
 
       {/* Controles fixos */}
       <ReaderControls
-        song={transposedSong}
         transpose={transpose}
         font={font}
         autoScroll={autoScroll}

@@ -4,7 +4,6 @@ import type { Song } from '@/types/song';
 import { Button } from '@/components/ui/button';
 import { SongRenderer } from './SongRenderer';
 import { TransposeControl } from './TransposeControl';
-import { SectionJump } from './SectionJump';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { usePreferences } from '@/hooks/usePreferences';
@@ -61,7 +60,6 @@ export function StageMode({ song, title, transpose, font, onExit }: StageModePro
             song={song}
             fontSize={font.fontSize + 6}
             twoColumns={twoColumns}
-            sectionIdPrefix="palco-secao"
           />
           <div className="h-[40vh]" aria-hidden />
         </div>
@@ -69,8 +67,6 @@ export function StageMode({ song, title, transpose, font, onExit }: StageModePro
 
       {/* Controles flutuantes */}
       <div className="safe-bottom flex items-center justify-center gap-2 border-t border-gold-400/25 px-4 py-3">
-        <SectionJump song={song} idPrefix="palco-secao" />
-
         <TransposeControl
           semitones={transpose.semitones}
           currentKey={transpose.currentKey}
