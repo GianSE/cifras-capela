@@ -46,10 +46,6 @@ export function youtubeEmbedUrl(id: string): string {
   return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&playsinline=1&rel=0&modestbranding=1`;
 }
 
-export function youtubeWatchUrl(id: string): string {
-  return `https://www.youtube.com/watch?v=${id}`;
-}
-
 /** Miniatura 320×180 — leve o bastante para listas. */
 export function youtubeThumbnailUrl(id: string): string {
   return `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;

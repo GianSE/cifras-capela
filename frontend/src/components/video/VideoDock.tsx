@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, ExternalLink, Pencil, X, Youtube } from 'lucide-react';
+import { ChevronDown, ChevronUp, Pencil, X, Youtube } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { youtubeEmbedUrl, youtubeWatchUrl } from '@/lib/youtube';
+import { youtubeEmbedUrl } from '@/lib/youtube';
 
 interface VideoDockProps {
   videoId: string;
@@ -50,16 +50,6 @@ export function VideoDock({ videoId, title, onClose, onEdit }: VideoDockProps) {
             <Pencil className="size-3.5" />
           </button>
         )}
-        <a
-          href={youtubeWatchUrl(videoId)}
-          target="_blank"
-          rel="noreferrer noopener"
-          className={ICON_BUTTON}
-          aria-label="Abrir no YouTube"
-          title="Abrir no YouTube"
-        >
-          <ExternalLink className="size-4" />
-        </a>
         <button
           type="button"
           onClick={() => setMinimized((v) => !v)}
