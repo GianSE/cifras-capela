@@ -14,7 +14,6 @@ interface RemotePlaylist {
   id: string;
   name: string;
   songIds: string[];
-  shared?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,7 +23,6 @@ function fromRemote(p: RemotePlaylist): Playlist {
     id: p.id,
     name: p.name,
     songIds: p.songIds,
-    shared: p.shared === true,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   };
@@ -52,7 +50,6 @@ export async function pushPlaylist(playlist: Playlist): Promise<boolean> {
       body: JSON.stringify({
         name: playlist.name,
         songIds: [...playlist.songIds],
-        shared: playlist.shared === true,
         createdAt: playlist.createdAt,
       }),
     });

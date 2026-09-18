@@ -13,11 +13,6 @@ export interface Playlist {
    * É esta ordem que o arrastar-e-soltar altera e que o PDF respeita.
    */
   readonly songIds: readonly string[];
-  /**
-   * Compartilhada: quem tiver o link vê a playlist, mesmo como convidado.
-   * Vive no servidor, então só dá para ligar com a conta logada.
-   */
-  readonly shared?: boolean;
   /** Timestamp ISO de criação. */
   readonly createdAt: string;
   /** Timestamp ISO da última alteração. */

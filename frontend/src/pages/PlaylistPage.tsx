@@ -17,24 +17,12 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
-import {
-  Check,
-  ChevronLeft,
-  FileDown,
-  Link2,
-  ListMusic,
-  Loader2,
-  Play,
-  Plus,
-  Pencil,
-  Share2,
-} from 'lucide-react';
+import { ChevronLeft, FileDown, ListMusic, Play, Plus, Pencil } from 'lucide-react';
 import { usePlaylist } from '@/hooks/usePlaylists';
 import { useRemotePlaylist } from '@/hooks/useRemotePlaylist';
 import { usePlaylistSongs } from '@/hooks/usePlaylistSongs';
 import { useLibrary } from '@/hooks/useLibrary';
 import { usePreferences } from '@/hooks/usePreferences';
-import { useAuth } from '@/hooks/useAuth';
 import { playlistStorage } from '@/lib/storage/playlists';
 import { transposeSong, getKeyFromSemitones } from '@/lib/transpose';
 import { SortableSongItem } from '@/components/playlist/SortableSongItem';
@@ -42,7 +30,6 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/library/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -267,8 +254,6 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
       </PageHeader>
 
       <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8">
-        <ShareCard playlist={playlist} />
-
         {/* Lista reordenável */}
         {isLoading ? (
           <div className="space-y-2.5">
@@ -423,105 +408,6 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
         </Dialog>
       </div>
     </>
-  );
-}
-
-/**
- * Liga/desliga o compartilhamento e entrega o link. Ligado, quem abrir o link
- * vê a playlist — inclusive como convidado —, mas só o dono altera.
- */
-function ShareCard({ playlist }: { playlist: Playlist }) {
-  const { isSignedIn, isLoading } = useAuth();
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  const shared = playlist.shared === true;
-  const link = `${window.location.origin}/playlists/${playlist.id}`;
-
-  const toggle = async (next: boolean) => {
-    setSaving(true);
-    setError(null);
-    const ok = await playlistStorage.setShared(playlist.id, next);
-    setSaving(false);
-    if (!ok) setError('Não foi possível salvar no servidor. Verifique a conexão e tente de novo.');
-  };
-
-  /** No celular abre o menu de compartilhar do sistema; no PC, copia. */
-  const shareLink = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: playlist.name, url: link });
-        return;
-      } catch (e) {
-        // Fechar o menu sem escolher não é erro; outra falha cai na cópia.
-        if (e instanceof DOMException && e.name === 'AbortError') return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError('Não deu para copiar. Selecione o link e copie manualmente.');
-    }
-  };
-
-  const canShare = isSignedIn && !isLoading;
-
-  return (
-    <section className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-soft">
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-navy-700 text-gold-300">
-          <Share2 className="size-4.5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <label htmlFor="compartilhar" className="block font-semibold text-foreground">
-            Compartilhar
-          </label>
-          <p className="text-sm text-muted-foreground">
-            {!canShare && !isLoading
-              ? 'Entre na sua conta para compartilhar esta playlist.'
-              : shared
-                ? 'Quem tiver o link vê a playlist, mesmo como convidado.'
-                : 'Ligue para mandar o link a quem vai tocar com você.'}
-          </p>
-        </div>
-        {saving && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
-        <Switch
-          id="compartilhar"
-          checked={shared}
-          disabled={!canShare || saving}
-          onCheckedChange={(next) => void toggle(next)}
-        />
-      </div>
-
-      {shared && canShare && (
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Input
-            readOnly
-            value={link}
-            aria-label="Link da playlist"
-            onFocus={(e) => e.currentTarget.select()}
-            className="font-mono text-xs"
-          />
-          <Button
-            variant="secondary"
-            className="shrink-0 gap-1.5"
-            onClick={() => void shareLink()}
-          >
-            {copied ? <Check className="size-4" /> : <Link2 className="size-4" />}
-            {copied ? 'Link copiado' : 'Copiar link'}
-          </Button>
-        </div>
-      )}
-
-      {error && (
-        <p role="alert" className="mt-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
-    </section>
   );
 }
 
