@@ -248,8 +248,12 @@ export function ImportPage() {
                     <h2 className="font-display text-xl text-foreground">Colar o link da cifra</h2>
                   </div>
                   <p className="mb-3 text-xs text-muted-foreground">
-                    Cole o endereço da página (CifraClub e sites parecidos) e o app busca a
-                    cifra para você revisar.
+                    Cole o endereço da página e o app busca a cifra para você revisar. Ele se
+                    adapta ao site sozinho: no{' '}
+                    <strong className="text-foreground">CifraClub</strong> pega o tom e o vídeo;
+                    no <strong className="text-foreground">Músicas para Missa</strong> abre a aba
+                    Cifra e ainda preenche a categoria (Entrada, Comunhão…). Outros sites de cifra
+                    costumam funcionar também.
                   </p>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Input

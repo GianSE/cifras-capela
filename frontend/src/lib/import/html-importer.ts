@@ -2,6 +2,11 @@
  * @module lib/import/html-importer
  * @description Converte HTML (ex.: página de cifra salva) em texto e reaproveita
  * o importador de texto. Prioriza blocos <pre> (comuns em sites de cifra).
+ *
+ * Sites com marcação própria ganham um adaptador em `sites/`, que sabe achar
+ * mais do que o caminho genérico — o Músicas para Missa, por exemplo, também
+ * informa quem canta e o momento da missa. Quando nenhum adaptador reconhece a
+ * página, vale o caminho genérico, que funciona em qualquer site de cifra.
  */
 import {
   DEDUCED_KEY_WARNING_PREFIX,
@@ -9,6 +14,7 @@ import {
   MISSING_KEY_WARNING,
   importPlainText,
 } from './text-importer';
+import { importMusicasParaMissa } from './sites/musicas-para-missa';
 import type { ImportedSong } from './types';
 
 /** Nomes de site que aparecem no fim do `<title>` e não fazem parte da música. */
@@ -102,10 +108,16 @@ export function parsePageYoutube(html: string): string | undefined {
 
 export function importHtml(html: string): ImportedSong {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  let song = importPlainText(docToText(doc));
+
+  let song = importMusicasParaMissa(doc);
+  const generico = song === null;
+  song ??= importPlainText(docToText(doc));
 
   const youtube = parsePageYoutube(html);
   if (youtube) song = { ...song, youtube };
+
+  // O adaptador já leu título, artista e categoria do lugar certo.
+  if (!generico) return song;
 
   // O `<title>` não entra mais como linha do texto: no CifraClub ele termina
   // em "- Cifra Club", o filtro de lixo do site o descartava, e sem título o

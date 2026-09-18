@@ -201,10 +201,22 @@ capo: 0
 
 ### Importar do CifraClub e afins
 
-O **/importar** aceita o **link** da página (CifraClub e afins) ou um **arquivo**
-`.pdf`, `.cho`, `.jpg` ou `.png`. O formato "acordes acima da letra" vira
-inline automaticamente: ele reconhece seções (Intro/Refrão), lê ou deduz o tom e
+O **/importar** aceita o **link** da página ou um **arquivo** `.pdf`, `.cho`,
+`.jpg` ou `.png`. O formato "acordes acima da letra" vira inline
+automaticamente: ele reconhece seções (Intro/Refrão), lê ou deduz o tom e
 descarta lixo (tablatura, links). Tudo passa por uma revisão antes de salvar.
+
+O importador **se adapta ao site sozinho**, pela marcação da página — não há menu
+para escolher:
+
+| Site | O que aproveita |
+| --- | --- |
+| **CifraClub** | Cifra sem a tablatura, tom da página, título/artista e o vídeo do YouTube. |
+| **Músicas para Missa** | A aba **Cifra** (não a Letra), título sem o intérprete, quem canta, o vídeo e o **momento da missa** como categoria (Entrada, Comunhão, Ato penitencial…). |
+| Outros | Caminho genérico: o bloco `<pre>` da página + as heurísticas de texto. |
+
+Cada site com marcação própria ganha um adaptador em
+`frontend/src/lib/import/sites/`.
 
 ---
 
