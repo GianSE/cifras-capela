@@ -7,7 +7,6 @@ import {
   Trash2,
   Info,
   ListMusic,
-  LogOut,
   Download,
   Check,
 } from 'lucide-react';
@@ -56,20 +55,21 @@ export function SettingsPage() {
         {/* Aparência */}
         <Section title="Aparência">
           <Row label="Tema">
-            <div className="flex gap-1 rounded-full bg-[var(--color-surface-container-high)] p-1">
+            <div className="flex w-full gap-1 rounded-full bg-[var(--color-surface-container-high)] p-1 sm:w-auto">
               {THEMES.map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => preferencesStorage.update({ theme: value })}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors',
+                    // Em telas bem estreitas o texto encolhe antes de vazar do card.
+                    'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full px-2 py-1.5 text-xs font-semibold transition-colors sm:flex-none sm:gap-1.5 sm:px-3 sm:text-sm',
                     prefs.theme === value
                       ? 'bg-[image:var(--gradient-gold)] text-navy-900 shadow-gilded'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  <Icon className="size-4" /> {label}
+                  <Icon className="size-4 shrink-0" /> <span className="truncate">{label}</span>
                 </button>
               ))}
             </div>
@@ -183,22 +183,22 @@ export function SettingsPage() {
   );
 }
 
-/** Conta de quem entrou: e-mail, o que ela pode fazer e a saída. */
+/**
+ * Conta de quem entrou. Só informa: entrar e sair moram no menu do perfil, no
+ * canto da barra de cima — ter dois lugares para a mesma saída só confundia.
+ */
 function AccountRow() {
-  const { user, isAdmin, signOut, isLoading } = useAuth();
+  const { user, isAdmin, isLoading } = useAuth();
 
   if (isLoading || !user) {
     return <p className="text-sm text-muted-foreground">Carregando…</p>;
   }
 
   return (
-    <Row
-      label={isAdmin ? 'Administrador' : 'Somente leitura'}
-      hint={user.email}
-    >
-      <Button variant="outline" size="sm" onClick={() => void signOut()} className="gap-1.5">
-        <LogOut className="size-4" /> Sair
-      </Button>
+    <Row label={user.name || user.email} hint={user.email}>
+      <span className="shrink-0 rounded-full border border-gold-500/35 bg-[color-mix(in_srgb,var(--color-gold-400)_10%,transparent)] px-2.5 py-1 text-xs font-semibold text-gold-700 dark:text-gold-400">
+        {isAdmin ? 'Administrador' : 'Somente leitura'}
+      </span>
     </Row>
   );
 }
@@ -261,10 +261,12 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div>
+    // `flex-wrap`: num celular estreito o controle (o seletor de tema, por
+    // exemplo) não cabe ao lado do rótulo e passava por cima da borda do card.
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">{label}</p>
-        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+        {hint && <p className="break-words text-xs text-muted-foreground">{hint}</p>}
       </div>
       {children}
     </div>
