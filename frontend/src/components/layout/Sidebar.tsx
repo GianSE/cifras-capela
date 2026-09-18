@@ -1,15 +1,14 @@
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Music, ListMusic, PenLine, Settings, Library, UserRound, LogOut } from 'lucide-react';
+import { Music, ListMusic, PenLine, MoreHorizontal, Library, UserRound, LogOut } from 'lucide-react';
 import { useEditAccess } from '@/hooks/useEditAccess';
 import { useAuth } from '@/hooks/useAuth';
-import { useGuestMode } from '@/hooks/useGuestMode';
+import { MoreMenu, useMoreItems } from './MoreMenu';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { name: 'Biblioteca', path: '/home', icon: Library },
   { name: 'Playlists', path: '/playlists', icon: ListMusic },
   { name: 'Editor', path: '/editor', icon: PenLine },
-  { name: 'Configurações', path: '/config', icon: Settings },
 ] as const;
 
 /** Largura do trilho recolhido (só ícones). */
@@ -34,6 +33,7 @@ export function Sidebar() {
   const { showEditUI } = useEditAccess();
 
   const isActive = (path: string) => pathname.startsWith(path);
+  const moreActive = useMoreItems().some((item) => pathname.startsWith(item.to));
 
   // O Editor só aparece para quem pode escrever (logado, ou modo arquivo).
   const items = NAV_ITEMS.filter((item) => item.path !== '/editor' || showEditUI);
@@ -93,39 +93,52 @@ export function Sidebar() {
               </Link>
             );
           })}
+          <MoreMenu
+            align="start"
+            trigger={
+              <button
+                type="button"
+                title="Mais"
+                className={cn(
+                  'relative flex h-12 shrink-0 items-center rounded-full transition-colors',
+                  moreActive
+                    ? 'bg-white/10 text-gold-300'
+                    : 'text-navy-200 hover:bg-white/6 hover:text-ivory',
+                )}
+              >
+                {moreActive && (
+                  <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-[image:var(--gradient-gold)]" />
+                )}
+                <span className="grid size-12 shrink-0 place-items-center">
+                  <MoreHorizontal className="size-5" strokeWidth={moreActive ? 2.25 : 1.75} />
+                </span>
+                <span className={cn(LABEL, 'text-sm font-semibold')}>Mais</span>
+              </button>
+            }
+          />
         </nav>
 
-        {/* Rodapé: conta / convidado */}
+        {/* Rodapé: a conta de quem entrou */}
         <SidebarAccount />
       </div>
     </aside>
   );
 }
 
-/** Perfil de quem está usando (logado ou convidado) + botão de sair. */
+/** Quem entrou e o que a conta pode fazer, com o botão de sair. */
 function SidebarAccount() {
-  const { isEnabled, isSignedIn, session, signOut } = useAuth();
-  const { clearGuest } = useGuestMode();
+  const { user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleExit = async () => {
-    if (isSignedIn) await signOut();
-    else clearGuest();
+    await signOut();
     navigate('/', { replace: true });
   };
 
-  // Enquanto a sessão carrega, mantém o rótulo simples.
-  if (!isEnabled) {
-    return (
-      <div className="shrink-0 border-t border-white/10 p-3">
-        <span className={cn(LABEL, 'block px-1 text-xs text-navy-200')}>Offline • local</span>
-      </div>
-    );
-  }
+  if (!user) return null;
 
-  const email = session?.user.email ?? '';
-  const name = isSignedIn ? email.split('@')[0] || 'Conta' : 'Convidado';
-  const sub = isSignedIn ? email : 'Somente leitura';
+  const name = user.name || user.email.split('@')[0] || 'Conta';
+  const sub = isAdmin ? user.email : 'Somente leitura';
 
   return (
     <div className="shrink-0 border-t border-white/10 p-3">

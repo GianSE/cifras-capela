@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 import type { LucideIcon } from 'lucide-react';
+import { UserMenu } from './UserMenu';
 import { cn } from '@/lib/utils';
 
 interface PageHeaderProps {
@@ -28,6 +30,9 @@ interface PageHeaderProps {
  *
  * Por isso `children` (busca, filtros) é renderizado **fora** da faixa azul:
  * dentro dela, a barra voltaria a crescer.
+ *
+ * Nas pontas ficam a identidade e a conta: a logo à esquerda (só no celular —
+ * no computador ela já está no trilho lateral) e o menu do usuário à direita.
  */
 export function PageHeader({
   title,
@@ -48,8 +53,18 @@ export function PageHeader({
         <div
           className={cn('mx-auto flex h-16 w-full items-center gap-3 px-4 md:px-8', contentWidth)}
         >
+          <Link to="/home" aria-label="Biblioteca" className="shrink-0 md:hidden">
+            <img
+              src="/icons/icon-192.jpg"
+              alt=""
+              width={32}
+              height={32}
+              className="size-8 rounded-full bg-white object-cover ring-1 ring-gold-400/40"
+            />
+          </Link>
+
           {Icon && (
-            <span className="grid size-9 shrink-0 place-items-center rounded-full border border-gold-400/30 text-gold-300">
+            <span className="hidden size-9 shrink-0 place-items-center rounded-full border border-gold-400/30 text-gold-300 md:grid">
               <Icon className="size-[18px]" />
             </span>
           )}
@@ -62,6 +77,8 @@ export function PageHeader({
           </div>
 
           {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+
+          <UserMenu />
         </div>
       </header>
 

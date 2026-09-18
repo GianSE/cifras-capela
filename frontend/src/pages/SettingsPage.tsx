@@ -20,7 +20,6 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { SectionTitle } from '@/components/layout/SectionTitle';
 import { OfflineNotice } from '@/components/layout/OfflineNotice';
 import { Button } from '@/components/ui/button';
-import { SignInForm } from '@/components/auth/SignInForm';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
@@ -184,32 +183,23 @@ export function SettingsPage() {
   );
 }
 
-/**
- * Login com e-mail e senha: é ele que autoriza criar e editar músicas.
- * Ler é público — quem abre o app não precisa entrar para ver as cifras.
- */
+/** Conta de quem entrou: e-mail, o que ela pode fazer e a saída. */
 function AccountRow() {
-  const { isSignedIn, session, signOut, isLoading } = useAuth();
+  const { user, isAdmin, signOut, isLoading } = useAuth();
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return <p className="text-sm text-muted-foreground">Carregando…</p>;
   }
 
-  if (isSignedIn) {
-    return (
-      <Row label="Conectado" hint={session?.user.email ?? undefined}>
-        <Button variant="outline" size="sm" onClick={() => void signOut()} className="gap-1.5">
-          <LogOut className="size-4" /> Sair
-        </Button>
-      </Row>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm text-muted-foreground">Entre para criar e editar músicas.</p>
-      <SignInForm />
-    </div>
+    <Row
+      label={isAdmin ? 'Administrador' : 'Somente leitura'}
+      hint={user.email}
+    >
+      <Button variant="outline" size="sm" onClick={() => void signOut()} className="gap-1.5">
+        <LogOut className="size-4" /> Sair
+      </Button>
+    </Row>
   );
 }
 

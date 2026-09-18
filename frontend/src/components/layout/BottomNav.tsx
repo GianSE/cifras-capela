@@ -1,14 +1,18 @@
-import { NavLink } from 'react-router';
-import { Library, ListMusic, PenLine, Settings } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router';
+import { Library, ListMusic, MoreHorizontal, PenLine } from 'lucide-react';
 import { useEditAccess } from '@/hooks/useEditAccess';
+import { MoreMenu, useMoreItems } from './MoreMenu';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { to: '/home', icon: Library, label: 'Biblioteca', end: true },
   { to: '/playlists', icon: ListMusic, label: 'Playlists', end: false },
   { to: '/editor', icon: PenLine, label: 'Editor', end: false },
-  { to: '/config', icon: Settings, label: 'Config', end: false },
 ] as const;
+
+/** Mesmo visual dos itens fixos, para o "Mais" não destoar ao lado deles. */
+const ITEM =
+  'flex min-w-16 flex-col items-center gap-0.5 rounded-full px-3 py-1.5 transition-colors';
 
 /**
  * Navegação inferior do celular. Azul do manto com fio dourado no topo — o
@@ -17,7 +21,10 @@ const NAV_ITEMS = [
  */
 export function BottomNav() {
   const { showEditUI } = useEditAccess();
+  const { pathname } = useLocation();
   const items = NAV_ITEMS.filter((item) => item.to !== '/editor' || showEditUI);
+  const moreItems = useMoreItems();
+  const moreActive = moreItems.some((item) => pathname.startsWith(item.to));
 
   return (
     <nav className="safe-bottom fixed inset-x-0 bottom-0 z-[var(--z-sticky)] border-t border-white/10 bg-[image:var(--gradient-blue)] shadow-floating">
@@ -28,10 +35,7 @@ export function BottomNav() {
             to={to}
             end={end}
             className={({ isActive }) =>
-              cn(
-                'flex min-w-16 flex-col items-center gap-0.5 rounded-full px-3 py-1.5 transition-colors',
-                isActive ? 'bg-white/10 text-gold-300' : 'text-navy-200 hover:text-ivory',
-              )
+              cn(ITEM, isActive ? 'bg-white/10 text-gold-300' : 'text-navy-200 hover:text-ivory')
             }
           >
             {({ isActive }) => (
@@ -42,6 +46,24 @@ export function BottomNav() {
             )}
           </NavLink>
         ))}
+
+        <MoreMenu
+          side="top"
+          align="end"
+          trigger={
+            <button
+              type="button"
+              aria-label="Mais opções"
+              className={cn(
+                ITEM,
+                moreActive ? 'bg-white/10 text-gold-300' : 'text-navy-200 hover:text-ivory',
+              )}
+            >
+              <MoreHorizontal className="size-5" strokeWidth={moreActive ? 2.5 : 1.75} />
+              <span className="text-[10px] font-semibold tracking-wide">Mais</span>
+            </button>
+          }
+        />
       </div>
     </nav>
   );

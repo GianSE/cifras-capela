@@ -1,4 +1,4 @@
+# Acervo fechado: o conteúdo é de uso da equipe de música da capela e só abre
+# com login. Nada aqui deve ser indexado.
 User-agent: *
-Allow: /
-
-Sitemap: /sitemap.xml
+Disallow: /

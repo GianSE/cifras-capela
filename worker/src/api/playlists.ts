@@ -6,14 +6,13 @@
  * montou: listar, gravar e excluir exigem sessão e filtram por `user_id`.
  *
  * A exceção é ler **uma** playlist pelo id (`GET /api/playlists/<id>`): quem
- * tem o link a vê, mesmo entrando como convidado — é assim que o grupo que vai
- * tocar junto abre o repertório. O que protege é o próprio id, que é aleatório
- * e não aparece em lugar nenhum além do link.
+ * tem o link a vê, ainda que seja de outra conta — é assim que o grupo que vai
+ * tocar junto abre o repertório. Continua exigindo estar logado no site.
  */
 
 import type { Env } from '../types';
 import { json, readJson, methodNotAllowed, unauthorized } from '../lib/http';
-import { currentUser } from '../lib/session';
+import { currentAccount } from '../lib/access';
 
 interface PlaylistRow {
   id: string;
@@ -48,7 +47,9 @@ export async function playlistsRoute(
   env: Env,
   pathname: string,
 ): Promise<Response> {
-  const user = await currentUser(request, env.JWT_SECRET);
+  const user = await currentAccount(request, env);
+  if (!user) return unauthorized();
+
   const id = decodeURIComponent(pathname.slice('/api/playlists'.length).replace(/^\//, ''));
 
   // Leitura de uma playlist: basta ter o link.
@@ -60,7 +61,7 @@ export async function playlistsRoute(
       .bind(id)
       .first<PlaylistRow>();
 
-    const isOwner = row !== null && user !== null && row.user_id === user.sub;
+    const isOwner = row !== null && row.user_id === user.id;
     if (!row) {
       return json({ error: 'Playlist não encontrada.' }, 404);
     }
@@ -72,8 +73,6 @@ export async function playlistsRoute(
     );
   }
 
-  if (!user) return unauthorized();
-
   if (!id) {
     if (request.method !== 'GET') return methodNotAllowed();
 
@@ -81,7 +80,7 @@ export async function playlistsRoute(
       `SELECT id, user_id, name, song_ids, created_at, updated_at
          FROM playlists WHERE user_id = ? ORDER BY updated_at DESC`,
     )
-      .bind(user.sub)
+      .bind(user.id)
       .all<PlaylistRow>();
 
     return json({ playlists: (results ?? []).map(rowToPlaylist) });
@@ -107,7 +106,7 @@ export async function playlistsRoute(
          updated_at = datetime('now')
        WHERE playlists.user_id = excluded.user_id`,
     )
-      .bind(id, user.sub, name, songIds, typeof body.createdAt === 'string' ? body.createdAt : null)
+      .bind(id, user.id, name, songIds, typeof body.createdAt === 'string' ? body.createdAt : null)
       .run();
 
     // O `WHERE` acima faz o UPDATE não acontecer quando a playlist é de outra
@@ -122,7 +121,7 @@ export async function playlistsRoute(
 
   if (request.method === 'DELETE') {
     await env.DB.prepare(`DELETE FROM playlists WHERE id = ? AND user_id = ?`)
-      .bind(id, user.sub)
+      .bind(id, user.id)
       .run();
     return json({ ok: true });
   }

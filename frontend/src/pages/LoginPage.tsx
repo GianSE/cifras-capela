@@ -1,12 +1,10 @@
 import { useNavigate, useLocation } from 'react-router';
 import { SignInForm } from '@/components/auth/SignInForm';
-import { Button } from '@/components/ui/button';
-import { useGuestMode } from '@/hooks/useGuestMode';
 
 /**
- * Entrada do site, em `/`. Aparece quando ninguém entrou (o
- * guard redireciona para cá) e também é para onde o logout leva. Oferece o
- * login (criar/editar) ou seguir como convidado (só ver).
+ * Entrada do site, em `/`. Aparece quando ninguém entrou (o guard redireciona
+ * para cá) e também é para onde o logout leva. O acervo é fechado: só entra
+ * quem tem conta, criada por um administrador em Mais › Usuários.
  *
  * É a porta de entrada, então veste a marca inteira: fundo no azul do manto,
  * selo dourado e o cartão em marfim.
@@ -14,16 +12,10 @@ import { useGuestMode } from '@/hooks/useGuestMode';
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { enterAsGuest } = useGuestMode();
 
   // Volta para a página de origem (se veio de um redirecionamento) ou à biblioteca.
   const from = (location.state as { from?: string } | null)?.from ?? '/home';
   const goToApp = () => navigate(from, { replace: true });
-
-  const handleGuest = () => {
-    enterAsGuest();
-    goToApp();
-  };
 
   return (
     <div className="relative isolate flex min-h-dvh items-center justify-center overflow-hidden bg-[image:var(--gradient-blue)] px-4 py-12">
@@ -51,7 +43,7 @@ export function LoginPage() {
           <p className="eyebrow text-gold-400">Capela N. S. de Fátima</p>
           <h1 className="font-display mt-1 text-4xl text-ivory">Biblioteca de Cifras</h1>
           <p className="mt-2 text-sm text-navy-100/80">
-            Entre para criar e editar músicas, ou continue como convidado para só visualizar.
+            Entre com a conta que o responsável pela música criou para você.
           </p>
         </div>
 
@@ -63,16 +55,8 @@ export function LoginPage() {
           </div>
         </div>
 
-        <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-[0.14em] text-navy-200">
-          <span className="h-px flex-1 bg-white/20" /> ou{' '}
-          <span className="h-px flex-1 bg-white/20" />
-        </div>
-
-        <Button variant="outline-dark" className="w-full" onClick={handleGuest}>
-          Continuar como convidado
-        </Button>
-        <p className="mt-4 text-center text-xs text-navy-200">
-          Você pode entrar depois em Configurações › Conta.
+        <p className="mt-5 text-center text-xs text-navy-200">
+          Sem conta? Peça a quem cuida da biblioteca.
         </p>
       </div>
     </div>

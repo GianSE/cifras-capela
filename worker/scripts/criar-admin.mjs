@@ -1,7 +1,8 @@
 /**
  * Gera o SQL que cria (ou atualiza a senha de) um administrador.
  *
- * Não há cadastro pelo site: quem edita a biblioteca é definido aqui. O hash
+ * É o jeito de criar o **primeiro** administrador (depois disso, as contas são
+ * criadas em Mais › Usuários) e de recuperar uma senha perdida. O hash
  * usa o mesmo PBKDF2-SHA256 do Worker (`src/lib/crypto.ts`), então a senha em
  * texto puro nunca sai desta máquina.
  *

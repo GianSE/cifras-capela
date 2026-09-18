@@ -3,9 +3,12 @@
  *
  * Responsabilidades:
  *  - Servir os assets estáticos do build do frontend (SPA fallback).
- *  - Gerar `/sitemap.xml` dinamicamente a partir do índice de músicas.
  *  - `/api/fetch-page`: baixar a página de uma cifra (o navegador não pode, por CORS).
- *  - `/api/auth/*`, `/api/songs`, `/api/playlists`: login e a biblioteca no D1.
+ *  - `/api/auth/*`, `/api/songs`, `/api/playlists`, `/api/users`: login, a
+ *    biblioteca no D1 e as contas.
+ *
+ * O acervo é fechado: toda rota de dados exige sessão, e o site não é
+ * indexado por buscadores (robots.txt + meta noindex).
  *  - Headers de segurança e cache.
  */
 
@@ -15,6 +18,8 @@ import { login, logout, me } from './api/auth';
 import { songsRoute } from './api/songs';
 import { playlistsRoute } from './api/playlists';
 import { youtubeRoute } from './api/youtube';
+import { usersRoute } from './api/users';
+import { currentAccount, forbidden } from './lib/access';
 
 export type { Env };
 
@@ -35,39 +40,6 @@ function withSecurityHeaders(response: Response): Response {
     status: response.status,
     statusText: response.statusText,
     headers,
-  });
-}
-
-async function buildSitemap(request: Request, env: Env): Promise<Response> {
-  const origin = env.SITE_URL ?? new URL(request.url).origin;
-
-  // As músicas moram no D1; se ele falhar, o sitemap sai só com as páginas fixas.
-  let ids: string[] = [];
-  try {
-    const { results } = await env.DB.prepare('SELECT id FROM songs ORDER BY id').all<{
-      id: string;
-    }>();
-    ids = results.map((row) => row.id);
-  } catch {
-    ids = [];
-  }
-
-  const staticPaths = ['/', '/home', '/playlists', '/importar'];
-  const urls = [
-    ...staticPaths.map((p) => `${origin}${p}`),
-    ...ids.map((id) => `${origin}/musica/${encodeURI(id)}`),
-  ];
-
-  const body = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map((loc) => `  <url><loc>${loc}</loc></url>`).join('\n')}
-</urlset>`;
-
-  return new Response(body, {
-    headers: {
-      'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
-    },
   });
 }
 
@@ -201,15 +173,16 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === '/sitemap.xml') {
-      return withSecurityHeaders(await buildSitemap(request, env));
-    }
-
+    // Importar é coisa de administrador: buscar páginas de fora em nome de
+    // quem só lê seria dar um proxy de graça a qualquer conta.
     if (url.pathname === '/api/fetch-page') {
-      if (request.method === 'POST') {
-        return withSecurityHeaders(await fetchSongPage(request));
+      if (request.method !== 'POST') {
+        return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
       }
-      return withSecurityHeaders(json({ error: 'Método não permitido.' }, 405));
+      const account = await currentAccount(request, env);
+      if (!account) return withSecurityHeaders(json({ error: 'Não autenticado.' }, 401));
+      if (account.role !== 'admin') return withSecurityHeaders(forbidden());
+      return withSecurityHeaders(await fetchSongPage(request));
     }
 
     // ---- Sessão de quem edita (JWT em cookie httpOnly) ----
@@ -235,6 +208,10 @@ export default {
 
     if (url.pathname === '/api/playlists' || url.pathname.startsWith('/api/playlists/')) {
       return withSecurityHeaders(await playlistsRoute(request, env, url.pathname));
+    }
+
+    if (url.pathname === '/api/users' || url.pathname.startsWith('/api/users/')) {
+      return withSecurityHeaders(await usersRoute(request, env, url.pathname));
     }
 
     if (url.pathname === '/api/youtube/search') {

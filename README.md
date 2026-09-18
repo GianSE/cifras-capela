@@ -94,22 +94,35 @@ npm run preview
 ## 🗄️ Onde as músicas ficam
 
 A biblioteca mora num banco **D1** (SQLite da Cloudflare), servido pelo próprio
-Worker em `/api/*` — mesma origem do site, sem serviço externo. Ler é público;
-criar, editar e excluir exigem login.
+Worker em `/api/*` — mesma origem do site, sem serviço externo. O acervo é
+**fechado**: toda rota exige conta, e o site não é indexado por buscadores
+(`robots.txt` + `noindex`) — são cifras de terceiros, para uso da equipe de
+música da capela.
 
 Não há músicas de exemplo nem carga inicial: a biblioteca começa vazia e só tem o
 que for salvo pelo app. Se o banco não responder, a leitura cai para a **cópia local**
 — a última lista bem-sucedida, com as cifras inteiras. Sem rede e sem cópia, a tela
 avisa que não conseguiu carregar.
 
-### Login
+### Contas e níveis
 
 JWT (HS256) num cookie **httpOnly**, assinado pelo Worker — o JavaScript da página
-não alcança o token. Senhas em PBKDF2-SHA256. Não há cadastro pelo site: quem edita
-é criado por SQL.
+não alcança o token. Senhas em PBKDF2-SHA256. Não há cadastro pelo site: as contas
+são criadas em **Mais › Usuários** por quem é administrador.
 
-**Criar ou trocar a senha de um administrador** (a senha não sai da sua máquina, o
-script só gera o hash):
+São dois níveis:
+
+| Nível | O que faz |
+| --- | --- |
+| **Administrador** | Tudo: criar, editar, importar e excluir músicas, e cuidar das contas. |
+| **Somente leitura** | Consome o site: abre e transpõe as cifras, e monta as próprias playlists. |
+
+O papel é lido do banco a cada requisição, não do cookie: rebaixar ou excluir
+alguém vale na hora, sem esperar os 30 dias do token.
+
+**O primeiro administrador** nasce por SQL (depois disso, tudo pela tela). O mesmo
+comando troca a senha de alguém, se for preciso — a senha não sai da sua máquina,
+o script só gera o hash:
 
 ```powershell
 cd worker
@@ -118,6 +131,7 @@ npx wrangler d1 execute cifras-db --remote --command $SQL
 ```
 
 Sem `--remote`, o usuário vai para o banco local de desenvolvimento, não para o site.
+Contas criadas por esse script nascem como administradoras.
 
 ### Configuração (uma vez só)
 
@@ -196,8 +210,7 @@ descarta lixo (tablatura, links). Tudo passa por uma revisão antes de salvar.
 
 ## ☁️ Deploy no Cloudflare
 
-O **Worker** serve o SPA (`frontend/dist`), a API com o D1, o login e o `sitemap.xml`
-(gerado a partir das músicas do banco).
+O **Worker** serve o SPA (`frontend/dist`), a API com o D1 e o login.
 
 ```bash
 # build do frontend

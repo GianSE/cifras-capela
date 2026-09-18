@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { playlistStorage } from '@/lib/storage/playlists';
 
+/** O que cada conta pode fazer. */
+export type Role = 'admin' | 'leitor';
+
 /** Quem está logado, do ponto de vista do app. */
 export interface SessionUser {
   readonly id: number;
   readonly email: string;
   readonly name: string;
+  /** `admin` faz tudo; `leitor` só consome o site. */
+  readonly role: Role;
 }
 
 /**
@@ -16,9 +21,9 @@ export interface SessionUser {
  * embora. O preço é que não dá para "ler" a sessão localmente: saber se há
  * alguém logado exige perguntar ao servidor (`GET /api/auth/me`).
  *
- * Não há cadastro pelo site: os administradores são criados por SQL
- * (`worker/scripts/criar-admin.mjs`). É o acervo de uma comunidade, não um
- * serviço com inscrição aberta.
+ * Não há cadastro pelo site: as contas são criadas por um administrador em
+ * Mais › Usuários. É o acervo de uma comunidade, não um serviço com inscrição
+ * aberta.
  */
 export function useAuth() {
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -59,7 +64,12 @@ export function useAuth() {
     const data = (await res.json().catch(() => ({}))) as Partial<SessionUser> & { error?: string };
     if (!res.ok) throw new Error(data.error ?? 'Não foi possível entrar.');
 
-    const signed = { id: data.id ?? 0, email: data.email ?? email, name: data.name ?? '' };
+    const signed: SessionUser = {
+      id: data.id ?? 0,
+      email: data.email ?? email,
+      name: data.name ?? '',
+      role: data.role === 'admin' ? 'admin' : 'leitor',
+    };
     setUser(signed);
     playlistStorage.setSession(signed.id);
   }, []);
@@ -84,6 +94,8 @@ export function useAuth() {
     /** Formato antigo (`session.user.email`), para não mexer nas telas. */
     session: user ? { user: { email: user.email } } : null,
     isSignedIn: user !== null,
+    /** Pode criar, editar, importar e excluir — inclusive contas. */
+    isAdmin: user?.role === 'admin',
     isLoading,
     signIn,
     signOut,

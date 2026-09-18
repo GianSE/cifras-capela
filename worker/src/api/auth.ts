@@ -1,21 +1,24 @@
 /**
  * Sessão de quem edita a biblioteca: e-mail + senha, JWT em cookie httpOnly.
  *
- * Mesmo desenho do site-capela. Não há cadastro público: os administradores
- * entram na tabela `admin_users` por SQL (ver `scripts/criar-admin.mjs`) —
- * este é um acervo de uma comunidade, não um serviço com inscrição aberta.
+ * Não há cadastro público: as contas são criadas por um administrador, em
+ * Mais › Usuários (o primeiro administrador nasce por SQL, com
+ * `scripts/criar-admin.mjs`) — este é um acervo de uma comunidade, não um
+ * serviço com inscrição aberta.
  */
 
 import type { Env } from '../types';
 import { verifyPassword, signJwt } from '../lib/crypto';
 import { json, readJson, unauthorized } from '../lib/http';
-import { clearCookie, currentUser, sessionCookie, SESSION_DAYS } from '../lib/session';
+import { clearCookie, sessionCookie, SESSION_DAYS } from '../lib/session';
+import { currentAccount, toRole } from '../lib/access';
 
 interface AdminRow {
   id: number;
   email: string;
   name: string;
   password_hash: string;
+  role: string;
 }
 
 export async function login(request: Request, env: Env): Promise<Response> {
@@ -32,7 +35,7 @@ export async function login(request: Request, env: Env): Promise<Response> {
   }
 
   const user = await env.DB.prepare(
-    `SELECT id, email, name, password_hash FROM admin_users WHERE email = ?`,
+    `SELECT id, email, name, password_hash, role FROM admin_users WHERE email = ?`,
   )
     .bind(email)
     .first<AdminRow>();
@@ -55,7 +58,7 @@ export async function login(request: Request, env: Env): Promise<Response> {
   );
 
   return json(
-    { id: user.id, email: user.email, name: user.name },
+    { id: user.id, email: user.email, name: user.name, role: toRole(user.role) },
     200,
     { 'Set-Cookie': sessionCookie(token, env.APP_ENV !== 'development') },
   );
@@ -68,7 +71,9 @@ export function logout(env: Env): Response {
 }
 
 export async function me(request: Request, env: Env): Promise<Response> {
-  const user = await currentUser(request, env.JWT_SECRET);
-  if (!user) return unauthorized();
-  return json({ id: user.sub, email: user.email, name: user.name });
+  // Papel e nome saem do banco, não do cookie: uma mudança feita em Usuários
+  // vale na próxima tela, sem esperar o token expirar.
+  const account = await currentAccount(request, env);
+  if (!account) return unauthorized();
+  return json(account);
 }

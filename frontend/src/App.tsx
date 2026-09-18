@@ -1,10 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router';
 import { AppShell } from '@/components/layout/AppShell';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useTheme } from '@/hooks/useTheme';
 import { useEditAccess } from '@/hooks/useEditAccess';
-import { useGuestMode } from '@/hooks/useGuestMode';
 import { useAuth } from '@/hooks/useAuth';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -26,6 +25,7 @@ const ImportPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
+const UsersPage = lazy(() => import('@/pages/UsersPage').then((m) => ({ default: m.UsersPage })));
 
 function PageFallback() {
   return (
@@ -36,17 +36,16 @@ function PageFallback() {
 }
 
 /**
- * Guard das telas do app: com ninguém logado (nem convidado), manda para a
- * entrada (`/`), lembrando de onde veio. Quem já entrou (a sessão persiste) ou
- * já escolheu convidado passa direto — um link para uma música abre a música.
+ * Guard das telas do app: com ninguém logado, manda para a
+ * entrada (`/`), lembrando de onde veio. Quem já entrou passa direto — um
+ * link para uma música abre a música.
  */
 function RequireEntry() {
   const { needsLogin, isLoading } = useEditAccess();
-  const { isGuest } = useGuestMode();
   const location = useLocation();
 
   if (isLoading) return <PageFallback />;
-  if (needsLogin && !isGuest) {
+  if (needsLogin) {
     const from = location.pathname + location.search;
     return <Navigate to="/" replace state={{ from }} />;
   }
@@ -71,6 +70,13 @@ function EntryRoute() {
 }
 
 /** `/login` virou `/`; o antigo continua valendo para links e favoritos salvos. */
+/** Telas de administrador: quem só lê volta para a biblioteca. */
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { isAdmin, isLoading } = useAuth();
+  if (isLoading) return <PageFallback />;
+  return isAdmin ? <>{children}</> : <Navigate to="/home" replace />;
+}
+
 function LegacyLoginRedirect() {
   const location = useLocation();
   return <Navigate to="/" replace state={location.state} />;
@@ -88,7 +94,7 @@ export function App() {
           <Route index element={<EntryRoute />} />
           <Route path="login" element={<LegacyLoginRedirect />} />
 
-          {/* Tudo o mais exige ter entrado (ou ser convidado) */}
+          {/* Tudo o mais exige ter entrado */}
           <Route element={<RequireEntry />}>
             {/* Rotas com a "casca" do app (sidebar + navegação inferior) */}
             <Route element={<AppShell />}>
@@ -99,6 +105,14 @@ export function App() {
               <Route path="editor/*" element={<EditorPage />} />
               <Route path="importar" element={<ImportPage />} />
               <Route path="config" element={<SettingsPage />} />
+              <Route
+                path="usuarios"
+                element={
+                  <RequireAdmin>
+                    <UsersPage />
+                  </RequireAdmin>
+                }
+              />
             </Route>
 
             {/* Leitor em tela cheia, sem a casca do app (foco total) */}

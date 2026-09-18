@@ -1,15 +1,16 @@
 /**
  * Biblioteca de músicas no D1.
  *
- * Ler é público (o acervo é da comunidade); criar, editar e excluir exigem
- * sessão. A fonte da verdade é sempre o `.cho` em `source` — os metadados são
+ * Tudo exige conta: ler pede sessão (o acervo é fechado, para não publicar
+ * cifras de terceiros na internet aberta) e escrever pede administrador.
+ * A fonte da verdade é sempre o `.cho` em `source` — os metadados são
  * derivados dele no cliente, que já tem o parser, e gravados junto só para a
  * listagem e a busca não precisarem abrir 23 arquivos.
  */
 
 import type { Env, SongRow } from '../types';
 import { json, readJson, methodNotAllowed, unauthorized } from '../lib/http';
-import { currentUser } from '../lib/session';
+import { currentAccount, forbidden } from '../lib/access';
 
 /** Entrada do índice, no mesmo formato que o app já consumia. */
 interface SongEntry {
@@ -98,9 +99,6 @@ interface SaveBody {
 
 /** `PUT /api/songs/<id>` — cria ou atualiza (upsert pelo id). */
 export async function saveSong(request: Request, env: Env, id: string): Promise<Response> {
-  const user = await currentUser(request, env.JWT_SECRET);
-  if (!user) return unauthorized();
-
   const body = await readJson<SaveBody>(request);
   const source = typeof body.source === 'string' ? body.source : '';
   const title = typeof body.title === 'string' ? body.title.trim() : '';
@@ -158,18 +156,19 @@ export async function saveSong(request: Request, env: Env, id: string): Promise<
 }
 
 /** `DELETE /api/songs/<id>` */
-export async function deleteSong(request: Request, env: Env, id: string): Promise<Response> {
-  const user = await currentUser(request, env.JWT_SECRET);
-  if (!user) return unauthorized();
-
+export async function deleteSong(env: Env, id: string): Promise<Response> {
   await env.DB.prepare(`DELETE FROM songs WHERE id = ?`).bind(id).run();
   return json({ ok: true });
 }
 
 /** Roteia `/api/songs` e `/api/songs/<id>` (o id contém barras). */
 export async function songsRoute(request: Request, env: Env, pathname: string): Promise<Response> {
+  const account = await currentAccount(request, env);
+  if (!account) return unauthorized();
+
   const rest = pathname.slice('/api/songs'.length).replace(/^\//, '');
   const id = decodeURIComponent(rest);
+  const canWrite = account.role === 'admin';
 
   if (!id) {
     if (request.method === 'GET') return listSongs(env);
@@ -180,9 +179,9 @@ export async function songsRoute(request: Request, env: Env, pathname: string): 
     case 'GET':
       return getSong(env, id);
     case 'PUT':
-      return saveSong(request, env, id);
+      return canWrite ? saveSong(request, env, id) : forbidden();
     case 'DELETE':
-      return deleteSong(request, env, id);
+      return canWrite ? deleteSong(env, id) : forbidden();
     default:
       return methodNotAllowed();
   }
