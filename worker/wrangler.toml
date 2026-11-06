@@ -18,8 +18,16 @@ database_name = "cifras-db"
 database_id = "5b8c9b40-7994-450f-85b1-3f7be7228130"
 migrations_dir = "migrations"
 
+# Fotos e PDFs de cifra (folhas) guardados para transcrever depois.
+# Criado com `wrangler r2 bucket create cifras-folhas`.
+[[r2_buckets]]
+binding = "SCANS"
+bucket_name = "cifras-folhas"
+
 # Segredos (defina com `wrangler secret put NOME`):
 #   JWT_SECRET      → assina o cookie de sessão de quem edita
+#   ANTHROPIC_API_KEY → transcrição das folhas por IA (opcional; sem ela o app
+#                     usa o OCR do próprio aparelho)
 #   YOUTUBE_API_KEY → busca de vídeos dentro do app (opcional; sem ela o app
 #                     só aceita o link colado à mão)
 [vars]

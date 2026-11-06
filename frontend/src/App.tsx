@@ -25,6 +25,7 @@ const ImportPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
+const ScansPage = lazy(() => import('@/pages/ScansPage').then((m) => ({ default: m.ScansPage })));
 const UsersPage = lazy(() => import('@/pages/UsersPage').then((m) => ({ default: m.UsersPage })));
 
 function PageFallback() {
@@ -105,6 +106,14 @@ export function App() {
               <Route path="editor/*" element={<EditorPage />} />
               <Route path="importar" element={<ImportPage />} />
               <Route path="config" element={<SettingsPage />} />
+              <Route
+                path="folhas"
+                element={
+                  <RequireAdmin>
+                    <ScansPage />
+                  </RequireAdmin>
+                }
+              />
               <Route
                 path="usuarios"
                 element={

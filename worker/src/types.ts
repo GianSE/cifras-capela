@@ -11,6 +11,10 @@ export interface Env {
   JWT_SECRET?: string;
   /** Chave da YouTube Data API v3 (secret). Sem ela, a busca interna some. */
   YOUTUBE_API_KEY?: string;
+  /** Bucket R2 com as fotos e PDFs de cifra (folhas). Sem ele, a rota responde 503. */
+  SCANS?: R2Bucket;
+  /** Chave da API da Anthropic (secret). Sem ela, a transcrição cai no OCR do aparelho. */
+  ANTHROPIC_API_KEY?: string;
   /** `development` afrouxa o `Secure` do cookie, para o dev em http. */
   APP_ENV?: string;
 }

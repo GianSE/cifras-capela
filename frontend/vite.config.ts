@@ -43,6 +43,9 @@ export default defineConfig({
         // Pré-cacheia o app; offline, as músicas vêm da cópia local da biblioteca.
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff,woff2,ttf,json}'],
         navigateFallback: '/index.html',
+        // Abrir a API numa aba (ex.: a foto original de uma folha) é uma
+        // navegação: sem isto o service worker devolveria o app no lugar.
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,

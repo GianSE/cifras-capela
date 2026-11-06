@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import {
+  Camera,
+  CheckCircle2,
+  ExternalLink,
   Upload,
   FileText,
   AlertTriangle,
@@ -23,18 +26,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { downloadTextFile, slugify } from '@/lib/export/download';
 import { parseYoutubeId, youtubeThumbnailUrl } from '@/lib/youtube';
 import { VideoLinkDialog } from '@/components/video/VideoLinkDialog';
 import { buildSongId, nextFreeSongId } from '@/lib/library/derive';
 import { songService } from '@/services/song-service';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
+import {
+  getScan,
+  isPdfScan,
+  markScanValidated,
+  scanFileUrl,
+  transcribeScan,
+  type Scan,
+} from '@/lib/scans';
 
 /** Casas em que o capo pode ficar — o menu da revisão vai da 1ª à 12ª. */
 const CAPO_FRETS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -113,6 +119,48 @@ export function ImportPage() {
   /** Falha ao ler o link ou o arquivo — aparece na tela inicial, não na revisão. */
   const [importError, setImportError] = useState<string | null>(null);
 
+  /**
+   * `?folha=<id>`: transcrevendo uma folha guardada. A revisão mostra o
+   * original para comparar, e confirmar liga a folha à música.
+   */
+  const [searchParams] = useSearchParams();
+  const scanId = searchParams.get('folha');
+  const [scan, setScan] = useState<Scan | null>(null);
+  const [transcribing, setTranscribing] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!scanId) return;
+    let active = true;
+    setDraft(null);
+    setImportError(null);
+    setTranscribing('Abrindo a folha…');
+    void (async () => {
+      try {
+        const { scan: loaded, aiAvailable } = await getScan(scanId);
+        if (!active) return;
+        setScan(loaded);
+        setTranscribing(
+          aiAvailable ? 'Transcrevendo com IA… (leva alguns segundos)' : 'Reconhecendo o texto…',
+        );
+        const { song } = await transcribeScan(loaded, {
+          useAi: aiAvailable,
+          onProgress: (f) =>
+            active && setTranscribing(`Reconhecendo texto na imagem… ${Math.round(f * 100)}%`),
+        });
+        if (active) startReview(song);
+      } catch (e) {
+        if (active) {
+          setImportError(e instanceof Error ? e.message : 'Não foi possível transcrever a folha.');
+        }
+      } finally {
+        if (active) setTranscribing(null);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [scanId]);
+
   useEffect(() => {
     // Importar por link depende do Worker; em `vite dev` puro ele não existe.
     isUrlImportAvailable().then(setUrlAvailable);
@@ -161,6 +209,8 @@ export function ImportPage() {
   const restart = () => {
     setDraft(null);
     setSaveError(null);
+    // Vindo de uma folha, recomeçar é voltar para a fila (ela continua lá).
+    if (scan) navigate('/folhas');
   };
 
   const openInEditor = () => {
@@ -193,6 +243,14 @@ export function ImportPage() {
     try {
       await songService.saveSong({ id, source: draftToSource(draft) });
       setConflictId(null);
+      if (scan) {
+        // A música já está salva; se só a marcação falhar, avisa e segue.
+        try {
+          await markScanValidated(scan.id, id);
+        } catch (e) {
+          alert(e instanceof Error ? e.message : 'A folha não foi marcada como validada.');
+        }
+      }
       navigate(`/musica/${id}`);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Não foi possível salvar.');
@@ -226,10 +284,37 @@ export function ImportPage() {
           title="Importar cifra"
           icon={Upload}
           contentWidth="max-w-3xl"
-          subtitle="Traga de um link, de um arquivo ou de uma foto da folha"
+          subtitle={
+            scanId
+              ? 'Confira a transcrição com a folha original'
+              : 'Traga de um link, de um arquivo ou de uma foto da folha'
+          }
         />
         <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8">
-          {!draft ? (
+          {scanId && !draft ? (
+            <div className="flex flex-col items-center gap-4 py-10 text-center">
+              {transcribing ? (
+                <>
+                  <Loader2 className="size-8 animate-spin text-gold-600 dark:text-gold-400" />
+                  <p className="text-sm text-muted-foreground">{transcribing}</p>
+                </>
+              ) : (
+                <>
+                  {importError && (
+                    <p
+                      role="alert"
+                      className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive"
+                    >
+                      {importError}
+                    </p>
+                  )}
+                  <Button asChild variant="outline">
+                    <Link to="/folhas">Voltar para as folhas</Link>
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : !draft ? (
             <div className="flex flex-col gap-5">
               {importError && (
                 <p
@@ -240,6 +325,27 @@ export function ImportPage() {
                 </p>
               )}
 
+              {/* Foto rápida: guarda agora, transcreve depois. */}
+              {songService.canWrite && (
+                <Link
+                  to="/folhas"
+                  className="card-lift flex items-center gap-3.5 rounded-2xl border border-border bg-card p-4 shadow-soft hover:border-gold-400/60"
+                >
+                  <span className="grid size-11 shrink-0 place-items-center rounded-full bg-navy-700 text-gold-300">
+                    <Camera className="size-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="font-display block text-lg text-foreground">
+                      Foto rápida da folha
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      Na correria? Fotografe ou envie o PDF agora e transcreva depois — o original
+                      fica guardado.
+                    </span>
+                  </span>
+                </Link>
+              )}
+
               {/* Link da cifra — o caminho mais curto, então vem primeiro. */}
               {urlAvailable && (
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
@@ -248,11 +354,11 @@ export function ImportPage() {
                     <h2 className="font-display text-xl text-foreground">Colar o link da cifra</h2>
                   </div>
                   <p className="mb-3 text-xs text-muted-foreground">
-                    Cole o endereço da página e o app busca a cifra para você revisar. Ele se
-                    adapta ao site sozinho: no{' '}
-                    <strong className="text-foreground">CifraClub</strong> pega o tom e o vídeo;
-                    no <strong className="text-foreground">Músicas para Missa</strong> abre a aba
-                    Cifra e ainda preenche a categoria (Entrada, Comunhão…). Outros sites de cifra
+                    Cole o endereço da página e o app busca a cifra para você revisar. Ele se adapta
+                    ao site sozinho: no <strong className="text-foreground">CifraClub</strong> pega
+                    o tom e o vídeo; no{' '}
+                    <strong className="text-foreground">Músicas para Missa</strong> abre a aba Cifra
+                    e ainda preenche a categoria (Entrada, Comunhão…). Outros sites de cifra
                     costumam funcionar também.
                   </p>
                   <div className="flex flex-col gap-2 sm:flex-row">
@@ -289,9 +395,7 @@ export function ImportPage() {
                 )}
                 <div>
                   <p className="font-display text-xl text-foreground">Selecione um arquivo</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    .pdf · .cho · .jpg · .png
-                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">.pdf · .cho · .jpg · .png</p>
                   {loading && ocrProgress !== null && (
                     <p className="mt-1 text-xs text-primary">
                       {`Reconhecendo texto na imagem… ${Math.round(ocrProgress * 100)}%`}
@@ -321,6 +425,7 @@ export function ImportPage() {
               saving={saving}
               saveError={saveError}
               onRestart={restart}
+              original={scan ?? undefined}
             />
           )}
         </div>
@@ -336,14 +441,21 @@ export function ImportPage() {
               <strong className="text-foreground">
                 {songs.find((s) => s.id === conflictId)?.title ?? conflictId}
               </strong>{' '}
-              em <code className="font-mono text-xs">{conflictId}</code>. Substituir apaga a
-              versão que está lá, inclusive correções feitas à mão.
+              em <code className="font-mono text-xs">{conflictId}</code>. Substituir apaga a versão
+              que está lá, inclusive correções feitas à mão.
             </p>
             <div className="flex flex-col gap-2">
               <Button
                 variant="outline"
                 disabled={saving}
-                onClick={() => void writeSong(nextFreeSongId(conflictId ?? '', songs.map((s) => s.id)))}
+                onClick={() =>
+                  void writeSong(
+                    nextFreeSongId(
+                      conflictId ?? '',
+                      songs.map((s) => s.id),
+                    ),
+                  )
+                }
                 className="justify-start gap-2"
               >
                 <Copy className="size-4" /> Guardar como nova
@@ -381,7 +493,10 @@ function ReviewForm({
   saving,
   saveError,
   onRestart,
+  original,
 }: {
+  /** Folha de onde veio a transcrição: mostra o original e vira "Confirmar". */
+  original?: Scan;
   draft: Draft;
   onUpdate: (patch: Partial<Draft>) => void;
   onOpenEditor: () => void;
@@ -396,8 +511,12 @@ function ReviewForm({
   return (
     <div className="flex flex-col gap-5">
       <p className="text-sm text-muted-foreground">
-        Revise os dados extraídos antes de salvar. Ajuste o que for necessário.
+        {original
+          ? 'Compare com a folha original e corrija o que a transcrição errou. Só confirme quando a cifra estiver certa.'
+          : 'Revise os dados extraídos antes de salvar. Ajuste o que for necessário.'}
       </p>
+
+      {original && <OriginalScan scan={original} />}
 
       {saveError && (
         <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{saveError}</p>
@@ -473,13 +592,22 @@ function ReviewForm({
       <div className="flex flex-wrap gap-2">
         {songService.canWrite && (
           <Button onClick={onSave} disabled={saving || !draft.title.trim()} className="gap-1.5">
-            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-            {saving ? 'Salvando…' : 'Salvar na biblioteca'}
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : original ? (
+              <CheckCircle2 className="size-4" />
+            ) : (
+              <Save className="size-4" />
+            )}
+            {saving ? 'Salvando…' : original ? 'Confirmar cifra' : 'Salvar na biblioteca'}
           </Button>
         )}
-        <Button variant="secondary" onClick={onOpenEditor} className="gap-1.5">
-          Abrir no editor <ArrowRight className="size-4" />
-        </Button>
+        {/* Pelo editor a folha não seria marcada como validada. */}
+        {!original && (
+          <Button variant="secondary" onClick={onOpenEditor} className="gap-1.5">
+            Abrir no editor <ArrowRight className="size-4" />
+          </Button>
+        )}
         <Button variant="secondary" onClick={onDownload} className="gap-1.5">
           <Download className="size-4" /> Baixar .cho
         </Button>
@@ -548,7 +676,11 @@ function VideoField({
               Promise.resolve(onUpdate({ youtube: id ? `https://youtu.be/${id}` : '' }))
             }
           />
-          <p className={invalid ? 'mt-1 text-xs text-destructive' : 'mt-1 text-xs text-muted-foreground'}>
+          <p
+            className={
+              invalid ? 'mt-1 text-xs text-destructive' : 'mt-1 text-xs text-muted-foreground'
+            }
+          >
             {invalid
               ? 'Não reconheci esse link — o vídeo não será salvo.'
               : videoId
@@ -558,6 +690,43 @@ function VideoField({
         </div>
       </div>
     </Field>
+  );
+}
+
+/** A folha original, para conferir a transcrição linha a linha. */
+function OriginalScan({ scan }: { scan: Scan }) {
+  return (
+    <details open className="group rounded-xl border border-border bg-card">
+      <summary className="flex cursor-pointer items-center justify-between gap-2 p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Folha original
+        <a
+          href={scanFileUrl(scan.id)}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 normal-case tracking-normal hover:text-foreground"
+        >
+          Abrir em tela cheia <ExternalLink className="size-3.5" />
+        </a>
+      </summary>
+      <div className="border-t border-border p-3">
+        {isPdfScan(scan) ? (
+          // Sem iframe: o site responde com X-Frame-Options DENY, e PDF
+          // embutido quase nunca funciona no celular.
+          <Button asChild variant="outline" className="w-full gap-2">
+            <a href={scanFileUrl(scan.id)} target="_blank" rel="noreferrer">
+              <FileText className="size-4" /> Abrir o PDF original
+            </a>
+          </Button>
+        ) : (
+          <img
+            src={scanFileUrl(scan.id)}
+            alt="Folha original"
+            className="mx-auto max-h-[70vh] w-auto rounded-lg object-contain"
+          />
+        )}
+      </div>
+    </details>
   );
 }
 

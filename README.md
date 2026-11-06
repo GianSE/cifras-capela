@@ -21,12 +21,21 @@ Hospedada no **Cloudflare Workers**.
 - **Playlists (setlists)**: monte o repertório do dia, **arraste os cards** para ordenar
   (funciona no toque), passe as músicas no app com Anterior/Próxima e **exporte tudo num
   PDF único** (com índice e uma música por página).
+- **Missa**: um tipo de playlist já dividido nas partes da celebração (Ambientação,
+  Entrada, Ato penitencial, Glória, Salmo, Aclamação, Ofertório, Santo, Cordeiro,
+  Comunhão, Final). Parte vazia fica à vista para nada ser esquecido; dá para criar
+  partes novas (Pós-comunhão, Amém…), renomear, mudar a ordem e excluir.
 - **Histórico** das músicas abertas recentemente (localStorage).
 - **Modo apresentação** (tela cheia, fonte grande, alto contraste, tela sempre acesa).
 - **Vídeo da música** (YouTube): vem sozinho ao importar do CifraClub ou colando o link;
   toca nos cards da biblioteca e da playlist, e dentro da música fica num player
   acoplado para ouvir enquanto lê a cifra.
 - **Playlist compartilhada**: um toggle libera o link para quem entrar como convidado.
+- **Folhas** (Mais › Folhas, só administradores): na correria, **tire a foto** da
+  cifra ou envie a imagem/PDF — só guarda, sem processar. Depois, **Transcrever**
+  gera o rascunho (IA com visão, ou o OCR do aparelho se a IA não estiver
+  configurada), você confere lado a lado com a folha e **Confirma a cifra**. A
+  música vai para a biblioteca e a folha fica guardada no R2 como backup do original.
 - **Auto-scroll** com velocidade ajustável.
 - **Editor** interno com preview ao vivo, **exportação em PDF** e **importação**
   (link do CifraClub e afins, PDF, `.cho` e foto JPG/PNG).
@@ -155,6 +164,21 @@ npx wrangler secret put YOUTUBE_API_KEY
 
 A cota gratuita dá cerca de 100 buscas por dia (cada busca custa 100 das 10.000
 unidades diárias). A busca exige login e as respostas ficam em cache por 6h.
+
+**Folhas (fotos e PDFs de cifra).** Os arquivos ficam num bucket **R2** (plano
+gratuito: 10 GB). A transcrição por IA é opcional — sem a chave, o app usa o OCR do
+próprio aparelho:
+
+```bash
+cd worker
+npx wrangler r2 bucket create cifras-folhas
+npx wrangler d1 migrations apply cifras-db --remote   # cria a tabela `scans` (e as colunas da missa)
+npx wrangler secret put ANTHROPIC_API_KEY             # opcional: transcrição por IA
+```
+
+A IA usa o modelo `claude-opus-5-5`; cada folha custa alguns centavos de dólar. A
+foto vai reduzida para a IA (lado maior de 1568px), mas o original é guardado
+inteiro.
 
 Para desenvolver localmente, crie `worker/.dev.vars` com `JWT_SECRET=...` e
 `APP_ENV=development`, e aplique as migrações com `--local` em vez de `--remote`.

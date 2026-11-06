@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router';
-import { Settings, Users } from 'lucide-react';
+import { Camera, Settings, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   DropdownMenu,
@@ -10,10 +10,11 @@ import {
 import { cn } from '@/lib/utils';
 import type { ReactNode } from 'react';
 
-/** Destinos do menu "Mais". Usuários é só para administradores. */
+/** Destinos do menu "Mais". Folhas e Usuários são só para administradores. */
 export function useMoreItems() {
   const { isAdmin } = useAuth();
   return [
+    ...(isAdmin ? [{ to: '/folhas', label: 'Folhas', icon: Camera }] : []),
     { to: '/config', label: 'Config', icon: Settings },
     ...(isAdmin ? [{ to: '/usuarios', label: 'Usuários', icon: Users }] : []),
   ];

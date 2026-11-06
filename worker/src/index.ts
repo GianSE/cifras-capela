@@ -19,10 +19,10 @@ import { songsRoute } from './api/songs';
 import { playlistsRoute } from './api/playlists';
 import { youtubeRoute } from './api/youtube';
 import { usersRoute } from './api/users';
+import { scansRoute } from './api/scans';
 import { currentAccount, forbidden } from './lib/access';
 
 export type { Env };
-
 
 const SECURITY_HEADERS: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff',
@@ -212,6 +212,10 @@ export default {
 
     if (url.pathname === '/api/users' || url.pathname.startsWith('/api/users/')) {
       return withSecurityHeaders(await usersRoute(request, env, url.pathname));
+    }
+
+    if (url.pathname === '/api/scans' || url.pathname.startsWith('/api/scans/')) {
+      return withSecurityHeaders(await scansRoute(request, env, url.pathname));
     }
 
     if (url.pathname === '/api/youtube/search') {
