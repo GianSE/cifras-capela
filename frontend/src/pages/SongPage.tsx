@@ -26,6 +26,7 @@ import { SongRenderer } from '@/components/song/SongRenderer';
 import { ReaderControls } from '@/components/song/ReaderControls';
 import { StageMode } from '@/components/song/StageMode';
 import { AddToPlaylist } from '@/components/playlist/AddToPlaylist';
+import { PdfMenu } from '@/components/song/PdfMenu';
 import { FavoriteButton } from '@/components/library/FavoriteButton';
 import { VideoDock } from '@/components/video/VideoDock';
 import { VideoLinkDialog } from '@/components/video/VideoLinkDialog';
@@ -81,13 +82,14 @@ export function SongPage() {
     onExit: () => navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/home'),
   });
 
-  /** Exporta a cifra no tom atual em PDF (jsPDF carregado sob demanda). */
-  const handleExportPdf = async () => {
+  /** Exporta a cifra no tom atual, ou só a letra (jsPDF carregado sob demanda). */
+  const handleExportPdf = async (lyricsOnly: boolean) => {
     if (!transpose.transposedSong) return;
     setExporting(true);
     try {
-      const { exportSongToPdf } = await import('@/lib/export/pdf');
-      await exportSongToPdf(transpose.transposedSong);
+      const { exportLyricsToPdf, exportSongToPdf } = await import('@/lib/export/pdf');
+      if (lyricsOnly) await exportLyricsToPdf([{ song: transpose.transposedSong }]);
+      else await exportSongToPdf(transpose.transposedSong);
     } catch (e) {
       console.error('Falha ao exportar PDF:', e);
     } finally {
@@ -242,18 +244,22 @@ export function SongPage() {
               <Youtube className={cn(videoId && 'text-[#ff4e45]')} />
             </Button>
 
-            {/* Exportar a cifra (no tom atual) em PDF. */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => void handleExportPdf()}
-              disabled={exporting}
-              aria-label="Exportar em PDF"
-              title="Exportar em PDF"
-              className="text-navy-100 hover:bg-white/10 hover:text-ivory"
-            >
-              {exporting ? <Loader2 className="animate-spin" /> : <FileDown />}
-            </Button>
+            {/* Exportar em PDF: a cifra no tom atual, ou só a letra. */}
+            <PdfMenu
+              onExport={(lyricsOnly) => void handleExportPdf(lyricsOnly)}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={exporting}
+                  aria-label="Exportar em PDF"
+                  title="Exportar em PDF"
+                  className="text-navy-100 hover:bg-white/10 hover:text-ivory"
+                >
+                  {exporting ? <Loader2 className="animate-spin" /> : <FileDown />}
+                </Button>
+              }
+            />
 
             {/* Atalho para corrigir a cifra (o editor carrega pelo id da URL). */}
             {showEditUI && (

@@ -41,6 +41,7 @@ import {
   suggestMissaDates,
 } from '@/lib/missa';
 import { MissaDatePicker } from '@/components/playlist/MissaDatePicker';
+import { PdfMenu } from '@/components/song/PdfMenu';
 import { MissaSections } from '@/components/playlist/MissaSections';
 import { transposeSong, getKeyFromSemitones } from '@/lib/transpose';
 import { SortableSongItem } from '@/components/playlist/SortableSongItem';
@@ -132,20 +133,42 @@ function playlistSubtitle(playlist: Playlist, songCount: number, suffix: string)
   return `Missa · ${filled}/${sections.length} partes · ${songs}`;
 }
 
+/** O nome da missa é só a data: no PDF, a capa e o arquivo precisam dizer o que é. */
+function pdfTitle(playlist: Playlist): string {
+  return isMissa(playlist) && parseMissaDate(playlist.name)
+    ? `Missa · ${playlist.name}`
+    : playlist.name;
+}
+
 /**
  * Gera um PDF único com todas as músicas, na ordem da playlist e **no tom em
  * que cada uma foi deixada** — é esse o tom que você vai tocar no dia.
  * Quando há transposição, o cabeçalho registra o tom original.
+ *
+ * Só a letra é para quem canta: tom não importa, e a parte da missa continua.
  */
 function usePlaylistPdf(playlist: Playlist) {
   const { loadSongs } = usePlaylistSongs();
   const { transpositions, preferFlats } = usePreferences();
   const [exporting, setExporting] = useState(false);
 
-  const exportPdf = async () => {
+  const exportPdf = async (lyricsOnly: boolean) => {
     setExporting(true);
     try {
       const loaded = await loadSongs(playlist.songIds);
+
+      if (lyricsOnly) {
+        const { exportLyricsToPdf } = await import('@/lib/export/pdf');
+        await exportLyricsToPdf(
+          loaded.map(({ id, song }) => {
+            const part = sectionOf(playlist, id)?.name;
+            return { song, ...(part && { note: part }) };
+          }),
+          pdfTitle(playlist),
+        );
+        return;
+      }
+
       const entries = loaded.map(({ id, song }) => {
         const semitones = transpositions[id] ?? 0;
         const originalKey = song.metadata.key;
@@ -164,12 +187,7 @@ function usePlaylistPdf(playlist: Playlist) {
       });
 
       const { exportPlaylistToPdf } = await import('@/lib/export/pdf');
-      // O nome da missa é só a data: no PDF, a capa e o arquivo precisam dizer o que é.
-      const title =
-        isMissa(playlist) && parseMissaDate(playlist.name)
-          ? `Missa · ${playlist.name}`
-          : playlist.name;
-      await exportPlaylistToPdf(entries, title);
+      await exportPlaylistToPdf(entries, pdfTitle(playlist));
     } catch (e) {
       console.error('Falha ao exportar a playlist em PDF:', e);
     } finally {
@@ -193,17 +211,22 @@ function PlaylistActions({ playlist, songCount }: { playlist: Playlist; songCoun
 
   return (
     <>
-      <Button
-        variant="outline-dark"
-        size="sm"
-        className="gap-1.5"
-        onClick={() => void exportPdf()}
-        disabled={exporting || songCount === 0}
-        title="Baixar todas as músicas num PDF só"
-      >
-        <FileDown className="size-4" />
-        <span className="hidden sm:inline">{exporting ? 'Gerando…' : 'PDF'}</span>
-      </Button>
+      <PdfMenu
+        onExport={(lyricsOnly) => void exportPdf(lyricsOnly)}
+        trigger={
+          <Button
+            variant="outline-dark"
+            size="sm"
+            className="gap-1.5"
+            disabled={exporting || songCount === 0}
+            title="Baixar todas as músicas num PDF só"
+            aria-label="Baixar PDF"
+          >
+            <FileDown className="size-4" />
+            <span className="hidden sm:inline">{exporting ? 'Gerando…' : 'PDF'}</span>
+          </Button>
+        }
+      />
       <Button
         variant="gold"
         size="sm"

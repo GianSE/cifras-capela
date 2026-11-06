@@ -13,6 +13,7 @@
  * // { kind: 'lyric', text: 'Porque Ele vive'  }
  */
 
+import { isChordLine } from '@/lib/import/chord-detection';
 import type { Line, Section, Song } from '@/types/song';
 
 /** Tipo de linha do layout renderizado. */
@@ -104,6 +105,72 @@ export function renderSongToLines(song: Song): TextLine[] {
   for (const line of out) {
     const prev = cleaned[cleaned.length - 1];
     if (line.kind === 'blank' && (!prev || prev.kind === 'blank')) continue;
+    cleaned.push(line);
+  }
+  while (cleaned[cleaned.length - 1]?.kind === 'blank') cleaned.pop();
+
+  return cleaned;
+}
+
+/** Partes sem nada para cantar. Sites põem a letra depois delas, na mesma seção. */
+const INSTRUMENTAL_LABEL = /^(intro|solo|interl[uú]dio|instrumental)/i;
+
+/**
+ * Uma linha da letra pronta para cantar, ou vazia se não houver nada para cantar:
+ *  - `DES---POSAR` volta a ser `DESPOSAR` (a cifra estica a sílaba para caber o
+ *    acorde), sem mexer no hífen de verdade, como em `pós-comunhão`;
+ *  - acordes que o importador deixou como texto (`Gm C7/4`) saem.
+ */
+function singableText(line: Line): string {
+  const text = line.segments
+    .map((segment) => segment.lyric)
+    .join('')
+    .replace(/-{2,}/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return isChordLine(text) ? '' : text;
+}
+
+/**
+ * Só a letra, para quem canta.
+ *
+ * Não reaproveita o layout com acordes: lá a letra ganha espaços para abrir lugar
+ * a um acorde largo ("Oi      tudo"). Saem também as seções sem nada para cantar
+ * (intro, solo, tablatura), com o rótulo delas: "SOLO" sozinho só confundiria.
+ */
+export function renderSongLyricsOnly(song: Song): TextLine[] {
+  const out: TextLine[] = [];
+
+  for (const section of song.sections) {
+    if (section.type === 'tab' || section.type === 'grid') continue;
+
+    const body: TextLine[] = [];
+    for (const line of section.lines) {
+      if (line.type === 'empty') {
+        body.push({ kind: 'blank', text: '' });
+      } else if (line.type === 'comment') {
+        body.push({ kind: 'comment', text: line.comment ?? '' });
+      } else {
+        const text = singableText(line);
+        if (text) body.push({ kind: 'lyric', text });
+      }
+    }
+    if (!body.some((line) => line.kind === 'lyric')) continue;
+
+    if (out.length > 0) out.push({ kind: 'blank', text: '' });
+    if (section.type !== 'none' && section.label && !INSTRUMENTAL_LABEL.test(section.label)) {
+      out.push({ kind: 'label', text: section.label });
+    }
+    out.push(...body);
+  }
+
+  // Sem brancos repetidos, no começo de uma seção ou no fim.
+  const cleaned: TextLine[] = [];
+  for (const line of out) {
+    const prev = cleaned[cleaned.length - 1];
+    if (line.kind === 'blank' && (!prev || prev.kind === 'blank' || prev.kind === 'label')) {
+      continue;
+    }
     cleaned.push(line);
   }
   while (cleaned[cleaned.length - 1]?.kind === 'blank') cleaned.pop();

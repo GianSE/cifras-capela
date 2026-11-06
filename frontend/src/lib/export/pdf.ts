@@ -10,7 +10,7 @@
 
 import type { jsPDF } from 'jspdf';
 import type { Song } from '@/types/song';
-import { renderSongToLines, type TextLine } from './layout';
+import { renderSongLyricsOnly, renderSongToLines, type TextLine } from './layout';
 import { slugify } from './download';
 
 /** Largura de um caractere em Courier, como fração do tamanho da fonte. */
@@ -237,6 +237,103 @@ export async function exportSongToPdf(song: Song, options: PdfExportOptions = {}
   const title = song.metadata.title;
   const name = options.filename ?? (slugify(title || 'musica') || 'musica');
   doc.save(`${name}.pdf`);
+}
+
+/** Letra em fonte de leitura, maior que a da cifra: é para cantar a distância. */
+const LYRICS_FONT_SIZE = 13;
+const LYRICS_LINE_HEIGHT = 17;
+/** Título + algumas linhas: menos que isso no fim da folha, a música vai para a próxima. */
+const LYRICS_MIN_START = 110;
+
+/**
+ * Gera e baixa um PDF **só com a letra**, para quem canta e não toca.
+ *
+ * Numa playlist, as músicas vêm em sequência, sem índice nem uma folha para cada:
+ * quem canta segue a celebração de cima para baixo, e o folheto gasta menos papel.
+ *
+ * @param entries - Músicas na ordem. A `note` é a parte da missa (ex.: "Entrada").
+ * @param heading - Título no topo (o nome da playlist); uma música sozinha não precisa.
+ */
+export async function exportLyricsToPdf(
+  entries: readonly PlaylistPdfEntry[],
+  heading?: string,
+  options: PdfExportOptions = {},
+): Promise<void> {
+  if (entries.length === 0) return;
+
+  const { doc, pageWidth, pageHeight, contentWidth } = await createDoc();
+  const bottomLimit = pageHeight - PAGE_MARGIN - 14;
+  let y = PAGE_MARGIN;
+
+  const ensureSpace = (height: number) => {
+    if (y + height > bottomLimit) {
+      doc.addPage();
+      y = PAGE_MARGIN;
+    }
+  };
+
+  if (heading) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(...COLOR_LYRIC);
+    doc.text(heading, PAGE_MARGIN, y);
+    y += 26;
+  }
+
+  entries.forEach(({ song, note }, index) => {
+    if (index > 0) y += LYRICS_LINE_HEIGHT;
+    ensureSpace(LYRICS_MIN_START);
+
+    if (note) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(...COLOR_LABEL);
+      doc.text(note.toUpperCase(), PAGE_MARGIN, y);
+      y += 15;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.setTextColor(...COLOR_LYRIC);
+    for (const part of doc.splitTextToSize(song.metadata.title || 'Sem título', contentWidth)) {
+      doc.text(part as string, PAGE_MARGIN, y);
+      y += 18;
+    }
+    y += 4;
+
+    for (const line of renderSongLyricsOnly(song)) {
+      if (line.kind === 'blank') {
+        y += LYRICS_LINE_HEIGHT * 0.6;
+        continue;
+      }
+
+      if (line.kind === 'label') {
+        // Junto da primeira linha que ele nomeia, nunca sozinho no fim da folha.
+        ensureSpace(LYRICS_LINE_HEIGHT * 2);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(...COLOR_MUTED);
+        doc.text(line.text.toUpperCase(), PAGE_MARGIN, y);
+        y += 14;
+        continue;
+      }
+
+      const isComment = line.kind === 'comment';
+      doc.setFont('helvetica', isComment ? 'italic' : 'normal');
+      doc.setFontSize(isComment ? LYRICS_FONT_SIZE - 2 : LYRICS_FONT_SIZE);
+      doc.setTextColor(...(isComment ? COLOR_MUTED : COLOR_LYRIC));
+      for (const part of doc.splitTextToSize(line.text, contentWidth)) {
+        ensureSpace(LYRICS_LINE_HEIGHT);
+        doc.text(part as string, PAGE_MARGIN, y);
+        y += LYRICS_LINE_HEIGHT;
+      }
+    }
+  });
+
+  drawPageNumbers(doc, pageWidth, pageHeight);
+
+  const base = heading ?? entries[0]!.song.metadata.title ?? 'musica';
+  doc.save(`${options.filename ?? `${slugify(base) || 'musica'}-letra`}.pdf`);
 }
 
 /** Uma música da playlist, com observação própria (ex.: o tom original). */
