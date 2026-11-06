@@ -18,7 +18,9 @@ import { SongRenderer } from '@/components/song/SongRenderer';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { downloadTextFile, slugify } from '@/lib/export/download';
-import { buildSongId } from '@/lib/library/derive';
+import { buildSongId, extractLyricsText, nextFreeSongId } from '@/lib/library/derive';
+import { useSongLibrary } from '@/hooks/useSongLibrary';
+import { DuplicateWarning } from '@/components/library/DuplicateWarning';
 import { songService } from '@/services/song-service';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { cn } from '@/lib/utils';
@@ -86,6 +88,7 @@ export function EditorPage() {
   const [savedId, setSavedId] = useState<string | undefined>(editingId);
   const [pane, setPane] = useState<EditorPane>('edit');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { songs } = useSongLibrary();
 
   useEffect(() => {
     if (stateSource) setSource(stateSource);
@@ -140,10 +143,23 @@ export function EditorPage() {
    * favoritos, playlists e o tom salvo continuam apontando para ela.
    */
   const handleSave = async () => {
+    let id = savedId ?? buildSongId(song.metadata.title, song.metadata.categories ?? []);
+
+    // Gravar é `upsert`: uma música nova com o id de outra apagaria a que está lá.
+    if (!savedId && songs.some((s) => s.id === id)) {
+      const proceed = confirm(
+        `Já existe "${song.metadata.title}" nessa categoria. Esta será guardada como uma música nova, sem mexer na outra. Continuar?`,
+      );
+      if (!proceed) return;
+      id = nextFreeSongId(
+        id,
+        songs.map((s) => s.id),
+      );
+    }
+
     setSaving(true);
     setSaveError(null);
     try {
-      const id = savedId ?? buildSongId(song.metadata.title, song.metadata.categories ?? []);
       await songService.saveSong({ id, source });
       setSavedId(id);
       navigate(`/musica/${id}`);
@@ -307,6 +323,16 @@ export function EditorPage() {
           <p className="mb-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
             {saveError}
           </p>
+        )}
+        {/* Só em música nova: editando, ela mesma apareceria como repetida. */}
+        {!savedId && (
+          <div className="mb-3">
+            <DuplicateWarning
+              title={song.metadata.title}
+              lyrics={extractLyricsText(source)}
+              songs={songs}
+            />
+          </div>
         )}
         {/* Alternador Editar/Prévia — apenas no mobile */}
         <Tabs

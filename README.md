@@ -40,7 +40,8 @@ Hospedada no **Cloudflare Workers**.
   música vai para a biblioteca e a folha fica guardada no R2 como backup do original.
 - **Auto-scroll** com velocidade ajustável.
 - **Editor** interno com preview ao vivo, **exportação em PDF** e **importação**
-  (link do CifraClub e afins, PDF, `.cho` e foto JPG/PNG).
+  (link do CifraClub e afins, PDF, `.cho` e foto JPG/PNG). Ao cadastrar, o app **avisa se
+  a música pode já estar na biblioteca**, comparando título e letra.
 - **PWA offline**: instala no celular e funciona sem internet.
 - **Tema claro e escuro**.
 

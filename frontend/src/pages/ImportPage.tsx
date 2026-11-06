@@ -30,7 +30,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { downloadTextFile, slugify } from '@/lib/export/download';
 import { parseYoutubeId, youtubeThumbnailUrl } from '@/lib/youtube';
 import { VideoLinkDialog } from '@/components/video/VideoLinkDialog';
-import { buildSongId, nextFreeSongId } from '@/lib/library/derive';
+import { buildSongId, extractLyricsText, nextFreeSongId } from '@/lib/library/derive';
+import { DuplicateWarning } from '@/components/library/DuplicateWarning';
+import type { SongIndexEntry } from '@/types/library';
 import { songService } from '@/services/song-service';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
 import {
@@ -426,6 +428,7 @@ export function ImportPage() {
               saveError={saveError}
               onRestart={restart}
               original={scan ?? undefined}
+              songs={songs}
             />
           )}
         </div>
@@ -494,7 +497,10 @@ function ReviewForm({
   saveError,
   onRestart,
   original,
+  songs,
 }: {
+  /** Biblioteca, para avisar se a música já estiver nela. */
+  songs: readonly SongIndexEntry[];
   /** Folha de onde veio a transcrição: mostra o original e vira "Confirmar". */
   original?: Scan;
   draft: Draft;
@@ -517,6 +523,8 @@ function ReviewForm({
       </p>
 
       {original && <OriginalScan scan={original} />}
+
+      <DuplicateWarning title={draft.title} lyrics={extractLyricsText(draft.body)} songs={songs} />
 
       {saveError && (
         <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{saveError}</p>
