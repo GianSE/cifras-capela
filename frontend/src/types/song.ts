@@ -188,6 +188,8 @@ export interface SongMetadata {
   readonly language?: string;
   /** Id do vídeo de referência no YouTube (11 caracteres). */
   readonly youtube?: string;
+  /** Folha guardada (foto ou PDF) que também serve de música. */
+  readonly scan?: string;
   /** Diretivas personalizadas não reconhecidas */
   readonly custom: Readonly<Record<string, string>>;
 }

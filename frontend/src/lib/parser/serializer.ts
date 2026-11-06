@@ -157,6 +157,9 @@ function serializeMetadata(metadata: SongMetadata): string[] {
   if (metadata.youtube) {
     output.push(`{youtube: ${metadata.youtube}}`);
   }
+  if (metadata.scan) {
+    output.push(`{scan: ${metadata.scan}}`);
+  }
   if (metadata.capo !== undefined) {
     output.push(`{capo: ${metadata.capo}}`);
   }
@@ -285,6 +288,7 @@ export function serializeToFrontmatter(song: Song): string {
   if (m.year) fm.push(`year: ${m.year}`);
   if (m.copyright) fm.push(`copyright: ${m.copyright}`);
   if (m.youtube) fm.push(`youtube: ${m.youtube}`);
+  if (m.scan) fm.push(`scan: ${m.scan}`);
   fm.push('---', '');
 
   const body: string[] = [];

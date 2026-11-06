@@ -47,6 +47,17 @@ export default defineConfig({
         // navegação: sem isto o service worker devolveria o app no lugar.
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
+          // Uma folha vista uma vez abre sem internet: na igreja, nem sempre há sinal.
+          // O arquivo nunca muda (o id é novo a cada envio).
+          {
+            urlPattern: /\/api\/scans\/[^/]+\/file$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'folhas',
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',
@@ -83,11 +94,6 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
-    include: [
-      'tests/**/*.test.ts',
-      'tests/**/*.test.tsx',
-      'src/**/*.test.ts',
-      'src/**/*.test.tsx',
-    ],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
   },
 });

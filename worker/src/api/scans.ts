@@ -7,7 +7,8 @@
  * do aparelho), a pessoa corrige e confirma, e a folha fica ligada à música
  * como cópia de segurança do original.
  *
- * Tudo aqui é de administrador: é ele quem cadastra músicas.
+ * Quem cadastra é o administrador. A exceção é abrir o arquivo: uma folha pode ser
+ * a música que o grupo vai tocar, então basta estar logado, como para ler a cifra.
  *
  * Rotas:
  *   GET    /api/scans                 → lista (mais recentes primeiro)
@@ -15,7 +16,7 @@
  *   GET    /api/scans/<id>            → uma folha
  *   GET    /api/scans/<id>/file       → o arquivo original
  *   POST   /api/scans/<id>/transcribe → rascunho da cifra em texto
- *   PATCH  /api/scans/<id>            → { songId } marca como validada
+ *   PATCH  /api/scans/<id>            → { songId, status? } liga à música (padrão: validada)
  *   DELETE /api/scans/<id>            → apaga a folha e o arquivo
  */
 
@@ -92,7 +93,6 @@ function readFilename(request: Request, fallback: string): string {
 export async function scansRoute(request: Request, env: Env, pathname: string): Promise<Response> {
   const account = await currentAccount(request, env);
   if (!account) return unauthorized();
-  if (account.role !== 'admin') return forbidden();
 
   if (!env.SCANS) {
     return json({ error: 'O armazenamento de folhas (R2) não está configurado no servidor.' }, 503);
@@ -106,6 +106,9 @@ export async function scansRoute(request: Request, env: Env, pathname: string): 
     .filter(Boolean)
     .map((p) => decodeURIComponent(p));
   const [id, action] = parts;
+
+  const readingFile = action === 'file' && request.method === 'GET';
+  if (account.role !== 'admin' && !readingFile) return forbidden();
 
   if (!id) {
     if (request.method === 'GET') {
@@ -154,13 +157,13 @@ export async function scansRoute(request: Request, env: Env, pathname: string): 
   }
 
   if (request.method === 'PATCH') {
-    const body = await readJson<{ songId: string | null }>(request);
+    const body = await readJson<{ songId: string | null; status: string }>(request);
     const songId =
       typeof body.songId === 'string' && body.songId.trim() ? body.songId.trim() : null;
     await env.DB.prepare(
       `UPDATE scans SET song_id = ?, status = ?, updated_at = datetime('now') WHERE id = ?`,
     )
-      .bind(songId, songId ? 'validada' : 'pendente', id)
+      .bind(songId, songId && body.status !== 'pendente' ? 'validada' : 'pendente', id)
       .run();
     const updated = await env.DB.prepare(`SELECT * FROM scans WHERE id = ?`)
       .bind(id)

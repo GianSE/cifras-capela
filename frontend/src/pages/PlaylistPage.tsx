@@ -51,6 +51,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMissaSuggestions } from '@/hooks/useMissaSuggestions';
 import { suggestionsForSection } from '@/lib/missa-suggestions';
 import { MissaSections } from '@/components/playlist/MissaSections';
+import { SongPicker } from '@/components/playlist/SongPicker';
 import { transposeSong, getKeyFromSemitones } from '@/lib/transpose';
 import { SortableSongItem } from '@/components/playlist/SortableSongItem';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -65,7 +66,9 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import { songHasContent } from '@/lib/library/derive';
 import type { Playlist, PlaylistSection } from '@/types/playlist';
+import type { Song } from '@/types/song';
 import type { SongIndexEntry } from '@/types/library';
 import { SongByline } from '@/components/library/SongByline';
 import { VideoButton } from '@/components/video/VideoButton';
@@ -141,6 +144,21 @@ function playlistSubtitle(playlist: Playlist, songCount: number, suffix: string)
   return `Missa · ${filled}/${sections.length} partes · ${songs}`;
 }
 
+/**
+ * As páginas da folha, se a música for só ela. Sem conseguir abrir, o PDF sai com o
+ * título: um arquivo sem uma música é melhor que nenhum arquivo.
+ */
+async function folhaPages(song: Song) {
+  if (!song.metadata.scan || songHasContent(song)) return undefined;
+  try {
+    const { loadScanForPdf } = await import('@/lib/scan-images');
+    return await loadScanForPdf(song.metadata.scan);
+  } catch (e) {
+    console.warn('Não foi possível abrir a folha para o PDF:', e);
+    return undefined;
+  }
+}
+
 /** O nome da missa é só a data: no PDF, a capa e o arquivo precisam dizer o que é. */
 function pdfTitle(playlist: Playlist): string {
   return isMissa(playlist) && parseMissaDate(playlist.name)
@@ -168,16 +186,21 @@ function usePlaylistPdf(playlist: Playlist) {
       if (lyricsOnly) {
         const { exportLyricsToPdf } = await import('@/lib/export/pdf');
         await exportLyricsToPdf(
-          loaded.map(({ id, song }) => {
-            const part = sectionOf(playlist, id)?.name;
-            return { song, ...(part && { note: part }) };
-          }),
+          await Promise.all(
+            loaded.map(async ({ id, song }) => {
+              const part = sectionOf(playlist, id)?.name;
+              const images = await folhaPages(song);
+              return { song, ...(part && { note: part }), ...(images && { images }) };
+            }),
+          ),
           pdfTitle(playlist),
         );
         return;
       }
 
-      const entries = loaded.map(({ id, song }) => {
+      const pages = await Promise.all(loaded.map(({ song }) => folhaPages(song)));
+      const entries = loaded.map(({ id, song }, index) => {
+        const images = pages[index];
         const semitones = transpositions[id] ?? 0;
         const originalKey = song.metadata.key;
         // Na missa, o cabeçalho de cada página diz a parte (ex.: "Entrada").
@@ -191,6 +214,7 @@ function usePlaylistPdf(playlist: Playlist) {
           song:
             semitones === 0 && !preferFlats ? song : transposeSong(song, semitones, preferFlats),
           ...(note && { note }),
+          ...(images && { images }),
         };
       });
 
@@ -264,7 +288,6 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [draftDate, setDraftDate] = useState('');
-  const [query, setQuery] = useState('');
 
   // Sensores separados por tipo de entrada, porque a intenção do usuário difere:
   //  - Mouse: pressionar e mover 6px já arrasta (clicar sem mover abre a música).
@@ -279,19 +302,6 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
       keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space'] },
     }),
   );
-
-  /** Candidatas a adicionar: tudo que ainda não está na playlist. */
-  const candidates = useMemo(() => {
-    const inPlaylist = new Set(playlist.songIds);
-    const q = query.trim().toLowerCase();
-    return allSongs
-      .filter((s) => !inPlaylist.has(s.id))
-      .filter(
-        (s) =>
-          !q || s.title.toLowerCase().includes(q) || (s.artist ?? '').toLowerCase().includes(q),
-      )
-      .sort((a, b) => a.title.localeCompare(b.title, 'pt-BR'));
-  }, [allSongs, playlist, query]);
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
@@ -417,10 +427,7 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
                 playlist={playlist}
                 editable
                 renderSongs={(section) => renderSortable(sectionSongs(section))}
-                onAddSong={(section) => {
-                  setQuery('');
-                  setAdding({ section });
-                }}
+                onAddSong={(section) => setAdding({ section })}
                 renderExtra={(section) => {
                   const group = suggestionsForSection(suggestions.groups, section.name);
                   return group ? (
@@ -476,63 +483,14 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
         )}
 
         {/* Adicionar músicas */}
-        <Dialog open={adding !== null} onOpenChange={(open) => !open && setAdding(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {adding?.section ? `Música para ${adding.section.name}` : 'Adicionar músicas'}
-              </DialogTitle>
-            </DialogHeader>
-
-            <Input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por título ou artista…"
-            />
-
-            <ul className="-mx-1 max-h-80 overflow-y-auto px-1">
-              {candidates.length === 0 ? (
-                <li className="py-6 text-center text-sm text-muted-foreground">
-                  Nenhuma música disponível.
-                </li>
-              ) : (
-                candidates.map((song) => (
-                  <li key={song.id}>
-                    <button
-                      type="button"
-                      onClick={() => pickSong(song.id)}
-                      className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
-                    >
-                      <Plus className="size-4 shrink-0 text-gold-600 dark:text-gold-400" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-foreground">
-                          {song.title}
-                        </span>
-                        {song.artist && (
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {song.artist}
-                          </span>
-                        )}
-                      </span>
-                      {song.key && (
-                        <span className="shrink-0 font-mono text-xs font-semibold text-accent">
-                          {song.key}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                ))
-              )}
-            </ul>
-
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button>Concluir</Button>
-              </DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <SongPicker
+          playlist={playlist}
+          section={adding?.section}
+          open={adding !== null}
+          songs={allSongs}
+          onPick={pickSong}
+          onClose={() => setAdding(null)}
+        />
 
         {/* Renomear (na missa, o nome é a data) */}
         <Dialog open={renaming} onOpenChange={setRenaming}>

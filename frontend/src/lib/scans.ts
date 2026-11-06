@@ -8,7 +8,10 @@
  * ligada à música como cópia do original.
  */
 
-import { importFile, type ImportedSong } from '@/lib/import';
+import { buildSource, importFile, type ImportedSong } from '@/lib/import';
+import { getField, removeField, setField } from '@/lib/editor/cho-document';
+import { buildSongId, nextFreeSongId } from '@/lib/library/derive';
+import { songService } from '@/services/song-service';
 import { importPlainText } from '@/lib/import/text-importer';
 
 export interface Scan {
@@ -89,6 +92,60 @@ export async function markScanValidated(id: string, songId: string): Promise<voi
     body: JSON.stringify({ songId }),
   });
   if (!res.ok) throw await errorFrom(res, 'A música foi salva, mas a folha não foi marcada.');
+}
+
+/**
+ * Usa a folha como música, sem transcrever: cria a música só com os dados e a
+ * ligação com a foto. Continua "pendente", para poder ser transcrita depois.
+ */
+export async function createSongFromScan(
+  scan: Scan,
+  fields: { title: string; artist: string; key: string; categories: readonly string[] },
+  takenIds: readonly string[],
+): Promise<string> {
+  const id = nextFreeSongId(buildSongId(fields.title, fields.categories), takenIds);
+  const source = setField(
+    buildSource({
+      title: fields.title,
+      ...(fields.artist && { artist: fields.artist }),
+      ...(fields.key && { key: fields.key }),
+      categories: [...fields.categories],
+      body: '',
+      warnings: [],
+    }),
+    'scan',
+    scan.id,
+  );
+  await songService.saveSong({ id, source });
+
+  const res = await fetch(`/api/scans/${encodeURIComponent(scan.id)}`, {
+    method: 'PATCH',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ songId: id, status: 'pendente' }),
+  });
+  if (!res.ok) throw await errorFrom(res, 'A música foi criada, mas não ficou ligada à folha.');
+  return id;
+}
+
+/**
+ * Apaga a foto de uma música que já tem o texto. Primeiro tira a ligação da
+ * música: se algo falhar no meio, sobra uma foto a mais, e não uma música quebrada.
+ */
+export async function deleteScanKeepingSong(scan: Scan): Promise<void> {
+  if (scan.songId) {
+    const source = await songService.getSongContent(scan.songId);
+    if (getField(source, 'scan') === scan.id) {
+      await songService.saveSong({ id: scan.songId, source: removeField(source, 'scan') });
+    }
+  }
+  await deleteScan(scan.id);
+}
+
+/** Apaga a folha e a música que só existia como ela. */
+export async function deleteScanAndSong(scan: Scan): Promise<void> {
+  if (scan.songId) await songService.deleteSong(scan.songId);
+  await deleteScan(scan.id);
 }
 
 export async function deleteScan(id: string): Promise<void> {

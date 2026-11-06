@@ -28,6 +28,8 @@ export interface SongIndexEntry {
   readonly tempo?: number;
   /** Id do vídeo no YouTube — mostra o play nos cards sem abrir a cifra. */
   readonly youtube?: string;
+  /** Folha guardada (foto ou PDF) ligada a esta música. */
+  readonly scan?: string;
   /** Nome do arquivo de origem. */
   readonly filename: string;
   /**

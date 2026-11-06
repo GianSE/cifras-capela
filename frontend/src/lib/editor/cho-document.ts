@@ -354,6 +354,14 @@ export function getField(source: string, name: string): string {
   return value.replace(/^\[(.*)\]$/, '$1');
 }
 
+/** Tira o campo do frontmatter. O resto do arquivo fica como está. */
+export function removeField(source: string, name: string): string {
+  const block = FRONTMATTER_RE.exec(source)?.[0];
+  if (block === undefined) return source;
+  const re = new RegExp(`^${name}:.*(?:\\r?\\n)`, 'm');
+  return block.replace(re, '') + source.slice(block.length);
+}
+
 /** Troca o valor de um campo, criando o campo, ou o bloco inteiro, se faltar. */
 export function setField(source: string, name: string, rawValue: string): string {
   const eol = source.includes('\r\n') ? '\r\n' : '\n';

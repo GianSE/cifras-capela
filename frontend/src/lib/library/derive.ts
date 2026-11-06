@@ -25,6 +25,11 @@ export function extractLyricsText(source: string): string {
     .trim();
 }
 
+/** A música tem o que mostrar além do título? Sem isso, ela é só a folha. */
+export function songHasContent(song: Song): boolean {
+  return song.sections.some((section) => section.lines.some((line) => line.type !== 'empty'));
+}
+
 /** Nome de arquivo a partir do id (`culto/nova` → `nova.cho`). */
 export function filenameFromId(id: string): string {
   return `${id.split('/').pop() ?? id}.cho`;
@@ -50,6 +55,7 @@ export function deriveIndexEntry(id: string, source: string, parsed?: Song): Son
     ...(m.language && { language: m.language }),
     ...(m.tempo !== undefined && { tempo: m.tempo }),
     ...(m.youtube && { youtube: m.youtube }),
+    ...(m.scan && { scan: m.scan }),
     ...(lyrics && { lyrics }),
   };
 }

@@ -25,6 +25,7 @@ interface SongEntry {
   tempo?: number;
   capo?: number;
   youtube?: string;
+  scan?: string;
   lyrics?: string;
 }
 
@@ -39,7 +40,19 @@ function parseList(value: string | null): string[] {
   }
 }
 
+/**
+ * A folha ligada à música (`scan:` no frontmatter). Vem do próprio `.cho`, que é a
+ * fonte da verdade: a lista precisa dela para mostrar quais músicas são só foto.
+ */
+function scanOf(source: string): string | undefined {
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(source)?.[1];
+  return frontmatter
+    ? /^scan:[ \t]*(fl_[A-Za-z0-9]+)[ \t]*\r?$/m.exec(frontmatter)?.[1]
+    : undefined;
+}
+
 function rowToEntry(row: SongRow): SongEntry {
+  const scan = scanOf(row.source);
   const categories = parseList(row.categories);
   const tags = parseList(row.tags);
   return {
@@ -54,6 +67,7 @@ function rowToEntry(row: SongRow): SongEntry {
     ...(row.tempo !== null && { tempo: row.tempo }),
     ...(row.capo !== null && { capo: row.capo }),
     ...(row.youtube && { youtube: row.youtube }),
+    ...(scan && { scan }),
     ...(row.lyrics && { lyrics: row.lyrics }),
   };
 }

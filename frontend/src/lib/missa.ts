@@ -6,6 +6,8 @@
  * as telas para saber em que parte cada música está.
  */
 
+import { normalizeText } from '@/lib/library/duplicates';
+import type { SongIndexEntry } from '@/types/library';
 import type { Playlist, PlaylistSection } from '@/types/playlist';
 
 /** Partes com que toda missa nova começa, na ordem da celebração. */
@@ -137,4 +139,80 @@ export function formatMissaName(isoDate: string): string {
 export function parseMissaDate(name: string): string | undefined {
   const match = /(\d{2})\/(\d{2})\/(\d{4})/.exec(name);
   return match ? `${match[3]}-${match[2]}-${match[1]}` : undefined;
+}
+
+/* ==========================================================================
+   A parte como tag: o que entrou numa parte vira sugestão nas próximas missas
+   ========================================================================== */
+
+/** Nomes da mesma parte, sem acento: os sites e as pessoas chamam de jeitos diferentes. */
+const PART_NAMES: ReadonlyArray<readonly string[]> = [
+  ['ambientacao', 'refrao orante'],
+  ['entrada', 'canto de entrada', 'abertura'],
+  ['ato penitencial', 'penitencial'],
+  ['gloria', 'hino de louvor'],
+  ['salmo'],
+  ['aclamacao'],
+  ['ofertorio', 'oferendas', 'apresentacao das oferendas'],
+  ['santo'],
+  ['cordeiro'],
+  ['pai nosso'],
+  ['amem', 'doxologia'],
+  ['comunhao'],
+  ['pos comunhao', 'acao de gracas'],
+  ['final', 'canto final'],
+];
+
+/**
+ * A parte a que um nome se refere: "Oferendas" e "Ofertório" dão na mesma, e
+ * "Comunhão (2ª)" é Comunhão. Nome que não é parte conhecida vale por si.
+ */
+export function partKey(name: string): string {
+  const normalized = normalizeText(name);
+  const group = PART_NAMES.find((names) =>
+    names.some((alias) => normalized === alias || normalized.startsWith(`${alias} `)),
+  );
+  return group?.[0] ?? normalized;
+}
+
+/**
+ * As categorias de uma música que está entrando numa parte, já com a parte: é o que
+ * a faz aparecer nas próximas missas. Se ela já tem essa categoria, nada muda.
+ */
+export function withPartCategory(
+  categories: readonly string[] | undefined,
+  partName: string,
+): string[] {
+  const list = [...(categories ?? [])];
+  const key = partKey(partName);
+  return list.some((c) => partKey(c) === key) ? list : [...list, partName];
+}
+
+/**
+ * As músicas que combinam com a parte: as que têm a categoria e as que já foram
+ * usadas nessa parte em outra missa. As mais usadas vêm primeiro.
+ */
+export function songsForPart(
+  songs: readonly SongIndexEntry[],
+  playlists: readonly Playlist[],
+  partName: string,
+  currentPlaylistId?: string,
+): SongIndexEntry[] {
+  const key = partKey(partName);
+
+  const uses = new Map<string, number>();
+  for (const playlist of playlists) {
+    if (playlist.id === currentPlaylistId) continue;
+    for (const section of playlist.sections ?? []) {
+      if (partKey(section.name) !== key) continue;
+      for (const id of section.songIds) uses.set(id, (uses.get(id) ?? 0) + 1);
+    }
+  }
+
+  return songs
+    .filter((song) => uses.has(song.id) || song.categories?.some((c) => partKey(c) === key))
+    .sort(
+      (a, b) =>
+        (uses.get(b.id) ?? 0) - (uses.get(a.id) ?? 0) || a.title.localeCompare(b.title, 'pt-BR'),
+    );
 }

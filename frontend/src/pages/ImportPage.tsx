@@ -35,6 +35,8 @@ import { DuplicateWarning } from '@/components/library/DuplicateWarning';
 import { CifraSearch } from '@/components/import/CifraSearch';
 import { ChoEditor } from '@/components/editor/ChoEditor';
 import { playlistStorage } from '@/lib/storage/playlists';
+import { setField } from '@/lib/editor/cho-document';
+import { isMissa, withPartCategory } from '@/lib/missa';
 import type { SongIndexEntry } from '@/types/library';
 import { songService } from '@/services/song-service';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
@@ -134,12 +136,14 @@ export function ImportPage() {
   const [transcribing, setTranscribing] = useState<string | null>(null);
 
   /**
-   * `?url=<página>&missa=<id>&parte=<id>`: música sugerida para uma missa. Passa
-   * pela mesma revisão e, salva, já entra na parte certa.
+   * `?url=<página>&missa=<id>&parte=<id>`: música trazida para uma playlist. Passa
+   * pela mesma revisão e, salva, já entra nela. Numa missa, entra na parte certa, e
+   * a parte vira categoria, para a música aparecer nas próximas missas.
    */
   const linkToImport = searchParams.get('url');
   const missa = playlistStorage.get(searchParams.get('missa') ?? '');
   const missaPart = missa?.sections?.find((s) => s.id === searchParams.get('parte'));
+  const partName = missaPart?.name;
   const leaveTo = missa ? `/playlists/${missa.id}` : '/folhas';
 
   useEffect(() => {
@@ -150,7 +154,10 @@ export function ImportPage() {
     setTranscribing('Buscando a cifra…');
     importFromUrl(linkToImport)
       .then((song) => {
-        if (active) startReview(song);
+        if (!active) return;
+        startReview(
+          partName ? { ...song, categories: withPartCategory(song.categories, partName) } : song,
+        );
       })
       .catch((e: unknown) => {
         if (active) {
@@ -163,7 +170,7 @@ export function ImportPage() {
     return () => {
       active = false;
     };
-  }, [linkToImport]);
+  }, [linkToImport, partName]);
 
   useEffect(() => {
     if (!scanId) return;
@@ -184,7 +191,24 @@ export function ImportPage() {
           onProgress: (f) =>
             active && setTranscribing(`Reconhecendo texto na imagem… ${Math.round(f * 100)}%`),
         });
-        if (active) startReview(song);
+        // Já é uma música: o nome e os dados que a pessoa deu valem mais que o palpite.
+        let merged = song;
+        if (loaded.songId) {
+          try {
+            const { metadata } = parse(await songService.getSongContent(loaded.songId)).song;
+            merged = {
+              ...song,
+              title: metadata.title || song.title,
+              artist: metadata.artist ?? song.artist,
+              key: metadata.key ?? song.key,
+              categories: metadata.categories?.length ? [...metadata.categories] : song.categories,
+              youtube: metadata.youtube ?? song.youtube,
+            };
+          } catch {
+            // Música apagada: segue com o que a transcrição achou.
+          }
+        }
+        if (active) startReview(merged);
       } catch (e) {
         if (active) {
           setImportError(e instanceof Error ? e.message : 'Não foi possível transcrever a folha.');
@@ -288,7 +312,9 @@ export function ImportPage() {
     setSaving(true);
     setSaveError(null);
     try {
-      await songService.saveSong({ id, source: draftToSource(draft) });
+      // A folha continua ligada: depois dá para escolher entre ela e o texto.
+      const text = draftToSource(draft);
+      await songService.saveSong({ id, source: scan ? setField(text, 'scan', scan.id) : text });
       setConflictId(null);
       if (scan) {
         // A música já está salva; se só a marcação falhar, avisa e segue.
@@ -298,8 +324,8 @@ export function ImportPage() {
           alert(e instanceof Error ? e.message : 'A folha não foi marcada como validada.');
         }
       }
-      if (missa && missaPart) {
-        playlistStorage.addSong(missa.id, id, missaPart.id);
+      if (missa) {
+        playlistStorage.addSong(missa.id, id, missaPart?.id);
         navigate(`/playlists/${missa.id}`);
         return;
       }
@@ -318,6 +344,11 @@ export function ImportPage() {
    */
   const save = async () => {
     if (!draft) return;
+    // A folha já virou música: o texto entra nela, e as playlists continuam valendo.
+    if (scan?.songId && songs.some((s) => s.id === scan.songId)) {
+      await writeSong(scan.songId);
+      return;
+    }
     const id = draftId(draft);
     if (songs.some((s) => s.id === id)) {
       setConflictId(id);
@@ -483,8 +514,14 @@ export function ImportPage() {
               saveError={saveError}
               onRestart={restart}
               original={scan ?? undefined}
-              {...(missa && missaPart && { destination: `${missaPart.name} · ${missa.name}` })}
-              songs={songs}
+              {...(missa && {
+                destination: missaPart ? `${missaPart.name} · ${missa.name}` : missa.name,
+                destinationLabel: isMissa(missa)
+                  ? 'Salvar e colocar na missa'
+                  : 'Salvar e colocar na playlist',
+              })}
+              // A própria música não conta como repetida.
+              songs={scan?.songId ? songs.filter((s) => s.id !== scan.songId) : songs}
             />
           )}
         </div>
@@ -555,7 +592,9 @@ function ReviewForm({
   original,
   songs,
   destination,
+  destinationLabel,
 }: {
+  destinationLabel?: string;
   /** Para onde a música vai depois de salva (ex.: uma parte da missa). */
   destination?: string;
   /** Biblioteca, para avisar se a música já estiver nela. */
@@ -684,9 +723,7 @@ function ReviewForm({
               ? 'Salvando…'
               : original
                 ? 'Confirmar cifra'
-                : destination
-                  ? 'Salvar e colocar na missa'
-                  : 'Salvar na biblioteca'}
+                : (destinationLabel ?? 'Salvar na biblioteca')}
           </Button>
         )}
         {/* Pelo editor a folha não seria marcada como validada. */}

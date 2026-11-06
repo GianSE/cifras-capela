@@ -38,6 +38,9 @@ Hospedada no **Cloudflare Workers**.
   gera o rascunho (IA com visão, ou o OCR do aparelho se a IA não estiver
   configurada), você confere lado a lado com a folha e **Confirma a cifra**. A
   música vai para a biblioteca e a folha fica guardada no R2 como backup do original.
+  Sem tempo de transcrever? **Usar como música**: basta dar um nome, e a foto já entra na
+  biblioteca e nas playlists. Depois de transcrita, o leitor oferece **Cifra ou Folha**,
+  e a foto pode ser apagada quando não fizer mais falta.
 - **Auto-scroll** com velocidade ajustável.
 - **Editor sem colchetes**: no modo **Letra** os acordes acompanham a sílaba enquanto se
   digita; no modo **Acordes** se toca na letra para colocá-los, e a letra não muda. O texto
@@ -48,6 +51,9 @@ Hospedada no **Cloudflare Workers**.
 - **Procurar uma cifra** (tela Importar): um campo só, que olha a sua biblioteca e os
   sitemaps do Músicas para Missa e do Cifras Católicas, com um toque para trazer. Só os
   endereços são mapeados; a cifra é baixada quando você escolhe a música.
+- **Escolher música sem sair da missa**: um campo só aceita o nome ou o link, e procura na
+  biblioteca e nos sites; ou tire uma foto ali mesmo. A música nova já entra na parte, com a
+  parte como categoria, e aparece primeiro quando for escolher para ela de novo.
 - **Sugestões do dia da missa**: pela data, a missa acha o dia litúrgico no Músicas para
   Missa e oferece as músicas de cada parte. O que já está na biblioteca entra direto; o
   resto passa pela revisão e volta para a parte certa.

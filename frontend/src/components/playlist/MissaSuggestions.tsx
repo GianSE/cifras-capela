@@ -20,8 +20,17 @@ import {
   type SuggestionGroup,
 } from '@/lib/missa-suggestions';
 import { playlistStorage } from '@/lib/storage/playlists';
+import { cn } from '@/lib/utils';
 import type { SongIndexEntry } from '@/types/library';
 import type { Playlist, PlaylistSection } from '@/types/playlist';
+
+type SuggestionFilter = 'todas' | 'novas' | 'biblioteca';
+
+const FILTERS: ReadonlyArray<readonly [SuggestionFilter, string]> = [
+  ['todas', 'Todas'],
+  ['novas', 'Novas'],
+  ['biblioteca', 'Na biblioteca'],
+];
 
 /**
  * O dia litúrgico da missa, no topo: de onde vêm as sugestões. Dá para trocar,
@@ -192,12 +201,28 @@ export function SuggestionsDialog({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
+  const [filter, setFilter] = useState<SuggestionFilter>('todas');
+
+  // Cada parte começa mostrando tudo.
+  useEffect(() => setFilter('todas'), [section?.id]);
 
   const byTitle = useMemo(() => {
     const map = new Map<string, SongIndexEntry>();
     for (const song of songs) map.set(normalizeTitle(song.title), song);
     return map;
   }, [songs]);
+
+  const inLibrary = (title: string) => byTitle.has(normalizeTitle(title));
+  const all = group?.songs ?? [];
+  const counts: Record<SuggestionFilter, number> = {
+    todas: all.length,
+    novas: all.filter((s) => !inLibrary(s.title)).length,
+    biblioteca: all.filter((s) => inLibrary(s.title)).length,
+  };
+  const shown = all.filter(
+    (s) =>
+      filter === 'todas' || (filter === 'biblioteca' ? inLibrary(s.title) : !inLibrary(s.title)),
+  );
 
   const bring = (url: string) => {
     if (!section) return;
@@ -216,8 +241,36 @@ export function SuggestionsDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <div role="radiogroup" aria-label="Filtrar sugestões" className="flex flex-wrap gap-1.5">
+          {FILTERS.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={filter === value}
+              onClick={() => setFilter(value)}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+                filter === value
+                  ? 'border-navy-700 bg-navy-700 text-gold-300'
+                  : 'border-border text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {label} ({counts[value]})
+            </button>
+          ))}
+        </div>
+
+        {shown.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            {filter === 'novas'
+              ? 'Todas estas sugestões já estão na sua biblioteca.'
+              : 'Nenhuma destas sugestões está na sua biblioteca ainda.'}
+          </p>
+        )}
+
         <ul className="-mx-1 flex max-h-96 flex-col divide-y divide-border overflow-y-auto px-1">
-          {group?.songs.map((suggested) => {
+          {shown.map((suggested) => {
             const existing = byTitle.get(normalizeTitle(suggested.title));
             const inMissa = existing && playlist.songIds.includes(existing.id);
             return (

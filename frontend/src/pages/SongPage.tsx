@@ -27,6 +27,8 @@ import { ReaderControls } from '@/components/song/ReaderControls';
 import { StageMode } from '@/components/song/StageMode';
 import { AddToPlaylist } from '@/components/playlist/AddToPlaylist';
 import { PdfMenu } from '@/components/song/PdfMenu';
+import { ScanControls, ScanView } from '@/components/song/ScanView';
+import { songHasContent } from '@/lib/library/derive';
 import { FavoriteButton } from '@/components/library/FavoriteButton';
 import { VideoDock } from '@/components/video/VideoDock';
 import { VideoLinkDialog } from '@/components/video/VideoLinkDialog';
@@ -34,6 +36,8 @@ import { Button } from '@/components/ui/button';
 import { songService } from '@/services/song-service';
 import { setYoutubeInSource } from '@/lib/youtube';
 import { cn } from '@/lib/utils';
+
+const SCAN_VIEW_KEY = 'cifras-capela:ver-folha:';
 
 export function SongPage() {
   const params = useParams();
@@ -49,6 +53,31 @@ export function SongPage() {
   const [videoOpen, setVideoOpen] = useState(false);
   /** Diálogo de adicionar/trocar o vídeo. */
   const [videoEditing, setVideoEditing] = useState(false);
+
+  // Folha: só ela, ou à escolha quando já existe o texto. A escolha fica por música.
+  const scanId = song?.metadata.scan;
+  const hasText = song ? songHasContent(song) : false;
+  const [preferScan, setPreferScan] = useState(false);
+  const [scanZoom, setScanZoom] = useState(100);
+  const viewingScan = Boolean(scanId) && (!hasText || preferScan);
+
+  useEffect(() => {
+    setScanZoom(100);
+    try {
+      setPreferScan(localStorage.getItem(`${SCAN_VIEW_KEY}${songId}`) === '1');
+    } catch {
+      setPreferScan(false);
+    }
+  }, [songId]);
+
+  const chooseView = (scan: boolean) => {
+    setPreferScan(scan);
+    try {
+      localStorage.setItem(`${SCAN_VIEW_KEY}${songId}`, scan ? '1' : '0');
+    } catch {
+      // Sem armazenamento, a escolha vale até sair da música.
+    }
+  };
 
   // Passar o songId faz o tom ser salvo e restaurado por música.
   const transpose = useTranspose(song, songId);
@@ -78,7 +107,10 @@ export function SongPage() {
     onToggleScroll: autoScroll.toggle,
     onFontIncrease: font.increase,
     onFontDecrease: font.decrease,
-    onStage: () => setStageOpen(true),
+    // A apresentação desenha a cifra: a folha não passa por ela.
+    onStage: () => {
+      if (!viewingScan) setStageOpen(true);
+    },
     onExit: () => navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/home'),
   });
 
@@ -88,8 +120,16 @@ export function SongPage() {
     setExporting(true);
     try {
       const { exportLyricsToPdf, exportSongToPdf } = await import('@/lib/export/pdf');
-      if (lyricsOnly) await exportLyricsToPdf([{ song: transpose.transposedSong }]);
-      else await exportSongToPdf(transpose.transposedSong);
+      // Sem texto, a música é a folha: em qualquer das opções, o PDF traz a imagem.
+      if (scanId && !hasText) {
+        const { loadScanForPdf } = await import('@/lib/scan-images');
+        const images = await loadScanForPdf(scanId);
+        await exportSongToPdf(transpose.transposedSong, { images });
+      } else if (lyricsOnly) {
+        await exportLyricsToPdf([{ song: transpose.transposedSong }]);
+      } else {
+        await exportSongToPdf(transpose.transposedSong);
+      }
     } catch (e) {
       console.error('Falha ao exportar PDF:', e);
     } finally {
@@ -299,11 +339,59 @@ export function SongPage() {
             displayedKey={transpose.currentKey}
             capo={transpose.capo}
           />
-          <SongRenderer
-            song={transposedSong}
-            fontSize={font.fontSize}
-            twoColumns={readerTwoColumns}
-          />
+
+          {scanId && hasText && (
+            <div
+              role="radiogroup"
+              aria-label="Como ver a música"
+              className="mb-4 inline-flex rounded-full border border-[var(--color-outline)] p-0.5"
+            >
+              {(
+                [
+                  [false, 'Cifra'],
+                  [true, 'Folha'],
+                ] as const
+              ).map(([scan, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  role="radio"
+                  aria-checked={viewingScan === scan}
+                  onClick={() => chooseView(scan)}
+                  className={cn(
+                    'rounded-full px-4 py-1 text-sm font-semibold transition-colors',
+                    viewingScan === scan
+                      ? 'bg-navy-700 text-gold-300'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {scanId && !hasText && showEditUI && (
+            <p className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+              Esta música ainda é só a folha.
+              <Link
+                to={`/importar?folha=${encodeURIComponent(scanId)}`}
+                className="font-semibold text-accent underline underline-offset-2"
+              >
+                Transcrever em cifra
+              </Link>
+            </p>
+          )}
+
+          {viewingScan && scanId ? (
+            <ScanView scanId={scanId} title={transposedSong.metadata.title} zoom={scanZoom} />
+          ) : (
+            <SongRenderer
+              song={transposedSong}
+              fontSize={font.fontSize}
+              twoColumns={readerTwoColumns}
+            />
+          )}
 
           {/* Navegação do setlist */}
           {playlistNav && (
@@ -334,12 +422,16 @@ export function SongPage() {
       </div>
 
       {/* Controles fixos */}
-      <ReaderControls
-        transpose={transpose}
-        font={font}
-        autoScroll={autoScroll}
-        onEnterStage={() => setStageOpen(true)}
-      />
+      {viewingScan ? (
+        <ScanControls zoom={scanZoom} onZoom={setScanZoom} autoScroll={autoScroll} />
+      ) : (
+        <ReaderControls
+          transpose={transpose}
+          font={font}
+          autoScroll={autoScroll}
+          onEnterStage={() => setStageOpen(true)}
+        />
+      )}
 
       {/* Vídeo: fora do cabeçalho, que some na rolagem automática — o player
           não pode ser desmontado (e parar) quando a rolagem começa. */}

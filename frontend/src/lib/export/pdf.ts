@@ -31,6 +31,15 @@ export interface PdfExportOptions {
   filename?: string;
   /** Observação opcional no cabeçalho (ex.: "Transposto +2"). */
   note?: string;
+  /** A música é só a folha: estas páginas entram no lugar da cifra. */
+  images?: readonly PdfImage[];
+}
+
+/** Uma página da folha, em JPEG. */
+export interface PdfImage {
+  readonly data: string;
+  readonly width: number;
+  readonly height: number;
 }
 
 /**
@@ -209,6 +218,39 @@ function drawSong(
   }
 }
 
+/** A folha no lugar da cifra: o título em cima e cada página ocupando a folha toda. */
+function drawImagePages(
+  doc: jsPDF,
+  song: Song,
+  images: readonly PdfImage[],
+  geom: { pageHeight: number; contentWidth: number },
+  note?: string,
+): void {
+  images.forEach((image, index) => {
+    if (index > 0) doc.addPage();
+    let y = PAGE_MARGIN;
+
+    if (index === 0) {
+      if (note) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(...COLOR_LABEL);
+        doc.text(note.toUpperCase(), PAGE_MARGIN, y);
+        y += 15;
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.setTextColor(...COLOR_LYRIC);
+      doc.text(song.metadata.title || 'Sem título', PAGE_MARGIN, y);
+      y += 12;
+    }
+
+    const height = geom.pageHeight - y - PAGE_MARGIN - 14;
+    const scale = Math.min(geom.contentWidth / image.width, height / image.height);
+    doc.addImage(image.data, 'JPEG', PAGE_MARGIN, y, image.width * scale, image.height * scale);
+  });
+}
+
 /** Numera todas as páginas no rodapé. */
 function drawPageNumbers(doc: jsPDF, pageWidth: number, pageHeight: number): void {
   const total = doc.getNumberOfPages();
@@ -231,7 +273,11 @@ function drawPageNumbers(doc: jsPDF, pageWidth: number, pageHeight: number): voi
 export async function exportSongToPdf(song: Song, options: PdfExportOptions = {}): Promise<void> {
   const { doc, pageWidth, pageHeight, contentWidth } = await createDoc();
 
-  drawSong(doc, song, { pageWidth, pageHeight, contentWidth }, options.note);
+  if (options.images?.length) {
+    drawImagePages(doc, song, options.images, { pageHeight, contentWidth }, options.note);
+  } else {
+    drawSong(doc, song, { pageWidth, pageHeight, contentWidth }, options.note);
+  }
   drawPageNumbers(doc, pageWidth, pageHeight);
 
   const title = song.metadata.title;
@@ -280,8 +326,17 @@ export async function exportLyricsToPdf(
     y += 26;
   }
 
-  entries.forEach(({ song, note }, index) => {
-    if (index > 0) y += LYRICS_LINE_HEIGHT;
+  entries.forEach(({ song, note, images }, index) => {
+    // A folha não tem letra para extrair: vai a imagem, em folha própria.
+    if (images?.length) {
+      if (y > PAGE_MARGIN) doc.addPage();
+      drawImagePages(doc, song, images, { pageHeight, contentWidth }, note);
+      if (index < entries.length - 1) doc.addPage();
+      y = PAGE_MARGIN;
+      return;
+    }
+
+    if (index > 0 && y > PAGE_MARGIN) y += LYRICS_LINE_HEIGHT;
     ensureSpace(LYRICS_MIN_START);
 
     if (note) {
@@ -341,6 +396,8 @@ export interface PlaylistPdfEntry {
   readonly song: Song;
   /** Observação no cabeçalho desta música (ex.: `"orig. G"`). */
   readonly note?: string;
+  /** A música é só a folha: estas páginas entram no lugar da cifra. */
+  readonly images?: readonly PdfImage[];
 }
 
 /**
@@ -427,7 +484,11 @@ export async function exportPlaylistToPdf(
   // ── Músicas (uma por página) ─────────────────────────────────────────────
   for (const entry of entries) {
     doc.addPage();
-    drawSong(doc, entry.song, geom, entry.note ?? options.note);
+    if (entry.images?.length) {
+      drawImagePages(doc, entry.song, entry.images, geom, entry.note ?? options.note);
+    } else {
+      drawSong(doc, entry.song, geom, entry.note ?? options.note);
+    }
   }
 
   drawPageNumbers(doc, pageWidth, pageHeight);

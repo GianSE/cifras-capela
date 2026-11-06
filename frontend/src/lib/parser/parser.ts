@@ -48,7 +48,7 @@ export function parseChord(raw: string): Chord | undefined {
 const METADATA_DIRECTIVES: ReadonlySet<string> = new Set([
   'title', 'subtitle', 'artist', 'key', 'tempo', 'time',
   'capo', 'album', 'year', 'copyright', 'category', 'categories',
-  'tag', 'tags', 'language', 'lang', 'youtube',
+  'tag', 'tags', 'language', 'lang', 'youtube', 'scan',
 ]);
 
 /**
@@ -69,6 +69,7 @@ function createEmptyMetadata(): {
   category?: string;
   language?: string;
   youtube?: string;
+  scan?: string;
   custom: Record<string, string>;
 } {
   return {
@@ -132,6 +133,9 @@ function applyDirective(
     }
     case 'time':
       metadata.time = value;
+      break;
+    case 'scan':
+      if (value.trim()) metadata.scan = value.trim();
       break;
     case 'youtube': {
       const id = parseYoutubeId(value);

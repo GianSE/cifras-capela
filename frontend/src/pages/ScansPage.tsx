@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ExternalLink,
   FileText,
+  Music,
   ImageUp,
   Loader2,
   ScanText,
@@ -16,9 +17,13 @@ import { SectionTitle } from '@/components/layout/SectionTitle';
 import { EmptyState } from '@/components/library/EmptyState';
 import { Button } from '@/components/ui/button';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
+import { AddToPlaylist } from '@/components/playlist/AddToPlaylist';
+import { UseScanAsSongDialog } from '@/components/scans/UseScanAsSongDialog';
 import {
   SCAN_ACCEPT,
   deleteScan,
+  deleteScanAndSong,
+  deleteScanKeepingSong,
   isPdfScan,
   listScans,
   scanFileUrl,
@@ -58,6 +63,8 @@ export function ScansPage() {
   const [aiAvailable, setAiAvailable] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [uploads, setUploads] = useState<PendingUpload[]>([]);
+  /** Folha ganhando um nome, para virar música. */
+  const [naming, setNaming] = useState<Scan | null>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -95,22 +102,31 @@ export function ScansPage() {
     }
   };
 
+  const songOf = (scan: Scan) => songs.find((s) => s.id === scan.songId);
+
   const handleDelete = async (scan: Scan) => {
-    const message =
-      scan.status === 'validada'
-        ? 'Excluir esta folha? A música continua na biblioteca, mas o original some.'
-        : 'Excluir esta folha? Ela ainda não foi transcrita.';
+    const song = songOf(scan);
+    // Sem texto, a foto é a música inteira: apagar uma apaga a outra, e é bom avisar.
+    const message = !song
+      ? 'Excluir esta folha? Ela ainda não foi transcrita.'
+      : song.lyrics
+        ? `Apagar a foto de "${song.title}"? A música continua na biblioteca, com o texto.`
+        : `"${song.title}" só existe como esta foto. Excluir apaga a música também, inclusive das playlists.`;
     if (!confirm(message)) return;
     try {
-      await deleteScan(scan.id);
+      if (!song) await deleteScan(scan.id);
+      else if (song.lyrics) await deleteScanKeepingSong(scan);
+      else await deleteScanAndSong(scan);
       setScans((s) => (s ?? []).filter((x) => x.id !== scan.id));
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Não foi possível excluir.');
     }
   };
 
-  const pending = (scans ?? []).filter((s) => s.status === 'pendente');
-  const validated = (scans ?? []).filter((s) => s.status === 'validada');
+  // Quem digitou a cifra direto no Editor também já transcreveu.
+  const isDone = (scan: Scan) => scan.status === 'validada' || Boolean(songOf(scan)?.lyrics);
+  const pending = (scans ?? []).filter((s) => !isDone(s));
+  const validated = (scans ?? []).filter(isDone);
   const songTitle = (id: string | null) => songs.find((s) => s.id === id)?.title;
 
   return (
@@ -232,9 +248,31 @@ export function ScansPage() {
           ) : (
             <ul className="flex flex-col gap-2.5">
               {pending.map((scan) => (
-                <ScanCard key={scan.id} scan={scan} onDelete={() => void handleDelete(scan)}>
+                <ScanCard
+                  key={scan.id}
+                  scan={scan}
+                  title={songTitle(scan.songId)}
+                  onDelete={() => void handleDelete(scan)}
+                >
+                  {songOf(scan) ? (
+                    <>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/musica/${scan.songId}`}>Abrir</Link>
+                      </Button>
+                      <AddToPlaylist songId={scan.songId!} variant="button" />
+                    </>
+                  ) : (
+                    <Button
+                      variant="gold"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => setNaming(scan)}
+                    >
+                      <Music className="size-4" /> Usar como música
+                    </Button>
+                  )}
                   <Button
-                    variant="gold"
+                    variant="outline"
                     size="sm"
                     className="gap-1.5"
                     onClick={() => navigate(`/importar?folha=${encodeURIComponent(scan.id)}`)}
@@ -277,6 +315,17 @@ export function ScansPage() {
           </section>
         )}
       </div>
+
+      <UseScanAsSongDialog
+        scan={naming}
+        songs={songs}
+        onClose={() => setNaming(null)}
+        onCreated={(songId) => {
+          const id = naming?.id;
+          setScans((list) => (list ?? []).map((s) => (s.id === id ? { ...s, songId } : s)));
+          setNaming(null);
+        }}
+      />
     </>
   );
 }

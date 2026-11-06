@@ -16,8 +16,8 @@ import { normalizeText, normalizeTitle } from '@/lib/library/duplicates';
 import type { SongIndexEntry } from '@/types/library';
 
 /** Menos que isso casaria metade do catálogo. */
-const MIN_QUERY = 3;
-const DEBOUNCE_MS = 300;
+export const MIN_SITE_QUERY = 3;
+export const SEARCH_DEBOUNCE_MS = 300;
 const MAX_LIBRARY_RESULTS = 5;
 const ALREADY_THERE = 'Pode já estar na biblioteca';
 
@@ -49,67 +49,14 @@ interface CifraSearchProps {
 export function CifraSearch({ songs, onImport }: CifraSearchProps) {
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
-  const [catalog, setCatalog] = useState<CatalogEntry[] | null>(null);
-  const [failed, setFailed] = useState<CatalogSource[]>([]);
-  const [cifraClub, setCifraClub] = useState<CifraClubResult[]>([]);
-  const [importing, setImporting] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setQuery(text.trim()), DEBOUNCE_MS);
+    const timer = setTimeout(() => setQuery(text.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [text]);
 
-  const active = query.length >= MIN_QUERY;
-
-  // O catálogo só é baixado quando alguém procura de fato. `loadCatalog` guarda o
-  // que deu certo, então isto só vai à rede de novo para tentar o que falhou.
-  useEffect(() => {
-    if (!active) return;
-    let current = true;
-    void loadCatalog().then((loaded) => {
-      if (!current) return;
-      setCatalog(loaded.entries);
-      setFailed(loaded.failed);
-    });
-    return () => {
-      current = false;
-    };
-  }, [active, query]);
-
-  useEffect(() => {
-    if (!active) {
-      setCifraClub([]);
-      return;
-    }
-    const controller = new AbortController();
-    void searchCifraClub(query, controller.signal).then((results) => {
-      if (!controller.signal.aborted) setCifraClub(results);
-    });
-    return () => controller.abort();
-  }, [active, query]);
-
+  const active = query.length >= MIN_SITE_QUERY;
   const inLibrary = useMemo(() => searchLibrary(songs, query), [songs, query]);
-  const found = useMemo(
-    () => (catalog && active ? searchCatalog(catalog, query) : []),
-    [catalog, active, query],
-  );
-  const titles = useMemo(() => new Set(songs.map((s) => normalizeTitle(s.title))), [songs]);
-
-  const handleImport = async (url: string) => {
-    setImporting(url);
-    try {
-      await onImport(url);
-    } finally {
-      setImporting(null);
-    }
-  };
-
-  const nothing =
-    active &&
-    catalog !== null &&
-    inLibrary.length === 0 &&
-    found.length === 0 &&
-    cifraClub.length === 0;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
@@ -144,78 +91,160 @@ export function CifraSearch({ songs, onImport }: CifraSearchProps) {
             </ResultGroup>
           )}
 
-          {catalog === null && (
-            <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" /> Procurando nos sites…
-            </p>
-          )}
-
-          {found.length > 0 && (
-            <ResultGroup title="Trazer dos sites">
-              {found.map((entry) => (
-                <ResultRow
-                  key={entry.url}
-                  title={entry.title}
-                  detail={[entry.artist, SOURCE_NAMES[entry.source]].filter(Boolean).join(' · ')}
-                  badge={titles.has(normalizeTitle(entry.title)) ? ALREADY_THERE : undefined}
-                >
-                  <TrazerButton
-                    url={entry.url}
-                    importing={importing}
-                    onImport={(url) => void handleImport(url)}
-                  />
-                </ResultRow>
-              ))}
-            </ResultGroup>
-          )}
-
-          {cifraClub.length > 0 && (
-            <ResultGroup title="No CifraClub">
-              {cifraClub.map((result) => (
-                <ResultRow
-                  key={result.url}
-                  title={result.title}
-                  detail={result.artist}
-                  badge={titles.has(normalizeTitle(result.title)) ? ALREADY_THERE : undefined}
-                >
-                  <div className="flex items-center gap-1">
-                    <Button
-                      asChild
-                      size="icon"
-                      variant="ghost"
-                      aria-label={`Ver ${result.title} no CifraClub`}
-                      title="Ver no site"
-                    >
-                      <a href={result.url} target="_blank" rel="noreferrer">
-                        <ExternalLink className="size-4" />
-                      </a>
-                    </Button>
-                    <TrazerButton
-                      url={result.url}
-                      importing={importing}
-                      onImport={(url) => void handleImport(url)}
-                    />
-                  </div>
-                </ResultRow>
-              ))}
-            </ResultGroup>
-          )}
-
-          {failed.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Sem resposta de {failed.map((s) => SOURCE_NAMES[s]).join(' e ')} agora. Pode haver
-              mais resultados.
-            </p>
-          )}
-
-          {nothing && (
-            <p className="text-sm text-muted-foreground">
-              Nada encontrado para “{query}”. Tente menos palavras.
-            </p>
-          )}
+          <SiteResults
+            query={query}
+            songs={songs}
+            onImport={onImport}
+            otherResults={inLibrary.length}
+          />
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * O que dá para trazer dos sites para uma busca: o mapa dos sitemaps e as sugestões
+ * do CifraClub. Com menos de {@link MIN_SITE_QUERY} letras, não busca nada.
+ */
+export function SiteResults({
+  query,
+  songs,
+  onImport,
+  otherResults = 0,
+}: {
+  query: string;
+  songs: readonly SongIndexEntry[];
+  onImport: (url: string) => Promise<void> | void;
+  /** Resultados de fora daqui: com eles, não cabe dizer que nada foi encontrado. */
+  otherResults?: number;
+}) {
+  const [catalog, setCatalog] = useState<CatalogEntry[] | null>(null);
+  const [failed, setFailed] = useState<CatalogSource[]>([]);
+  const [cifraClub, setCifraClub] = useState<CifraClubResult[]>([]);
+  const [importing, setImporting] = useState<string | null>(null);
+
+  const active = query.length >= MIN_SITE_QUERY;
+
+  // O catálogo só é baixado quando alguém procura de fato. `loadCatalog` guarda o
+  // que deu certo, então isto só vai à rede de novo para tentar o que falhou.
+  useEffect(() => {
+    if (!active) return;
+    let current = true;
+    void loadCatalog().then((loaded) => {
+      if (!current) return;
+      setCatalog(loaded.entries);
+      setFailed(loaded.failed);
+    });
+    return () => {
+      current = false;
+    };
+  }, [active, query]);
+
+  useEffect(() => {
+    if (!active) {
+      setCifraClub([]);
+      return;
+    }
+    const controller = new AbortController();
+    void searchCifraClub(query, controller.signal).then((results) => {
+      if (!controller.signal.aborted) setCifraClub(results);
+    });
+    return () => controller.abort();
+  }, [active, query]);
+
+  const found = useMemo(
+    () => (catalog && active ? searchCatalog(catalog, query) : []),
+    [catalog, active, query],
+  );
+  const titles = useMemo(() => new Set(songs.map((s) => normalizeTitle(s.title))), [songs]);
+
+  if (!active) return null;
+
+  const handleImport = async (url: string) => {
+    setImporting(url);
+    try {
+      await onImport(url);
+    } finally {
+      setImporting(null);
+    }
+  };
+
+  const nothing =
+    catalog !== null && otherResults === 0 && found.length === 0 && cifraClub.length === 0;
+
+  return (
+    <>
+      {catalog === null && (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" /> Procurando nos sites…
+        </p>
+      )}
+
+      {found.length > 0 && (
+        <ResultGroup title="Trazer dos sites">
+          {found.map((entry) => (
+            <ResultRow
+              key={entry.url}
+              title={entry.title}
+              detail={[entry.artist, SOURCE_NAMES[entry.source]].filter(Boolean).join(' · ')}
+              badge={titles.has(normalizeTitle(entry.title)) ? ALREADY_THERE : undefined}
+            >
+              <TrazerButton
+                url={entry.url}
+                importing={importing}
+                onImport={(url) => void handleImport(url)}
+              />
+            </ResultRow>
+          ))}
+        </ResultGroup>
+      )}
+
+      {cifraClub.length > 0 && (
+        <ResultGroup title="No CifraClub">
+          {cifraClub.map((result) => (
+            <ResultRow
+              key={result.url}
+              title={result.title}
+              detail={result.artist}
+              badge={titles.has(normalizeTitle(result.title)) ? ALREADY_THERE : undefined}
+            >
+              <div className="flex items-center gap-1">
+                <Button
+                  asChild
+                  size="icon"
+                  variant="ghost"
+                  aria-label={`Ver ${result.title} no CifraClub`}
+                  title="Ver no site"
+                >
+                  <a href={result.url} target="_blank" rel="noreferrer">
+                    <ExternalLink className="size-4" />
+                  </a>
+                </Button>
+                <TrazerButton
+                  url={result.url}
+                  importing={importing}
+                  onImport={(url) => void handleImport(url)}
+                />
+              </div>
+            </ResultRow>
+          ))}
+        </ResultGroup>
+      )}
+
+      {failed.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Sem resposta de {failed.map((s) => SOURCE_NAMES[s]).join(' e ')} agora. Pode haver mais
+          resultados.
+        </p>
+      )}
+
+      {nothing && (
+        <p className="text-sm text-muted-foreground">
+          Nada encontrado para “{query}”. Tente menos palavras.
+        </p>
+      )}
+    </>
   );
 }
 
@@ -247,21 +276,12 @@ function TrazerButton({
   );
 }
 
-function ResultGroup({
-  title,
-  hint,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
+function ResultGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section aria-label={title}>
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </h3>
-      {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
       <ul className="mt-1.5 flex flex-col divide-y divide-border">{children}</ul>
     </section>
   );
