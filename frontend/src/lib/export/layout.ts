@@ -44,8 +44,8 @@ export function buildChordLyricPair(line: Line): { chords: string; lyrics: strin
     const chord = segment.chord?.raw ?? '';
 
     if (chord) {
-      // Acorde anterior invadiu o espaço da letra? Empurra a letra para frente.
-      if (chords.length > lyrics.length) {
+      // Acorde anterior invadiu ou encostou no lugar deste? Empurra a letra para frente.
+      if (chords !== '' && chords.length >= lyrics.length) {
         lyrics = lyrics.padEnd(chords.length + 1, ' ');
       }
       chords = chords.padEnd(lyrics.length, ' ') + chord;

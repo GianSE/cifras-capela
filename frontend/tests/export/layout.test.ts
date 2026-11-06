@@ -10,6 +10,17 @@ function pairOf(content: string) {
 }
 
 describe('buildChordLyricPair — alinhamento acorde/letra', () => {
+  it('não gruda os acordes de uma linha só de acordes', () => {
+    expect(pairOf('[D] [G] [D] [A7] [D]').chords).toBe('D G D A7 D');
+    expect(pairOf('[F] [Bb9] [Dm]').chords).toBe('F Bb9 Dm');
+  });
+
+  it('não gruda acordes seguidos, mesmo sobre uma letra curta', () => {
+    const { chords, lyrics } = pairOf('[G]a[D]b');
+    expect(chords).toBe('G D');
+    expect(chords.indexOf('D')).toBe(lyrics.indexOf('b'));
+  });
+
   it('posiciona cada acorde exatamente acima da sua sílaba', () => {
     const { chords, lyrics } = pairOf('[G]Porque Ele [C]vive');
 
