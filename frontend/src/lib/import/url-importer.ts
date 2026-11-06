@@ -37,6 +37,7 @@ export function siteNameOf(url: string): string {
   if (host.endsWith('cifraclub.com.br')) return 'CifraClub';
   if (host.endsWith('musicasparamissa.com.br')) return 'Músicas para Missa';
   if (host.endsWith('cifrascatolicas.com.br')) return 'Cifras Católicas';
+  if (host.endsWith('decifrando.app.br')) return 'Decifrando';
   return host;
 }
 

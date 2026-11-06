@@ -15,6 +15,7 @@ import {
   importPlainText,
 } from './text-importer';
 import { importMusicasParaMissa } from './sites/musicas-para-missa';
+import { importDecifrando } from './sites/decifrando';
 import type { ImportedSong } from './types';
 
 /** Nomes de site que aparecem no fim do `<title>` e não fazem parte da música. */
@@ -109,7 +110,7 @@ export function parsePageYoutube(html: string): string | undefined {
 export function importHtml(html: string): ImportedSong {
   const doc = new DOMParser().parseFromString(html, 'text/html');
 
-  let song = importMusicasParaMissa(doc);
+  let song = importMusicasParaMissa(doc) ?? importDecifrando(html);
   const generico = song === null;
   song ??= importPlainText(docToText(doc));
 
