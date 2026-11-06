@@ -32,9 +32,13 @@ const VALID_NOTES: ReadonlySet<string> = new Set<string>([
  * Um número pode vir seguido de `M` ou `+`: é a notação brasileira de sétima
  * maior (`C7M`, `Bb7M`, `C7+` = `Cmaj7`), muito comum em cifras daqui. Sem ela,
  * esses acordes não eram reconhecidos — sumiam do leitor e não transpunham.
+ *
+ * Um número depois da barra também é extensão, não baixo: `C7/4`, `D7/9`, `A7/13`.
+ * Sem isso, o acorde sumia da cifra numa linha que tinha outros acordes, e numa
+ * linha curta (`Gm C7/4`) ela inteira virava letra.
  */
 const CHORD_REGEX =
-  /^(?<root>[A-G])(?<accidental>[#b])?(?<quality>maj|min|dim|aug|sus|m|M|\+|°|ø|Δ)?(?<extensions>(?:\d+(?:M|\+)?|add\d+|sus\d+|no\d+|maj\d+|[#b]\d+|\([-\w#b,+]+\))*)?(?:\/(?<bassRoot>[A-G])(?<bassAccidental>[#b])?)?$/;
+  /^(?<root>[A-G])(?<accidental>[#b])?(?<quality>maj|min|dim|aug|sus|m|M|\+|°|ø|Δ)?(?<extensions>(?:\d+(?:M|\+)?|\/\d+|add\d+|sus\d+|no\d+|maj\d+|[#b]\d+|\([-\w#b,+]+\))*)?(?:\/(?<bassRoot>[A-G])(?<bassAccidental>[#b])?)?$/;
 
 /**
  * Analisa uma string de acorde e retorna uma representação estruturada.
