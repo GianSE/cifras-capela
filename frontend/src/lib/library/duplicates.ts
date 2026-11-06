@@ -24,7 +24,7 @@ const MIN_SHINGLES = 12;
 const SIMILAR_LYRICS = 0.6;
 
 /** Sem acentos, em minúsculas e só com letras e números, separados por espaço. */
-function normalizeText(text: string): string {
+export function normalizeText(text: string): string {
   return text
     .normalize('NFD')
     .replace(/\p{M}/gu, '')

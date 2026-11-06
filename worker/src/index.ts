@@ -20,6 +20,7 @@ import { playlistsRoute } from './api/playlists';
 import { youtubeRoute } from './api/youtube';
 import { usersRoute } from './api/users';
 import { scansRoute } from './api/scans';
+import { catalogRoute } from './api/catalog';
 import { currentAccount, forbidden } from './lib/access';
 
 export type { Env };
@@ -216,6 +217,10 @@ export default {
 
     if (url.pathname === '/api/scans' || url.pathname.startsWith('/api/scans/')) {
       return withSecurityHeaders(await scansRoute(request, env, url.pathname));
+    }
+
+    if (url.pathname.startsWith('/api/catalog/')) {
+      return withSecurityHeaders(await catalogRoute(request, env, url.pathname));
     }
 
     if (url.pathname === '/api/youtube/search') {

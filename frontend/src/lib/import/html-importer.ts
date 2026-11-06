@@ -18,7 +18,7 @@ import { importMusicasParaMissa } from './sites/musicas-para-missa';
 import type { ImportedSong } from './types';
 
 /** Nomes de site que aparecem no fim do `<title>` e não fazem parte da música. */
-const SITE_NAME_RE = /^(cifra\s?club|cifras?|letras(\.mus\.br)?|ultimate[\s-]?guitar(\.com)?)$/i;
+const SITE_NAME_RE = /^(cifra\s?club|cifras?(\s+cat[oó]licas)?|letras(\.mus\.br)?|ultimate[\s-]?guitar(\.com)?)$/i;
 
 /**
  * Título e artista a partir do `<title>` da página.

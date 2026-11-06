@@ -32,6 +32,7 @@ import { parseYoutubeId, youtubeThumbnailUrl } from '@/lib/youtube';
 import { VideoLinkDialog } from '@/components/video/VideoLinkDialog';
 import { buildSongId, extractLyricsText, nextFreeSongId } from '@/lib/library/derive';
 import { DuplicateWarning } from '@/components/library/DuplicateWarning';
+import { CifraSearch } from '@/components/import/CifraSearch';
 import type { SongIndexEntry } from '@/types/library';
 import { songService } from '@/services/song-service';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
@@ -205,6 +206,16 @@ export function ImportPage() {
     }
   };
 
+  /** Música escolhida na busca: mesmo caminho do link colado. */
+  const handleFound = async (url: string) => {
+    setImportError(null);
+    try {
+      startReview(await importFromUrl(url));
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'Não foi possível ler essa página.');
+    }
+  };
+
   const update = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
 
   /** Volta para a tela inicial, descartando a revisão. */
@@ -326,6 +337,9 @@ export function ImportPage() {
                   {importError}
                 </p>
               )}
+
+              {/* Importar depende do Worker, como o link colado. */}
+              {urlAvailable && <CifraSearch songs={songs} onImport={handleFound} />}
 
               {/* Foto rápida: guarda agora, transcreve depois. */}
               {songService.canWrite && (

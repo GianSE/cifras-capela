@@ -42,6 +42,11 @@ Hospedada no **Cloudflare Workers**.
 - **Editor** interno com preview ao vivo, **exportação em PDF** e **importação**
   (link do CifraClub e afins, PDF, `.cho` e foto JPG/PNG). Ao cadastrar, o app **avisa se
   a música pode já estar na biblioteca**, comparando título e letra.
+- **Procurar uma cifra** (tela Importar): um campo só, que olha a sua biblioteca e os
+  sitemaps do Músicas para Missa e do Cifras Católicas, com um toque para trazer. Só os
+  endereços são mapeados; a cifra é baixada quando você escolhe a música.
+- **PDF só com a letra**, para quem canta: na música ou na playlist inteira, em sequência
+  e com as partes da missa.
 - **PWA offline**: instala no celular e funciona sem internet.
 - **Tema claro e escuro**.
 
