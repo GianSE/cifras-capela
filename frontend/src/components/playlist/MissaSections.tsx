@@ -30,6 +30,8 @@ interface MissaSectionsProps {
   renderSongs: (section: PlaylistSection) => ReactNode;
   /** Abre o seletor de músicas já apontando para esta parte. */
   onAddSong?: (section: PlaylistSection) => void;
+  /** Conteúdo extra no fim de uma parte (as sugestões do dia). */
+  renderExtra?: (section: PlaylistSection) => ReactNode;
 }
 
 /**
@@ -37,7 +39,13 @@ interface MissaSectionsProps {
  * músicas escolhidas para ela. Parte vazia fica à vista ("Escolher música"),
  * para nada ser esquecido na hora de montar o repertório.
  */
-export function MissaSections({ playlist, editable, renderSongs, onAddSong }: MissaSectionsProps) {
+export function MissaSections({
+  playlist,
+  editable,
+  renderSongs,
+  onAddSong,
+  renderExtra,
+}: MissaSectionsProps) {
   const sections = playlist.sections ?? [];
 
   const [renaming, setRenaming] = useState<PlaylistSection | null>(null);
@@ -172,6 +180,7 @@ export function MissaSections({ playlist, editable, renderSongs, onAddSong }: Mi
                 Sem música
               </p>
             )}
+            {renderExtra?.(section) && <div className="mt-2">{renderExtra(section)}</div>}
           </section>
         ))}
       </div>

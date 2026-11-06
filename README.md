@@ -45,6 +45,9 @@ Hospedada no **Cloudflare Workers**.
 - **Procurar uma cifra** (tela Importar): um campo só, que olha a sua biblioteca e os
   sitemaps do Músicas para Missa e do Cifras Católicas, com um toque para trazer. Só os
   endereços são mapeados; a cifra é baixada quando você escolhe a música.
+- **Sugestões do dia da missa**: pela data, a missa acha o dia litúrgico no Músicas para
+  Missa e oferece as músicas de cada parte. O que já está na biblioteca entra direto; o
+  resto passa pela revisão e volta para a parte certa.
 - **PDF só com a letra**, para quem canta: na música ou na playlist inteira, em sequência
   e com as partes da missa.
 - **PWA offline**: instala no celular e funciona sem internet.

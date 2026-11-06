@@ -6,6 +6,8 @@
  *
  *   GET /api/catalog/<fonte>        → sitemap da fonte, como veio do site
  *   GET /api/catalog/cifraclub?q=…  → sugestões do CifraClub
+ *   GET /api/catalog/sugestoes/datas   → mapa data → dia litúrgico
+ *   GET /api/catalog/sugestoes/<dia>   → página de sugestões de um dia
  *
  * O sitemap passa direto, sem ser lido aqui: são quase 2 MB, e interpretar isso
  * a cada busca gastaria o tempo de CPU do Worker. Quem lê e procura é o app, que
@@ -44,6 +46,8 @@ interface CifraClubDoc {
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/i;
 
+const MPM = 'https://musicasparamissa.com.br';
+
 export async function catalogRoute(
   request: Request,
   env: Env,
@@ -60,28 +64,38 @@ export async function catalogRoute(
     return searchCifraClub(new URL(request.url).searchParams.get('q') ?? '');
   }
 
+  if (source === 'sugestoes/datas') {
+    return passThrough(`${MPM}/datas.json`, 'application/json; charset=utf-8');
+  }
+  if (source.startsWith('sugestoes/')) {
+    const day = source.slice('sugestoes/'.length);
+    if (!SLUG_RE.test(day)) return json({ error: 'Dia inválido.' }, 400);
+    return passThrough(`${MPM}/sugestoes-para/${day}/`, 'text/html; charset=utf-8');
+  }
+
   const sitemap = SITEMAPS[source];
   if (!sitemap) return json({ error: 'Fonte desconhecida.' }, 404);
-  return passThroughSitemap(sitemap);
+  return passThrough(sitemap, 'application/xml; charset=utf-8');
 }
 
-async function passThroughSitemap(url: string): Promise<Response> {
+/** Repassa o arquivo como veio do site, com cache de um dia. */
+async function passThrough(url: string, contentType: string): Promise<Response> {
   let upstream: Response;
   try {
     upstream = await fetch(url, {
-      headers: { 'User-Agent': USER_AGENT, Accept: 'application/xml,text/xml' },
+      headers: { 'User-Agent': USER_AGENT },
       cf: { cacheEverything: true, cacheTtl: ONE_DAY },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
   } catch (err) {
-    console.error('Falha ao buscar o sitemap:', url, err);
+    console.error('Falha ao buscar no site:', url, err);
     return json({ error: 'O site não respondeu.' }, 502);
   }
   if (!upstream.ok) return json({ error: `O site respondeu ${upstream.status}.` }, 502);
 
   return new Response(upstream.body, {
     headers: {
-      'Content-Type': 'application/xml; charset=utf-8',
+      'Content-Type': contentType,
       'Cache-Control': `private, max-age=${ONE_DAY}`,
     },
   });

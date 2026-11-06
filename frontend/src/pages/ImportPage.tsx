@@ -33,6 +33,7 @@ import { VideoLinkDialog } from '@/components/video/VideoLinkDialog';
 import { buildSongId, extractLyricsText, nextFreeSongId } from '@/lib/library/derive';
 import { DuplicateWarning } from '@/components/library/DuplicateWarning';
 import { CifraSearch } from '@/components/import/CifraSearch';
+import { playlistStorage } from '@/lib/storage/playlists';
 import type { SongIndexEntry } from '@/types/library';
 import { songService } from '@/services/song-service';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
@@ -131,6 +132,38 @@ export function ImportPage() {
   const [scan, setScan] = useState<Scan | null>(null);
   const [transcribing, setTranscribing] = useState<string | null>(null);
 
+  /**
+   * `?url=<página>&missa=<id>&parte=<id>`: música sugerida para uma missa. Passa
+   * pela mesma revisão e, salva, já entra na parte certa.
+   */
+  const linkToImport = searchParams.get('url');
+  const missa = playlistStorage.get(searchParams.get('missa') ?? '');
+  const missaPart = missa?.sections?.find((s) => s.id === searchParams.get('parte'));
+  const leaveTo = missa ? `/playlists/${missa.id}` : '/folhas';
+
+  useEffect(() => {
+    if (!linkToImport) return;
+    let active = true;
+    setDraft(null);
+    setImportError(null);
+    setTranscribing('Buscando a cifra…');
+    importFromUrl(linkToImport)
+      .then((song) => {
+        if (active) startReview(song);
+      })
+      .catch((e: unknown) => {
+        if (active) {
+          setImportError(e instanceof Error ? e.message : 'Não foi possível ler essa página.');
+        }
+      })
+      .finally(() => {
+        if (active) setTranscribing(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [linkToImport]);
+
   useEffect(() => {
     if (!scanId) return;
     let active = true;
@@ -223,7 +256,7 @@ export function ImportPage() {
     setDraft(null);
     setSaveError(null);
     // Vindo de uma folha, recomeçar é voltar para a fila (ela continua lá).
-    if (scan) navigate('/folhas');
+    if (scan || missa) navigate(leaveTo);
   };
 
   const openInEditor = () => {
@@ -263,6 +296,11 @@ export function ImportPage() {
         } catch (e) {
           alert(e instanceof Error ? e.message : 'A folha não foi marcada como validada.');
         }
+      }
+      if (missa && missaPart) {
+        playlistStorage.addSong(missa.id, id, missaPart.id);
+        navigate(`/playlists/${missa.id}`);
+        return;
       }
       navigate(`/musica/${id}`);
     } catch (e) {
@@ -304,7 +342,7 @@ export function ImportPage() {
           }
         />
         <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8">
-          {scanId && !draft ? (
+          {(scanId || linkToImport) && !draft ? (
             <div className="flex flex-col items-center gap-4 py-10 text-center">
               {transcribing ? (
                 <>
@@ -322,7 +360,9 @@ export function ImportPage() {
                     </p>
                   )}
                   <Button asChild variant="outline">
-                    <Link to="/folhas">Voltar para as folhas</Link>
+                    <Link to={leaveTo}>
+                      {missa ? 'Voltar para a missa' : 'Voltar para as folhas'}
+                    </Link>
                   </Button>
                 </>
               )}
@@ -442,6 +482,7 @@ export function ImportPage() {
               saveError={saveError}
               onRestart={restart}
               original={scan ?? undefined}
+              {...(missa && missaPart && { destination: `${missaPart.name} · ${missa.name}` })}
               songs={songs}
             />
           )}
@@ -512,7 +553,10 @@ function ReviewForm({
   onRestart,
   original,
   songs,
+  destination,
 }: {
+  /** Para onde a música vai depois de salva (ex.: uma parte da missa). */
+  destination?: string;
   /** Biblioteca, para avisar se a música já estiver nela. */
   songs: readonly SongIndexEntry[];
   /** Folha de onde veio a transcrição: mostra o original e vira "Confirmar". */
@@ -535,6 +579,12 @@ function ReviewForm({
           ? 'Compare com a folha original e corrija o que a transcrição errou. Só confirme quando a cifra estiver certa.'
           : 'Revise os dados extraídos antes de salvar. Ajuste o que for necessário.'}
       </p>
+
+      {destination && (
+        <p className="rounded-lg border border-gold-500/40 p-3 text-sm text-foreground">
+          Depois de salvar, ela entra em <strong>{destination}</strong>.
+        </p>
+      )}
 
       {original && <OriginalScan scan={original} />}
 
@@ -621,7 +671,13 @@ function ReviewForm({
             ) : (
               <Save className="size-4" />
             )}
-            {saving ? 'Salvando…' : original ? 'Confirmar cifra' : 'Salvar na biblioteca'}
+            {saving
+              ? 'Salvando…'
+              : original
+                ? 'Confirmar cifra'
+                : destination
+                  ? 'Salvar e colocar na missa'
+                  : 'Salvar na biblioteca'}
           </Button>
         )}
         {/* Pelo editor a folha não seria marcada como validada. */}
