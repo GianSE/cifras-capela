@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../src/lib/parser';
-import { buildChordLyricPair, renderSongToLines, songToPlainText } from '../../src/lib/export/layout';
+import {
+  buildChordLyricPair,
+  renderSongToLines,
+  songToPlainText,
+} from '../../src/lib/export/layout';
 
 /** Parseia uma linha simples e devolve o par acorde/letra renderizado. */
 function pairOf(content: string) {

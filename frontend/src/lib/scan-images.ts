@@ -40,24 +40,11 @@ function canvasOf(width: number, height: number) {
 }
 
 async function renderPdfPages(blob: Blob): Promise<ScanPageImage[]> {
-  const pdfjs = await import('pdfjs-dist');
-  const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
-  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-
-  const doc = await pdfjs.getDocument({ data: await blob.arrayBuffer() }).promise;
-  const pages: ScanPageImage[] = [];
-  for (let number = 1; number <= doc.numPages; number++) {
-    const page = await doc.getPage(number);
-    const viewport = page.getViewport({ scale: PDF_PAGE_SCALE });
-    const { canvas, context } = canvasOf(viewport.width, viewport.height);
-    await page.render({ canvasContext: context, viewport }).promise;
-    pages.push({
-      data: canvas.toDataURL('image/jpeg', JPEG_QUALITY),
-      width: canvas.width,
-      height: canvas.height,
-    });
-  }
-  return pages;
+  const { renderPdfToImages } = await import('@/lib/pdf-render');
+  return renderPdfToImages(await blob.arrayBuffer(), {
+    scale: PDF_PAGE_SCALE,
+    quality: JPEG_QUALITY,
+  });
 }
 
 /**

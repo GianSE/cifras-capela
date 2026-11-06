@@ -16,6 +16,19 @@ export function downloadTextFile(filename: string, content: string, mime = 'text
   URL.revokeObjectURL(url);
 }
 
+/** Dispara o download de um arquivo já pronto (ex.: o PDF que a prévia mostrou). */
+export function downloadBlob(filename: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Alguns navegadores leem o arquivo depois do clique: dá tempo antes de liberar.
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
 /** Converte um texto em um slug seguro para nome de arquivo/URL (sem acentos). */
 export function slugify(text: string): string {
   return text

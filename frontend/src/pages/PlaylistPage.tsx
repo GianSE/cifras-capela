@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import {
   DndContext,
@@ -41,7 +41,11 @@ import {
   suggestMissaDates,
 } from '@/lib/missa';
 import { MissaDatePicker } from '@/components/playlist/MissaDatePicker';
-import { PdfMenu } from '@/components/song/PdfMenu';
+import {
+  PdfPreviewDialog,
+  type GeneratedPdf,
+  type PdfChoice,
+} from '@/components/playlist/PdfPreviewDialog';
 import {
   MissaDayBanner,
   SuggestionsButton,
@@ -167,73 +171,81 @@ function pdfTitle(playlist: Playlist): string {
 }
 
 /**
- * Gera um PDF único com todas as músicas, na ordem da playlist e **no tom em
- * que cada uma foi deixada** — é esse o tom que você vai tocar no dia.
- * Quando há transposição, o cabeçalho registra o tom original.
+ * Monta o PDF da playlist para a prévia: na ordem da playlist e **no tom em que
+ * cada uma foi deixada** — é esse o tom que você vai tocar no dia. Quando há
+ * transposição, o cabeçalho registra o tom original.
  *
  * Só a letra é para quem canta: tom não importa, e a parte da missa continua.
+ * As cifras são carregadas uma vez por abertura; trocar a opção só remonta.
  */
 function usePlaylistPdf(playlist: Playlist) {
   const { loadSongs } = usePlaylistSongs();
   const { transpositions, preferFlats } = usePreferences();
-  const [exporting, setExporting] = useState(false);
+  const loaded = useRef<{ key: string; data: Promise<LoadedForPdf[]> } | null>(null);
 
-  const exportPdf = async (lyricsOnly: boolean) => {
-    setExporting(true);
-    try {
-      const loaded = await loadSongs(playlist.songIds);
+  const load = useCallback((): Promise<LoadedForPdf[]> => {
+    const key = playlist.songIds.join('|');
+    if (loaded.current?.key !== key) {
+      const data = loadSongs(playlist.songIds).then((songs) =>
+        Promise.all(songs.map(async (s) => ({ ...s, images: await folhaPages(s.song) }))),
+      );
+      // Falhou: a próxima tentativa carrega de novo.
+      data.catch(() => {
+        loaded.current = null;
+      });
+      loaded.current = { key, data };
+    }
+    return loaded.current.data;
+  }, [playlist.songIds, loadSongs]);
 
-      if (lyricsOnly) {
-        const { exportLyricsToPdf } = await import('@/lib/export/pdf');
-        await exportLyricsToPdf(
-          await Promise.all(
-            loaded.map(async ({ id, song }) => {
-              const part = sectionOf(playlist, id)?.name;
-              const images = await folhaPages(song);
-              return { song, ...(part && { note: part }), ...(images && { images }) };
-            }),
-          ),
-          pdfTitle(playlist),
-        );
-        return;
-      }
-
-      const pages = await Promise.all(loaded.map(({ song }) => folhaPages(song)));
-      const entries = loaded.map(({ id, song }, index) => {
-        const images = pages[index];
+  const generate = useCallback(
+    async ({ lyricsOnly, toc }: PdfChoice): Promise<GeneratedPdf> => {
+      const songs = await load();
+      const entries = songs.map(({ id, song, images }) => {
+        const part = sectionOf(playlist, id)?.name;
+        if (lyricsOnly) {
+          return { song, ...(part && { note: part, part }), ...(images && { images }) };
+        }
         const semitones = transpositions[id] ?? 0;
         const originalKey = song.metadata.key;
-        // Na missa, o cabeçalho de cada página diz a parte (ex.: "Entrada").
-        const note = [
-          sectionOf(playlist, id)?.name,
-          semitones !== 0 && originalKey ? `orig. ${originalKey}` : undefined,
-        ]
+        // Na missa, o cabeçalho de cada música diz a parte (ex.: "Entrada").
+        const note = [part, semitones !== 0 && originalKey ? `orig. ${originalKey}` : undefined]
           .filter(Boolean)
           .join(' · ');
         return {
           song:
             semitones === 0 && !preferFlats ? song : transposeSong(song, semitones, preferFlats),
           ...(note && { note }),
+          ...(part && { part }),
           ...(images && { images }),
         };
       });
 
-      const { exportPlaylistToPdf } = await import('@/lib/export/pdf');
-      await exportPlaylistToPdf(entries, pdfTitle(playlist));
-    } catch (e) {
-      console.error('Falha ao exportar a playlist em PDF:', e);
-    } finally {
-      setExporting(false);
-    }
-  };
+      const { buildPlaylistPdf, pdfBytes } = await import('@/lib/export/pdf');
+      const pdf = await buildPlaylistPdf(entries, {
+        title: pdfTitle(playlist),
+        lyricsOnly,
+        toc,
+      });
+      return { bytes: pdfBytes(pdf), filename: pdf.filename };
+    },
+    [load, playlist, transpositions, preferFlats],
+  );
 
-  return { exportPdf, exporting };
+  return { generate };
+}
+
+interface LoadedForPdf {
+  readonly id: string;
+  readonly song: Song;
+  readonly images: Awaited<ReturnType<typeof folhaPages>>;
 }
 
 /** PDF e Tocar — iguais na playlist própria e na compartilhada. */
 function PlaylistActions({ playlist, songCount }: { playlist: Playlist; songCount: number }) {
   const navigate = useNavigate();
-  const { exportPdf, exporting } = usePlaylistPdf(playlist);
+  const { generate } = usePlaylistPdf(playlist);
+  const [previewing, setPreviewing] = useState(false);
 
   /** Abre a primeira música já no contexto da playlist. */
   const handlePlay = () => {
@@ -243,21 +255,23 @@ function PlaylistActions({ playlist, songCount }: { playlist: Playlist; songCoun
 
   return (
     <>
-      <PdfMenu
-        onExport={(lyricsOnly) => void exportPdf(lyricsOnly)}
-        trigger={
-          <Button
-            variant="outline-dark"
-            size="sm"
-            className="gap-1.5"
-            disabled={exporting || songCount === 0}
-            title="Baixar todas as músicas num PDF só"
-            aria-label="Baixar PDF"
-          >
-            <FileDown className="size-4" />
-            <span className="hidden sm:inline">{exporting ? 'Gerando…' : 'PDF'}</span>
-          </Button>
-        }
+      <Button
+        variant="outline-dark"
+        size="sm"
+        className="gap-1.5"
+        disabled={songCount === 0}
+        onClick={() => setPreviewing(true)}
+        title="Ver e baixar todas as músicas num PDF só"
+        aria-label="Exportar PDF"
+      >
+        <FileDown className="size-4" />
+        <span className="hidden sm:inline">PDF</span>
+      </Button>
+      <PdfPreviewDialog
+        open={previewing}
+        onOpenChange={setPreviewing}
+        title={pdfTitle(playlist)}
+        generate={generate}
       />
       <Button
         variant="gold"
