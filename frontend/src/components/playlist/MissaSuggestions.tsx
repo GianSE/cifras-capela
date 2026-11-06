@@ -46,9 +46,9 @@ export function MissaDayBanner({ suggestions }: { suggestions: MissaSuggestions 
               href={dayPageUrl(day.slug)}
               target="_blank"
               rel="noreferrer"
-              className="font-display inline-flex max-w-full items-center gap-1.5 text-base text-foreground hover:underline"
+              className="font-display inline-flex max-w-full items-center gap-1.5 text-base leading-snug text-foreground hover:underline"
             >
-              <span className="truncate">{day.title}</span>
+              <span>{day.title}</span>
               <ExternalLink className="size-3.5 shrink-0" />
             </a>
           </>
@@ -210,7 +210,10 @@ export function SuggestionsDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Sugestões para {section?.name}</DialogTitle>
-          <DialogDescription>{group?.heading ?? day?.title}</DialogDescription>
+          {/* O salmo muda a cada dia, e o título diz qual é. As outras partes não. */}
+          <DialogDescription>
+            {group?.heading.includes(':') ? group.heading : day?.title}
+          </DialogDescription>
         </DialogHeader>
 
         <ul className="-mx-1 flex max-h-96 flex-col divide-y divide-border overflow-y-auto px-1">

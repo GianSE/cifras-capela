@@ -39,6 +39,9 @@ Hospedada no **Cloudflare Workers**.
   configurada), você confere lado a lado com a folha e **Confirma a cifra**. A
   música vai para a biblioteca e a folha fica guardada no R2 como backup do original.
 - **Auto-scroll** com velocidade ajustável.
+- **Editor sem colchetes**: no modo **Letra** os acordes acompanham a sílaba enquanto se
+  digita; no modo **Acordes** se toca na letra para colocá-los, e a letra não muda. O texto
+  cru com `[G]` continua no modo **.cho**, e abrir sem mexer nunca altera o arquivo.
 - **Editor** interno com preview ao vivo, **exportação em PDF** e **importação**
   (link do CifraClub e afins, PDF, `.cho` e foto JPG/PNG). Ao cadastrar, o app **avisa se
   a música pode já estar na biblioteca**, comparando título e letra.

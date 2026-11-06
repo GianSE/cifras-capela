@@ -21,6 +21,8 @@ import { downloadTextFile, slugify } from '@/lib/export/download';
 import { buildSongId, extractLyricsText, nextFreeSongId } from '@/lib/library/derive';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
 import { DuplicateWarning } from '@/components/library/DuplicateWarning';
+import { ChoEditor } from '@/components/editor/ChoEditor';
+import { HARMONIC_FIELDS, HARMONIC_KEYS } from '@/lib/editor/harmonic-fields';
 import { songService } from '@/services/song-service';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { cn } from '@/lib/utils';
@@ -44,29 +46,6 @@ language: pt
 [Em]Cada acorde fica [C]acima da sílaba [G]certa.
 `;
 
-/**
- * Campo harmônico por tom: os 7 acordes diatônicos (I ao vii°), na ordem dos
- * graus. Ajuda a saber quais acordes cabem na música pelo tom em que ela está.
- * Maiores primeiro, depois menores (relativas).
- */
-const HARMONIC_FIELDS: Record<string, readonly string[]> = {
-  // Maiores: I ii iii IV V vi vii°
-  C: ['C', 'Dm', 'Em', 'F', 'G', 'Am', 'B°'],
-  D: ['D', 'Em', 'F#m', 'G', 'A', 'Bm', 'C#°'],
-  E: ['E', 'F#m', 'G#m', 'A', 'B', 'C#m', 'D#°'],
-  G: ['G', 'Am', 'Bm', 'C', 'D', 'Em', 'F#°'],
-  A: ['A', 'Bm', 'C#m', 'D', 'E', 'F#m', 'G#°'],
-  B: ['B', 'C#m', 'D#m', 'E', 'F#', 'G#m', 'A#°'],
-  // Menores: i ii° III iv v VI VII
-  Cm: ['Cm', 'D°', 'Eb', 'Fm', 'Gm', 'Ab', 'Bb'],
-  Dm: ['Dm', 'E°', 'F', 'Gm', 'Am', 'Bb', 'C'],
-  Em: ['Em', 'F#°', 'G', 'Am', 'Bm', 'C', 'D'],
-  Fm: ['Fm', 'G°', 'Ab', 'Bbm', 'Cm', 'Db', 'Eb'],
-  Gm: ['Gm', 'A°', 'Bb', 'Cm', 'Dm', 'Eb', 'F'],
-  Am: ['Am', 'B°', 'C', 'Dm', 'Em', 'F', 'G'],
-  Bm: ['Bm', 'C#°', 'D', 'Em', 'F#m', 'G', 'A'],
-};
-const HARMONIC_KEYS = Object.keys(HARMONIC_FIELDS);
 const QUICK_SECTIONS = ['{verso 1}', '{refrão}', '{ponte}', '{intro}'];
 
 export function EditorPage() {
@@ -210,7 +189,8 @@ export function EditorPage() {
     }
   };
 
-  const editor = (
+  /** O modo `.cho`: o texto cru, com `[G]` no meio da letra. */
+  const codeEditor = (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* `key` remonta o Toolbar quando o tom do frontmatter muda, para o
           seletor de campo harmônico acompanhar o tom da música. */}
@@ -228,6 +208,16 @@ export function EditorPage() {
         placeholder="Escreva a cifra no formato frontmatter + ChordPro…"
       />
     </div>
+  );
+
+  const editor = (
+    <ChoEditor
+      value={source}
+      onChange={setSource}
+      codeEditor={codeEditor}
+      showFields
+      fieldsOpen={!savedId}
+    />
   );
 
   const preview = (
@@ -267,7 +257,7 @@ export function EditorPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="ghost" size="sm" className="gap-1.5">
+            <Button asChild variant="ghost" size="sm" className="hidden gap-1.5 md:inline-flex">
               <Link to="/importar">
                 <Upload className="size-4" /> <span className="hidden lg:inline">Importar</span>
               </Link>
@@ -352,11 +342,11 @@ export function EditorPage() {
         compartilhada). `min-h-0` é essencial: sem ele os itens do grid usam
         `min-height: auto` e crescem até a altura do conteúdo em vez de rolar.
       */}
-        <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
-          <div className={cn('flex min-h-0 flex-col', pane !== 'edit' && 'hidden md:flex')}>
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
+          <div className={cn('flex min-h-0 min-w-0 flex-col', pane !== 'edit' && 'hidden md:flex')}>
             {editor}
           </div>
-          <div className={cn('flex min-h-0 flex-col', pane !== 'preview' && 'hidden md:flex')}>
+          <div className={cn('flex min-h-0 min-w-0 flex-col', pane !== 'preview' && 'hidden md:flex')}>
             {preview}
           </div>
         </div>

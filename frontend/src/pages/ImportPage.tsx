@@ -33,6 +33,7 @@ import { VideoLinkDialog } from '@/components/video/VideoLinkDialog';
 import { buildSongId, extractLyricsText, nextFreeSongId } from '@/lib/library/derive';
 import { DuplicateWarning } from '@/components/library/DuplicateWarning';
 import { CifraSearch } from '@/components/import/CifraSearch';
+import { ChoEditor } from '@/components/editor/ChoEditor';
 import { playlistStorage } from '@/lib/storage/playlists';
 import type { SongIndexEntry } from '@/types/library';
 import { songService } from '@/services/song-service';
@@ -644,12 +645,20 @@ function ReviewForm({
 
       <VideoField draft={draft} onUpdate={onUpdate} />
 
-      <Field label="Corpo (ChordPro)">
-        <Textarea
+      <Field label="Cifra">
+        <ChoEditor
           value={draft.body}
-          onChange={(e) => onUpdate({ body: e.target.value })}
-          rows={8}
-          className="font-mono"
+          onChange={(body) => onUpdate({ body })}
+          songKey={draft.key || undefined}
+          className="max-h-[70vh]"
+          codeEditor={
+            <Textarea
+              value={draft.body}
+              onChange={(e) => onUpdate({ body: e.target.value })}
+              rows={12}
+              className="font-mono"
+            />
+          }
         />
       </Field>
 

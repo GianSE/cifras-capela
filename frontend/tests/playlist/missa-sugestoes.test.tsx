@@ -308,6 +308,7 @@ describe('sugestões na tela da missa', () => {
     );
     const dialog = await screen.findByRole('dialog');
     expect(dialog.textContent).toContain('Na biblioteca: Vinde Todos · Coral');
+    expect(dialog.textContent).toContain('32º Domingo do Tempo Comum - Ano A');
 
     fireEvent.click(within(dialog).getByRole('button', { name: /Usar/ }));
 
@@ -351,6 +352,14 @@ describe('sugestões na tela da missa', () => {
     const dialog = await screen.findByRole('dialog');
     expect(dialog.textContent).toContain('Na missa');
     expect(within(dialog).queryByRole('button', { name: /Usar/ })).toBeNull();
+  });
+
+  it('no salmo, o diálogo diz qual é o salmo do dia', async () => {
+    mockApi();
+    renderMissa(createMissa());
+    fireEvent.click(await within(part('Salmo')).findByRole('button', { name: /do dia/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain("Salmo Responsorial 62: A minh'alma tem sede");
   });
 
   it('com o site fora do ar, a missa continua funcionando, sem sugestões', async () => {
