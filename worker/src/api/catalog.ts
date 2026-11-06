@@ -26,6 +26,7 @@ import { currentAccount, forbidden } from '../lib/access';
 const SITEMAPS: Readonly<Record<string, string>> = {
   'musicas-para-missa': 'https://musicasparamissa.com.br/sitemap.xml',
   'cifras-catolicas': 'https://cifrascatolicas.com.br/sitemap.xml',
+  decifrando: 'https://decifrando.app.br/sitemap.xml',
 };
 
 const ONE_DAY = 60 * 60 * 24;

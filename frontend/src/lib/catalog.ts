@@ -13,7 +13,7 @@
 
 import { normalizeText } from '@/lib/library/duplicates';
 
-export type CatalogSource = 'musicas-para-missa' | 'cifras-catolicas';
+export type CatalogSource = 'musicas-para-missa' | 'cifras-catolicas' | 'decifrando';
 
 export interface CatalogEntry {
   readonly source: CatalogSource;
@@ -27,6 +27,7 @@ export interface CatalogEntry {
 export const SOURCE_NAMES: Readonly<Record<CatalogSource, string>> = {
   'musicas-para-missa': 'Músicas para Missa',
   'cifras-catolicas': 'Cifras Católicas',
+  decifrando: 'Decifrando',
 };
 
 const SOURCES = Object.keys(SOURCE_NAMES) as CatalogSource[];
@@ -54,6 +55,11 @@ const PARSERS: Readonly<
     kind === 'musica' && slug && rest.length === 0 ? { title: slugToTitle(slug) } : null,
   // /<artista>/<música> — com um pedaço só, é a página do artista.
   'cifras-catolicas': ([artist, slug, ...rest]) =>
+    artist && slug && rest.length === 0
+      ? { title: slugToTitle(slug), artist: slugToTitle(artist) }
+      : null,
+  // Mesmo formato do Cifras Católicas; páginas de uma música só têm dois pedaços.
+  decifrando: ([artist, slug, ...rest]) =>
     artist && slug && rest.length === 0
       ? { title: slugToTitle(slug), artist: slugToTitle(artist) }
       : null,

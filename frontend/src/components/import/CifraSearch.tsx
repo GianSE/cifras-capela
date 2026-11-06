@@ -22,6 +22,19 @@ export const SEARCH_DEBOUNCE_MS = 300;
 const MAX_LIBRARY_RESULTS = 5;
 const ALREADY_THERE = 'Pode já estar na biblioteca';
 
+/** Uma fonte de busca: os sitemaps do catálogo, e o CifraClub por fora deles. */
+type SiteKey = CatalogSource | 'cifraclub';
+
+/** Pílulas de "buscar em", na ordem em que aparecem. */
+const SITE_PILLS: ReadonlyArray<{ key: SiteKey; label: string }> = [
+  { key: 'cifraclub', label: 'CifraClub' },
+  ...(Object.entries(SOURCE_NAMES) as [CatalogSource, string][]).map(([key, label]) => ({
+    key,
+    label,
+  })),
+];
+const ALL_SITES: ReadonlySet<SiteKey> = new Set(SITE_PILLS.map((p) => p.key));
+
 /** Na biblioteca vale também um trecho da letra, que é o que se lembra da música. */
 function searchLibrary(songs: readonly SongIndexEntry[], query: string): SongIndexEntry[] {
   const normalized = normalizeText(query);
@@ -50,6 +63,7 @@ interface CifraSearchProps {
 export function CifraSearch({ songs, onImport }: CifraSearchProps) {
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
+  const [sites, setSites] = useState<ReadonlySet<SiteKey>>(ALL_SITES);
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(text.trim()), SEARCH_DEBOUNCE_MS);
@@ -58,6 +72,15 @@ export function CifraSearch({ songs, onImport }: CifraSearchProps) {
 
   const active = query.length >= MIN_SITE_QUERY;
   const inLibrary = useMemo(() => searchLibrary(songs, query), [songs, query]);
+
+  const toggleSite = (key: SiteKey) =>
+    setSites((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      // Nunca fica sem nenhum site: tiraria todo mundo da busca sem avisar por quê.
+      return next.size > 0 ? next : prev;
+    });
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
@@ -75,6 +98,25 @@ export function CifraSearch({ songs, onImport }: CifraSearchProps) {
         placeholder="Ex.: segura na mão de Deus"
         aria-label="Procurar uma cifra"
       />
+
+      <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Buscar nesses sites">
+        {SITE_PILLS.map(({ key, label }) => {
+          const selected = sites.has(key);
+          return (
+            <Button
+              key={key}
+              type="button"
+              size="sm"
+              variant={selected ? 'default' : 'outline'}
+              aria-pressed={selected}
+              onClick={() => toggleSite(key)}
+              className="h-8 px-3.5 text-xs"
+            >
+              {label}
+            </Button>
+          );
+        })}
+      </div>
 
       {active && (
         <div className="mt-4 flex flex-col gap-4">
@@ -97,6 +139,7 @@ export function CifraSearch({ songs, onImport }: CifraSearchProps) {
             songs={songs}
             onImport={onImport}
             otherResults={inLibrary.length}
+            sites={sites}
           />
         </div>
       )}
@@ -113,6 +156,7 @@ export function SiteResults({
   songs,
   onImport,
   otherResults = 0,
+  sites = ALL_SITES,
 }: {
   query: string;
   songs: readonly SongIndexEntry[];
@@ -120,6 +164,8 @@ export function SiteResults({
   onImport: (url: string, hint?: PageHint) => Promise<void> | void;
   /** Resultados de fora daqui: com eles, não cabe dizer que nada foi encontrado. */
   otherResults?: number;
+  /** Só busca (e mostra) nos sites marcados. */
+  sites?: ReadonlySet<SiteKey>;
 }) {
   const [catalog, setCatalog] = useState<CatalogEntry[] | null>(null);
   const [failed, setFailed] = useState<CatalogSource[]>([]);
@@ -127,6 +173,7 @@ export function SiteResults({
   const [importing, setImporting] = useState<string | null>(null);
 
   const active = query.length >= MIN_SITE_QUERY;
+  const wantsCifraClub = sites.has('cifraclub');
 
   // O catálogo só é baixado quando alguém procura de fato. `loadCatalog` guarda o
   // que deu certo, então isto só vai à rede de novo para tentar o que falhou.
@@ -144,7 +191,7 @@ export function SiteResults({
   }, [active, query]);
 
   useEffect(() => {
-    if (!active) {
+    if (!active || !wantsCifraClub) {
       setCifraClub([]);
       return;
     }
@@ -153,11 +200,14 @@ export function SiteResults({
       if (!controller.signal.aborted) setCifraClub(results);
     });
     return () => controller.abort();
-  }, [active, query]);
+  }, [active, query, wantsCifraClub]);
 
   const found = useMemo(
-    () => (catalog && active ? searchCatalog(catalog, query) : []),
-    [catalog, active, query],
+    () =>
+      catalog && active
+        ? searchCatalog(catalog.filter((e) => sites.has(e.source)), query)
+        : [],
+    [catalog, active, query, sites],
   );
   const titles = useMemo(() => new Set(songs.map((s) => normalizeTitle(s.title))), [songs]);
 

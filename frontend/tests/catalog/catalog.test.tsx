@@ -29,6 +29,11 @@ const CC = urlset(
   'https://cifrascatolicas.com.br/comunidade-católica-shalom/eterna-uniao',
 );
 
+const DECIFRANDO = urlset(
+  'https://decifrando.app.br/musicas-catolicas/segura-na-mao-de-deus',
+  'https://decifrando.app.br/musicas',
+);
+
 describe('parseSitemap', () => {
   it('no Músicas para Missa, pega só as músicas', () => {
     const entries = parseSitemap('musicas-para-missa', MPM);
@@ -58,6 +63,13 @@ describe('parseSitemap', () => {
   it('não quebra com endereço inválido nem com arquivo que não é sitemap', () => {
     expect(parseSitemap('musicas-para-missa', urlset('nao-e-url'))).toEqual([]);
     expect(parseSitemap('musicas-para-missa', '<html>erro</html>')).toEqual([]);
+  });
+
+  it('no Decifrando, mesmo formato do Cifras Católicas: pega a música, ignora página de uma peça só', () => {
+    const entries = parseSitemap('decifrando', DECIFRANDO);
+    expect(entries.map((e) => [e.title, e.artist])).toEqual([
+      ['Segura na mao de deus', 'Musicas catolicas'],
+    ]);
   });
 });
 
@@ -116,6 +128,7 @@ describe('CifraSearch', () => {
         return mpmFails ? new Response('', { status: 502 }) : new Response(MPM);
       }
       if (url === '/api/catalog/cifras-catolicas') return new Response(CC);
+      if (url === '/api/catalog/decifrando') return new Response(DECIFRANDO);
       if (url.startsWith('/api/catalog/cifraclub')) {
         // Como o site de verdade: só responde ao que conhece.
         if (!decodeURIComponent(url).includes('segura')) return Response.json({ results: [] });
@@ -211,4 +224,35 @@ describe('CifraSearch', () => {
     fireEvent.change(field, { target: { value: 'palavra inexistente' } });
     await waitFor(() => expect(screen.getByText(/Nada encontrado/)).toBeTruthy());
   });
+
+  it('as pílulas escolhem onde buscar — desmarcar um site some com o grupo dele e não pede a página', async () => {
+    const fetchMock = mockApi();
+    const { field } = renderSearch();
+
+    fireEvent.click(screen.getByRole('button', { name: 'CifraClub' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cifras Católicas' }));
+    fireEvent.change(field, { target: { value: 'segura na mão' } });
+
+    const sites = await screen.findByRole('region', { name: 'Trazer dos sites' });
+    expect(sites.textContent).toContain('Músicas para Missa');
+    expect(sites.textContent).not.toContain('Cifras Católicas');
+    expect(screen.queryByRole('region', { name: 'No CifraClub' })).toBeNull();
+
+    await waitFor(() =>
+      expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('cifraclub'), undefined),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/catalog/cifras-catolicas', undefined);
+  });
+
+  it('não deixa desmarcar o último site — sempre busca em algum', () => {
+    mockApi();
+    renderSearch();
+    const pills = SITE_LABELS.map((label) => screen.getByRole('button', { name: label }));
+    pills.forEach((pill) => fireEvent.click(pill));
+    const last = pills[pills.length - 1]!;
+    // O último continua marcado — a busca não ficou sem nenhum site.
+    expect(last.getAttribute('aria-pressed')).toBe('true');
+  });
 });
+
+const SITE_LABELS = ['CifraClub', 'Músicas para Missa', 'Cifras Católicas', 'Decifrando'];
