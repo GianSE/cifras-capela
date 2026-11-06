@@ -19,6 +19,7 @@ import type { SongIndexEntry } from '@/types/library';
 const MIN_QUERY = 3;
 const DEBOUNCE_MS = 300;
 const MAX_LIBRARY_RESULTS = 5;
+const ALREADY_THERE = 'Pode já estar na biblioteca';
 
 /** Na biblioteca vale também um trecho da letra, que é o que se lembra da música. */
 function searchLibrary(songs: readonly SongIndexEntry[], query: string): SongIndexEntry[] {
@@ -156,43 +157,45 @@ export function CifraSearch({ songs, onImport }: CifraSearchProps) {
                   key={entry.url}
                   title={entry.title}
                   detail={[entry.artist, SOURCE_NAMES[entry.source]].filter(Boolean).join(' · ')}
-                  badge={
-                    titles.has(normalizeTitle(entry.title))
-                      ? 'Pode já estar na biblioteca'
-                      : undefined
-                  }
+                  badge={titles.has(normalizeTitle(entry.title)) ? ALREADY_THERE : undefined}
                 >
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5"
-                    disabled={importing !== null}
-                    onClick={() => void handleImport(entry.url)}
-                  >
-                    {importing === entry.url ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Download className="size-4" />
-                    )}
-                    Trazer
-                  </Button>
+                  <TrazerButton
+                    url={entry.url}
+                    importing={importing}
+                    onImport={(url) => void handleImport(url)}
+                  />
                 </ResultRow>
               ))}
             </ResultGroup>
           )}
 
           {cifraClub.length > 0 && (
-            <ResultGroup
-              title="No CifraClub"
-              hint="Abra a página, copie o endereço e cole no campo abaixo."
-            >
+            <ResultGroup title="No CifraClub">
               {cifraClub.map((result) => (
-                <ResultRow key={result.url} title={result.title} detail={result.artist}>
-                  <Button asChild size="sm" variant="ghost" className="gap-1.5">
-                    <a href={result.url} target="_blank" rel="noreferrer">
-                      <ExternalLink className="size-4" /> Abrir no site
-                    </a>
-                  </Button>
+                <ResultRow
+                  key={result.url}
+                  title={result.title}
+                  detail={result.artist}
+                  badge={titles.has(normalizeTitle(result.title)) ? ALREADY_THERE : undefined}
+                >
+                  <div className="flex items-center gap-1">
+                    <Button
+                      asChild
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Ver ${result.title} no CifraClub`}
+                      title="Ver no site"
+                    >
+                      <a href={result.url} target="_blank" rel="noreferrer">
+                        <ExternalLink className="size-4" />
+                      </a>
+                    </Button>
+                    <TrazerButton
+                      url={result.url}
+                      importing={importing}
+                      onImport={(url) => void handleImport(url)}
+                    />
+                  </div>
                 </ResultRow>
               ))}
             </ResultGroup>
@@ -213,6 +216,34 @@ export function CifraSearch({ songs, onImport }: CifraSearchProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function TrazerButton({
+  url,
+  importing,
+  onImport,
+}: {
+  url: string;
+  /** Endereço sendo trazido agora: um de cada vez. */
+  importing: string | null;
+  onImport: (url: string) => void;
+}) {
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="gap-1.5"
+      disabled={importing !== null}
+      onClick={() => onImport(url)}
+    >
+      {importing === url ? (
+        <Loader2 className="size-4 animate-spin" />
+      ) : (
+        <Download className="size-4" />
+      )}
+      Trazer
+    </Button>
   );
 }
 

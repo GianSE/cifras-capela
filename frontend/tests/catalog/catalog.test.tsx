@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import {
   parseSitemap,
@@ -185,6 +185,13 @@ describe('CifraSearch', () => {
     const link = cifraclub.querySelector('a');
     expect(link?.getAttribute('target')).toBe('_blank');
     expect(link?.getAttribute('href')).toContain('cifraclub.com.br/catolicas/');
+
+    const trazerDoCifraClub = within(cifraclub).getByRole('button', { name: /Trazer/ });
+    await waitFor(() => expect((trazerDoCifraClub as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(trazerDoCifraClub);
+    expect(onImport).toHaveBeenLastCalledWith(
+      'https://www.cifraclub.com.br/catolicas/segura-na-mao-de-deus/',
+    );
   });
 
   it('um site fora do ar não derruba os outros, e a tela avisa', async () => {
