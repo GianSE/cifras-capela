@@ -13,6 +13,34 @@ export interface SessionUser {
   readonly role: Role;
 }
 
+const ACCOUNT_KEY = 'cifras-capela:conta';
+
+function rememberAccount(account: SessionUser | null): void {
+  try {
+    if (account) localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
+    else localStorage.removeItem(ACCOUNT_KEY);
+  } catch {
+    // Sem armazenamento, só não abre sem internet.
+  }
+}
+
+/** A última conta confirmada neste aparelho. Papel estranho vira o mais restrito. */
+function lastAccount(): SessionUser | null {
+  try {
+    const stored = localStorage.getItem(ACCOUNT_KEY);
+    const account = stored ? (JSON.parse(stored) as Partial<SessionUser>) : null;
+    if (typeof account?.id !== 'number') return null;
+    return {
+      id: account.id,
+      email: account.email ?? '',
+      name: account.name ?? '',
+      role: account.role === 'admin' ? 'admin' : 'leitor',
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Sessão de quem edita a biblioteca.
  *
@@ -32,9 +60,23 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
 
+    // Só o servidor dizendo que não tira da conta. Sem rede, ou com ele fora do ar,
+    // segue a última conta: na igreja sem sinal, o repertório precisa abrir. Isto
+    // decide só o que a tela mostra; quem protege os dados é a API, a cada pedido.
     fetch('/api/auth/me', { credentials: 'same-origin' })
-      .then((res) => (res.ok ? (res.json() as Promise<SessionUser>) : null))
-      .catch(() => null) // Offline: segue como visitante, sem quebrar a tela.
+      .then(async (res) => {
+        if (res.ok) {
+          const account = (await res.json()) as SessionUser;
+          rememberAccount(account);
+          return account;
+        }
+        if (res.status === 401 || res.status === 403) {
+          rememberAccount(null);
+          return null;
+        }
+        return lastAccount();
+      })
+      .catch(() => lastAccount())
       .then((data) => {
         if (!mounted) return;
         setUser(data);
@@ -70,6 +112,7 @@ export function useAuth() {
       name: data.name ?? '',
       role: data.role === 'admin' ? 'admin' : 'leitor',
     };
+    rememberAccount(signed);
     setUser(signed);
     playlistStorage.setSession(signed.id);
   }, []);
@@ -79,6 +122,7 @@ export function useAuth() {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(
       () => undefined,
     );
+    rememberAccount(null);
     setUser(null);
     playlistStorage.setSession(null);
   }, []);
