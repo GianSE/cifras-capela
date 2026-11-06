@@ -23,8 +23,10 @@ Hospedada no **Cloudflare Workers**.
   PDF único** (com índice e uma música por página).
 - **Missa**: um tipo de playlist já dividido nas partes da celebração (Ambientação,
   Entrada, Ato penitencial, Glória, Salmo, Aclamação, Ofertório, Santo, Cordeiro,
-  Comunhão, Final). Parte vazia fica à vista para nada ser esquecido; dá para criar
-  partes novas (Pós-comunhão, Amém…), renomear, mudar a ordem e excluir.
+  Comunhão, Final). A missa se chama pela **data**, já sugerindo o próximo sábado ou
+  domingo. Parte vazia fica à vista para nada ser esquecido, uma parte pode ter mais de
+  uma música (para tocar as duas ou decidir depois), e dá para criar partes novas
+  (Pós-comunhão, Amém…), renomear, mudar a ordem e excluir.
 - **Histórico** das músicas abertas recentemente (localStorage).
 - **Modo apresentação** (tela cheia, fonte grande, alto contraste, tela sempre acesa).
 - **Vídeo da música** (YouTube): vem sozinho ao importar do CifraClub ou colando o link;

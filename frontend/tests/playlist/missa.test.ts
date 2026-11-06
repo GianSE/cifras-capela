@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { playlistStorage } from '../../src/lib/storage/playlists';
-import { DEFAULT_MISSA_SECTIONS, normalizePlaylist, sectionOf } from '../../src/lib/missa';
+import {
+  DEFAULT_MISSA_SECTIONS,
+  formatMissaName,
+  normalizePlaylist,
+  parseMissaDate,
+  sectionOf,
+  suggestMissaDates,
+} from '../../src/lib/missa';
 import type { Playlist } from '../../src/types/playlist';
 
 function missa(): string {
@@ -131,5 +138,66 @@ describe('playlist do tipo missa', () => {
       updatedAt: '',
     });
     expect(p.songIds).toEqual(['a', 'b']);
+  });
+});
+
+describe('data da missa', () => {
+  /** Meio-dia local: o teste não depende do fuso de quem roda. */
+  const on = (y: number, m: number, d: number) => new Date(y, m - 1, d, 12);
+
+  it('sugere o sábado e o domingo seguintes durante a semana', () => {
+    expect(suggestMissaDates(on(2026, 11, 5))).toEqual({
+      saturday: '2026-11-07',
+      sunday: '2026-11-08',
+    });
+  });
+
+  it('no sábado, sugere hoje e amanhã', () => {
+    expect(suggestMissaDates(on(2026, 11, 7))).toEqual({
+      saturday: '2026-11-07',
+      sunday: '2026-11-08',
+    });
+  });
+
+  it('no domingo, já sugere o fim de semana seguinte', () => {
+    expect(suggestMissaDates(on(2026, 11, 8))).toEqual({
+      saturday: '2026-11-14',
+      sunday: '2026-11-15',
+    });
+  });
+
+  it('vira o mês e o ano', () => {
+    expect(suggestMissaDates(on(2026, 12, 31))).toEqual({
+      saturday: '2027-01-02',
+      sunday: '2027-01-03',
+    });
+  });
+
+  it('usa a data local, sem pular de dia à noite', () => {
+    // Quinta 23h30 no Brasil já é sexta em UTC: o resultado não pode mudar.
+    expect(suggestMissaDates(new Date(2026, 10, 5, 23, 30)).sunday).toBe('2026-11-08');
+  });
+
+  it('o nome é a data por extenso, e dá para recuperar a data dele', () => {
+    expect(formatMissaName('2026-11-08')).toBe('Domingo, 08/11/2026');
+    expect(formatMissaName('2026-11-07')).toBe('Sábado, 07/11/2026');
+    expect(parseMissaDate('Domingo, 08/11/2026')).toBe('2026-11-08');
+  });
+
+  it('nome livre (missas antigas) não tem data', () => {
+    expect(parseMissaDate('Missa de domingo')).toBeUndefined();
+  });
+
+  it('aceita duas músicas na mesma parte, e as duas entram na fila de tocar', () => {
+    const id = playlistStorage.create(formatMissaName('2026-11-08'), [], 'missa');
+    const comunhao = playlistStorage.get(id)!.sections!.find((s) => s.name === 'Comunhão')!.id;
+    playlistStorage.addSong(id, 'opcao-a', comunhao);
+    playlistStorage.addSong(id, 'opcao-b', comunhao);
+
+    const p = playlistStorage.get(id)!;
+    expect(p.name).toBe('Domingo, 08/11/2026');
+    expect(p.sections!.find((s) => s.id === comunhao)!.songIds).toEqual(['opcao-a', 'opcao-b']);
+    expect(p.songIds).toEqual(['opcao-a', 'opcao-b']);
+    playlistStorage.remove(id);
   });
 });

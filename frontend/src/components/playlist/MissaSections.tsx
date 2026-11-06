@@ -147,13 +147,15 @@ export function MissaSections({ playlist, editable, renderSongs, onAddSong }: Mi
             {section.songIds.length > 0 ? (
               <>
                 {renderSongs(section)}
+                {/* Duas músicas na mesma parte: vão tocar as duas, ou ainda estão
+                    decidindo entre elas. À vista, para não parecer que só cabe uma. */}
                 {editable && (
                   <button
                     type="button"
                     onClick={() => onAddSong?.(section)}
-                    className="mt-1.5 flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-accent"
+                    className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--color-outline)] p-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:border-gold-400/70 hover:text-accent"
                   >
-                    <Plus className="size-3.5" /> Outra música em {section.name}
+                    <Plus className="size-4" /> Outra música em {section.name}
                   </button>
                 )}
               </>

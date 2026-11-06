@@ -84,3 +84,57 @@ export function normalizePlaylist(playlist: Playlist): Playlist {
 export function withSections(playlist: Playlist, sections: readonly PlaylistSection[]): Playlist {
   return { ...playlist, sections, songIds: flattenSections(sections) };
 }
+
+/* ==========================================================================
+   Data da missa
+
+   Uma missa é identificada pela data, então o nome da playlist é a própria
+   data por extenso ("Domingo, 08/11/2026"). Datas circulam como `AAAA-MM-DD`
+   (o formato do campo de data do navegador) e são sempre lidas no horário
+   local: passar por UTC faria a noite de sábado virar domingo no Brasil.
+   ========================================================================== */
+
+const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+function toIsoDate(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Data daqui a `days` dias (somando no calendário, à prova de horário de verão). */
+function addDays(date: Date, days: number): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+/**
+ * Sábado e domingo sugeridos para a próxima missa: os do fim de semana que vem
+ * pela frente. No sábado, sugere hoje e amanhã; no domingo, já o fim de semana
+ * seguinte (a data de hoje continua disponível no campo de data).
+ */
+export function suggestMissaDates(today: Date = new Date()): {
+  saturday: string;
+  sunday: string;
+} {
+  const weekday = today.getDay();
+  const toSaturday = weekday === 0 ? 6 : 6 - weekday;
+  return {
+    saturday: toIsoDate(addDays(today, toSaturday)),
+    sunday: toIsoDate(addDays(today, toSaturday + 1)),
+  };
+}
+
+/** `2026-11-08` → `Domingo, 08/11/2026`. Data inválida volta como veio. */
+export function formatMissaName(isoDate: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match) return isoDate;
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  return `${WEEKDAYS[date.getDay()]}, ${day}/${month}/${year}`;
+}
+
+/** Caminho inverso: a data no nome da missa, ou `undefined` se o nome for livre. */
+export function parseMissaDate(name: string): string | undefined {
+  const match = /(\d{2})\/(\d{2})\/(\d{4})/.exec(name);
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : undefined;
+}

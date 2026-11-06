@@ -17,14 +17,30 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
-import { Church, ChevronLeft, FileDown, ListMusic, Play, Plus, Pencil } from 'lucide-react';
+import {
+  CalendarDays,
+  Church,
+  ChevronLeft,
+  FileDown,
+  ListMusic,
+  Play,
+  Plus,
+  Pencil,
+} from 'lucide-react';
 import { usePlaylist } from '@/hooks/usePlaylists';
 import { useRemotePlaylist } from '@/hooks/useRemotePlaylist';
 import { usePlaylistSongs } from '@/hooks/usePlaylistSongs';
 import { useLibrary } from '@/hooks/useLibrary';
 import { usePreferences } from '@/hooks/usePreferences';
 import { playlistStorage } from '@/lib/storage/playlists';
-import { isMissa, sectionOf } from '@/lib/missa';
+import {
+  formatMissaName,
+  isMissa,
+  parseMissaDate,
+  sectionOf,
+  suggestMissaDates,
+} from '@/lib/missa';
+import { MissaDatePicker } from '@/components/playlist/MissaDatePicker';
 import { MissaSections } from '@/components/playlist/MissaSections';
 import { transposeSong, getKeyFromSemitones } from '@/lib/transpose';
 import { SortableSongItem } from '@/components/playlist/SortableSongItem';
@@ -148,7 +164,12 @@ function usePlaylistPdf(playlist: Playlist) {
       });
 
       const { exportPlaylistToPdf } = await import('@/lib/export/pdf');
-      await exportPlaylistToPdf(entries, playlist.name);
+      // O nome da missa é só a data: no PDF, a capa e o arquivo precisam dizer o que é.
+      const title =
+        isMissa(playlist) && parseMissaDate(playlist.name)
+          ? `Missa · ${playlist.name}`
+          : playlist.name;
+      await exportPlaylistToPdf(entries, title);
     } catch (e) {
       console.error('Falha ao exportar a playlist em PDF:', e);
     } finally {
@@ -206,6 +227,7 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
   const [adding, setAdding] = useState<{ section?: PlaylistSection } | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState('');
+  const [draftDate, setDraftDate] = useState('');
   const [query, setQuery] = useState('');
 
   // Sensores separados por tipo de entrada, porque a intenção do usuário difere:
@@ -259,6 +281,12 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
   };
 
   const openSong = (songId: string) => navigate(`/musica/${songId}?playlist=${playlist.id}`);
+
+  const saveName = () => {
+    if (missa && !draftDate) return;
+    playlistStorage.rename(playlist.id, missa ? formatMissaName(draftDate) : draftName);
+    setRenaming(false);
+  };
 
   const pickSong = (songId: string) => {
     if (missa) {
@@ -314,10 +342,20 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
             className="gap-1.5"
             onClick={() => {
               setDraftName(playlist.name);
+              // Missa antiga, de nome livre, não tem data: parte da sugestão.
+              setDraftDate(parseMissaDate(playlist.name) ?? suggestMissaDates().sunday);
               setRenaming(true);
             }}
           >
-            <Pencil className="size-3.5" /> Renomear
+            {missa ? (
+              <>
+                <CalendarDays className="size-3.5" /> Mudar data
+              </>
+            ) : (
+              <>
+                <Pencil className="size-3.5" /> Renomear
+              </>
+            )}
           </Button>
         </div>
       </PageHeader>
@@ -438,33 +476,27 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
           </DialogContent>
         </Dialog>
 
-        {/* Renomear */}
+        {/* Renomear (na missa, o nome é a data) */}
         <Dialog open={renaming} onOpenChange={setRenaming}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Renomear playlist</DialogTitle>
+              <DialogTitle>{missa ? 'Data da missa' : 'Renomear playlist'}</DialogTitle>
             </DialogHeader>
-            <Input
-              autoFocus
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  playlistStorage.rename(playlist.id, draftName);
-                  setRenaming(false);
-                }
-              }}
-            />
+            {missa ? (
+              <MissaDatePicker value={draftDate} onChange={setDraftDate} onSubmit={saveName} />
+            ) : (
+              <Input
+                autoFocus
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && saveName()}
+              />
+            )}
             <DialogFooter>
               <DialogClose asChild>
                 <Button variant="ghost">Cancelar</Button>
               </DialogClose>
-              <Button
-                onClick={() => {
-                  playlistStorage.rename(playlist.id, draftName);
-                  setRenaming(false);
-                }}
-              >
+              <Button onClick={saveName} disabled={missa && !draftDate}>
                 Salvar
               </Button>
             </DialogFooter>

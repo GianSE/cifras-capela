@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router';
 import { Church, ListMusic, Plus, Trash2, ChevronRight, Library } from 'lucide-react';
 import { usePlaylists } from '@/hooks/usePlaylists';
 import { playlistStorage } from '@/lib/storage/playlists';
-import { isMissa } from '@/lib/missa';
+import { formatMissaName, isMissa, suggestMissaDates } from '@/lib/missa';
+import { MissaDatePicker } from '@/components/playlist/MissaDatePicker';
 import { cn } from '@/lib/utils';
 import type { PlaylistKind } from '@/types/playlist';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -30,9 +31,22 @@ export function PlaylistsPage() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<PlaylistKind>('lista');
+  const [missaDate, setMissaDate] = useState('');
+
+  /** A missa quase sempre é no domingo: a data já vem preenchida com o próximo. */
+  const openCreate = () => {
+    setMissaDate(suggestMissaDates().sunday);
+    setCreating(true);
+  };
 
   const handleCreate = () => {
-    const id = playlistStorage.create(name, [], kind);
+    // A missa se chama pela data; com o campo vazio, não cria nada.
+    if (kind === 'missa' && !missaDate) return;
+    const id = playlistStorage.create(
+      kind === 'missa' ? formatMissaName(missaDate) : name,
+      [],
+      kind,
+    );
     setName('');
     setKind('lista');
     setCreating(false);
@@ -50,7 +64,7 @@ export function PlaylistsPage() {
             variant="gold"
             size="sm"
             className="gap-1.5"
-            onClick={() => setCreating(true)}
+            onClick={openCreate}
             aria-label="Nova Playlist"
           >
             <Plus className="size-4" /> <span className="hidden sm:inline">Nova Playlist</span>
@@ -66,7 +80,7 @@ export function PlaylistsPage() {
             description="Monte o repertório do dia, arraste para ordenar e exporte tudo num PDF só."
             action={
               <div className="flex flex-wrap justify-center gap-2">
-                <Button variant="gold" className="gap-2" onClick={() => setCreating(true)}>
+                <Button variant="gold" className="gap-2" onClick={openCreate}>
                   <Plus className="size-4" /> Criar playlist
                 </Button>
                 <Button asChild variant="outline" className="gap-2">
@@ -159,20 +173,24 @@ export function PlaylistsPage() {
               ))}
             </div>
 
-            <Input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-              placeholder={
-                kind === 'missa' ? 'Ex.: Missa de domingo 09/11' : 'Ex.: Culto de domingo'
-              }
-            />
+            {kind === 'missa' ? (
+              <MissaDatePicker value={missaDate} onChange={setMissaDate} onSubmit={handleCreate} />
+            ) : (
+              <Input
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                placeholder="Ex.: Culto de domingo"
+              />
+            )}
             <DialogFooter>
               <DialogClose asChild>
                 <Button variant="ghost">Cancelar</Button>
               </DialogClose>
-              <Button onClick={handleCreate}>Criar</Button>
+              <Button onClick={handleCreate} disabled={kind === 'missa' && !missaDate}>
+                Criar
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
