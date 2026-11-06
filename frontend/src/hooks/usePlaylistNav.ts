@@ -2,11 +2,14 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { usePlaylist } from './usePlaylists';
 import { useRemotePlaylist } from './useRemotePlaylist';
+import { sectionOf } from '@/lib/missa';
 
 export interface PlaylistNav {
   /** Playlist ativa (quando o leitor foi aberto a partir de uma). */
   readonly playlistId?: string;
   readonly playlistName?: string;
+  /** Na missa: a parte desta música (ex.: "Entrada"). */
+  readonly sectionName?: string;
   /** Posição da música atual (1-indexed) e total. */
   readonly position: number;
   readonly total: number;
@@ -36,12 +39,14 @@ export function usePlaylistNav(songId: string): PlaylistNav | null {
     if (index === -1) return null;
 
     const href = (id: string) => `/musica/${id}?playlist=${playlist.id}`;
+    const sectionName = sectionOf(playlist, songId)?.name;
     const prev = playlist.songIds[index - 1];
     const next = playlist.songIds[index + 1];
 
     return {
       playlistId: playlist.id,
       playlistName: playlist.name,
+      ...(sectionName && { sectionName }),
       position: index + 1,
       total: playlist.songIds.length,
       ...(prev && { prevHref: href(prev) }),

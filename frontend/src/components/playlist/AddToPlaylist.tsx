@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Check, ListPlus, Plus } from 'lucide-react';
+import { Check, Church, ListPlus, Plus } from 'lucide-react';
 import { usePlaylists } from '@/hooks/usePlaylists';
 import { playlistStorage } from '@/lib/storage/playlists';
+import { isMissa, sectionOf } from '@/lib/missa';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -30,6 +31,8 @@ export function AddToPlaylist({ songId, variant = 'icon', onDark, className }: A
   const playlists = usePlaylists();
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState('');
+  /** Missa aberta para escolher em que parte a música entra. */
+  const [choosingFor, setChoosingFor] = useState<string | null>(null);
 
   const inAny = playlists.some((p) => p.songIds.includes(songId));
 
@@ -67,15 +70,24 @@ export function AddToPlaylist({ songId, variant = 'icon', onDark, className }: A
           <ul className="-mx-1 max-h-64 overflow-y-auto px-1">
             {playlists.map((playlist) => {
               const included = playlist.songIds.includes(songId);
+              const missa = isMissa(playlist);
+              const section = missa ? sectionOf(playlist, songId) : undefined;
+              const choosing = choosingFor === playlist.id;
               return (
                 <li key={playlist.id}>
                   <button
                     type="button"
-                    onClick={() =>
-                      included
-                        ? playlistStorage.removeSong(playlist.id, songId)
-                        : playlistStorage.addSong(playlist.id, songId)
-                    }
+                    onClick={() => {
+                      if (included) {
+                        playlistStorage.removeSong(playlist.id, songId);
+                      } else if (missa) {
+                        // Na missa, primeiro escolhe a parte.
+                        setChoosingFor(choosing ? null : playlist.id);
+                      } else {
+                        playlistStorage.addSong(playlist.id, songId);
+                      }
+                    }}
+                    aria-expanded={missa && !included ? choosing : undefined}
                     aria-pressed={included}
                     className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
                   >
@@ -90,15 +102,42 @@ export function AddToPlaylist({ songId, variant = 'icon', onDark, className }: A
                       {included && <Check className="size-3.5" />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-foreground">
+                      <span className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
+                        {missa && (
+                          <Church className="size-3.5 shrink-0 text-gold-600 dark:text-gold-400" />
+                        )}
                         {playlist.name}
                       </span>
                       <span className="block text-xs text-muted-foreground">
-                        {playlist.songIds.length}{' '}
-                        {playlist.songIds.length === 1 ? 'música' : 'músicas'}
+                        {section
+                          ? `Em ${section.name}`
+                          : `${playlist.songIds.length} ${playlist.songIds.length === 1 ? 'música' : 'músicas'}`}
                       </span>
                     </span>
                   </button>
+
+                  {choosing && !included && (
+                    <div className="mb-2 ml-10 flex flex-wrap gap-1.5">
+                      {(playlist.sections ?? []).map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            playlistStorage.addSong(playlist.id, songId, s.id);
+                            setChoosingFor(null);
+                          }}
+                          className={cn(
+                            'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors hover:border-gold-400/70 hover:text-foreground',
+                            s.songIds.length > 0
+                              ? 'border-border text-muted-foreground'
+                              : 'border-dashed border-[var(--color-outline)] text-foreground',
+                          )}
+                        >
+                          {s.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </li>
               );
             })}

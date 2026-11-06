@@ -8,24 +8,29 @@
  * montar um setlist offline.
  */
 
-import type { Playlist } from '@/types/playlist';
+import type { Playlist, PlaylistKind, PlaylistSection } from '@/types/playlist';
+import { normalizePlaylist } from '@/lib/missa';
 
 interface RemotePlaylist {
   id: string;
   name: string;
   songIds: string[];
+  kind?: PlaylistKind | null;
+  sections?: PlaylistSection[] | null;
   createdAt: string;
   updatedAt: string;
 }
 
 function fromRemote(p: RemotePlaylist): Playlist {
-  return {
+  return normalizePlaylist({
     id: p.id,
     name: p.name,
     songIds: p.songIds,
+    ...(p.kind === 'missa' && { kind: 'missa' as const }),
+    ...(p.kind === 'missa' && Array.isArray(p.sections) && { sections: p.sections }),
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
-  };
+  });
 }
 
 /** Playlists da conta logada, ou `null` se a API não respondeu. */
@@ -50,6 +55,8 @@ export async function pushPlaylist(playlist: Playlist): Promise<boolean> {
       body: JSON.stringify({
         name: playlist.name,
         songIds: [...playlist.songIds],
+        kind: playlist.kind ?? 'lista',
+        sections: playlist.sections ?? null,
         createdAt: playlist.createdAt,
       }),
     });

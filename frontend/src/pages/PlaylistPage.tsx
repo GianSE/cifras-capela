@@ -17,13 +17,15 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
-import { ChevronLeft, FileDown, ListMusic, Play, Plus, Pencil } from 'lucide-react';
+import { Church, ChevronLeft, FileDown, ListMusic, Play, Plus, Pencil } from 'lucide-react';
 import { usePlaylist } from '@/hooks/usePlaylists';
 import { useRemotePlaylist } from '@/hooks/useRemotePlaylist';
 import { usePlaylistSongs } from '@/hooks/usePlaylistSongs';
 import { useLibrary } from '@/hooks/useLibrary';
 import { usePreferences } from '@/hooks/usePreferences';
 import { playlistStorage } from '@/lib/storage/playlists';
+import { isMissa, sectionOf } from '@/lib/missa';
+import { MissaSections } from '@/components/playlist/MissaSections';
 import { transposeSong, getKeyFromSemitones } from '@/lib/transpose';
 import { SortableSongItem } from '@/components/playlist/SortableSongItem';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -38,7 +40,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import type { Playlist } from '@/types/playlist';
+import type { Playlist, PlaylistSection } from '@/types/playlist';
 import type { SongIndexEntry } from '@/types/library';
 import { SongByline } from '@/components/library/SongByline';
 import { VideoButton } from '@/components/video/VideoButton';
@@ -70,7 +72,9 @@ export function PlaylistPage() {
       <EmptyState
         icon={ListMusic}
         title={
-          remote.status === 'error' ? 'Não foi possível abrir a playlist' : 'Playlist não encontrada'
+          remote.status === 'error'
+            ? 'Não foi possível abrir a playlist'
+            : 'Playlist não encontrada'
         }
         description={
           remote.status === 'error'
@@ -92,11 +96,24 @@ export function PlaylistPage() {
 /** Músicas da playlist, na ordem salva (as que não existem mais ficam de fora). */
 function usePlaylistEntries(playlist: Playlist) {
   const { songs: allSongs, isLoading } = useLibrary();
-  const songs = useMemo(() => {
-    const byId = new Map(allSongs.map((s) => [s.id, s]));
-    return playlist.songIds.map((songId) => byId.get(songId)).filter((s) => s !== undefined);
-  }, [playlist, allSongs]);
-  return { songs, allSongs, isLoading };
+  const byId = useMemo(() => new Map(allSongs.map((s) => [s.id, s])), [allSongs]);
+  const songs = useMemo(
+    () => playlist.songIds.map((songId) => byId.get(songId)).filter((s) => s !== undefined),
+    [playlist, byId],
+  );
+  /** Músicas de uma parte da missa (as que não existem mais ficam de fora). */
+  const sectionSongs = (section: PlaylistSection) =>
+    section.songIds.map((songId) => byId.get(songId)).filter((s) => s !== undefined);
+  return { songs, allSongs, sectionSongs, isLoading };
+}
+
+/** Subtítulo: na missa, conta também quantas partes já têm música. */
+function playlistSubtitle(playlist: Playlist, songCount: number, suffix: string): string {
+  const songs = `${songCount} ${songCount === 1 ? 'música' : 'músicas'}`;
+  if (!isMissa(playlist)) return `${songs}${suffix}`;
+  const sections = playlist.sections ?? [];
+  const filled = sections.filter((s) => s.songIds.length > 0).length;
+  return `Missa · ${filled}/${sections.length} partes · ${songs}`;
 }
 
 /**
@@ -116,10 +133,17 @@ function usePlaylistPdf(playlist: Playlist) {
       const entries = loaded.map(({ id, song }) => {
         const semitones = transpositions[id] ?? 0;
         const originalKey = song.metadata.key;
+        // Na missa, o cabeçalho de cada página diz a parte (ex.: "Entrada").
+        const note = [
+          sectionOf(playlist, id)?.name,
+          semitones !== 0 && originalKey ? `orig. ${originalKey}` : undefined,
+        ]
+          .filter(Boolean)
+          .join(' · ');
         return {
           song:
             semitones === 0 && !preferFlats ? song : transposeSong(song, semitones, preferFlats),
-          ...(semitones !== 0 && originalKey && { note: `orig. ${originalKey}` }),
+          ...(note && { note }),
         };
       });
 
@@ -136,13 +160,7 @@ function usePlaylistPdf(playlist: Playlist) {
 }
 
 /** PDF e Tocar — iguais na playlist própria e na compartilhada. */
-function PlaylistActions({
-  playlist,
-  songCount,
-}: {
-  playlist: Playlist;
-  songCount: number;
-}) {
+function PlaylistActions({ playlist, songCount }: { playlist: Playlist; songCount: number }) {
   const navigate = useNavigate();
   const { exportPdf, exporting } = usePlaylistPdf(playlist);
 
@@ -180,10 +198,12 @@ function PlaylistActions({
 
 function OwnPlaylist({ playlist }: { playlist: Playlist }) {
   const navigate = useNavigate();
-  const { songs, allSongs, isLoading } = usePlaylistEntries(playlist);
+  const { songs, allSongs, sectionSongs, isLoading } = usePlaylistEntries(playlist);
   const { transpositions, preferFlats } = usePreferences();
+  const missa = isMissa(playlist);
 
-  const [adding, setAdding] = useState(false);
+  /** Seletor de músicas aberto; na missa, aponta a parte que vai recebê-la. */
+  const [adding, setAdding] = useState<{ section?: PlaylistSection } | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [query, setQuery] = useState('');
@@ -217,6 +237,21 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
+
+    // Missa: o arraste reordena dentro da parte (cada parte é uma lista).
+    if (missa) {
+      const section = sectionOf(playlist, String(active.id));
+      if (!section) return;
+      const from = section.songIds.indexOf(String(active.id));
+      const to = section.songIds.indexOf(String(over.id));
+      if (from === -1 || to === -1) return;
+      playlistStorage.reorderSection(
+        playlist.id,
+        section.id,
+        arrayMove([...section.songIds], from, to),
+      );
+      return;
+    }
     const oldIndex = playlist.songIds.indexOf(String(active.id));
     const newIndex = playlist.songIds.indexOf(String(over.id));
     if (oldIndex === -1 || newIndex === -1) return;
@@ -225,11 +260,45 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
 
   const openSong = (songId: string) => navigate(`/musica/${songId}?playlist=${playlist.id}`);
 
+  const pickSong = (songId: string) => {
+    if (missa) {
+      playlistStorage.addSong(playlist.id, songId, adding?.section?.id);
+      // Uma música por parte é o comum: escolheu, volta para a missa.
+      setAdding(null);
+    } else {
+      playlistStorage.addSong(playlist.id, songId);
+    }
+  };
+
+  const renderSortable = (items: typeof songs) => (
+    <SortableContext items={items.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+      <ul className="flex flex-col gap-2.5">
+        {items.map((song) => {
+          const semitones = transpositions[song.id] ?? 0;
+          return (
+            <SortableSongItem
+              key={song.id}
+              song={song}
+              position={playlist.songIds.indexOf(song.id) + 1}
+              semitones={semitones}
+              displayKey={
+                song.key ? getKeyFromSemitones(song.key, semitones, preferFlats) : undefined
+              }
+              onOpen={openSong}
+              onRemove={(songId) => playlistStorage.removeSong(playlist.id, songId)}
+            />
+          );
+        })}
+      </ul>
+    </SortableContext>
+  );
+
   return (
     <>
       <PageHeader
         title={playlist.name}
-        subtitle={`${songs.length} ${songs.length === 1 ? 'música' : 'músicas'} · arraste para ordenar`}
+        icon={missa ? Church : undefined}
+        subtitle={playlistSubtitle(playlist, songs.length, ' · arraste para ordenar')}
         actions={<PlaylistActions playlist={playlist} songCount={songs.length} />}
       >
         {/* Já sobre o marfim: variantes claras, não as de fundo azul. */}
@@ -261,13 +330,30 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
               <div key={i} className="h-[70px] animate-pulse rounded-2xl bg-muted" />
             ))}
           </div>
+        ) : missa ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+            onDragEnd={handleDragEnd}
+          >
+            <MissaSections
+              playlist={playlist}
+              editable
+              renderSongs={(section) => renderSortable(sectionSongs(section))}
+              onAddSong={(section) => {
+                setQuery('');
+                setAdding({ section });
+              }}
+            />
+          </DndContext>
         ) : songs.length === 0 ? (
           <EmptyState
             icon={ListMusic}
             title="Playlist vazia"
             description="Adicione as músicas do dia e arraste os cards para definir a ordem."
             action={
-              <Button variant="gold" className="gap-2" onClick={() => setAdding(true)}>
+              <Button variant="gold" className="gap-2" onClick={() => setAdding({})}>
                 <Plus className="size-4" /> Adicionar músicas
               </Button>
             }
@@ -280,48 +366,26 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
               modifiers={[restrictToVerticalAxis, restrictToParentElement]}
               onDragEnd={handleDragEnd}
             >
-              <SortableContext
-                items={songs.map((s) => s.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <ul className="flex flex-col gap-2.5">
-                  {songs.map((song, index) => {
-                    const semitones = transpositions[song.id] ?? 0;
-                    return (
-                      <SortableSongItem
-                        key={song.id}
-                        song={song}
-                        position={index + 1}
-                        semitones={semitones}
-                        displayKey={
-                          song.key
-                            ? getKeyFromSemitones(song.key, semitones, preferFlats)
-                            : undefined
-                        }
-                        onOpen={openSong}
-                        onRemove={(songId) => playlistStorage.removeSong(playlist.id, songId)}
-                      />
-                    );
-                  })}
-                </ul>
-              </SortableContext>
+              {renderSortable(songs)}
             </DndContext>
 
             <p className="mt-3 text-center text-xs text-muted-foreground">
               Segure e arraste um card para mudar a ordem.
             </p>
 
-            <Button variant="outline" className="mt-4 w-full gap-2" onClick={() => setAdding(true)}>
+            <Button variant="outline" className="mt-4 w-full gap-2" onClick={() => setAdding({})}>
               <Plus className="size-4" /> Adicionar músicas
             </Button>
           </>
         )}
 
         {/* Adicionar músicas */}
-        <Dialog open={adding} onOpenChange={setAdding}>
+        <Dialog open={adding !== null} onOpenChange={(open) => !open && setAdding(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Adicionar músicas</DialogTitle>
+              <DialogTitle>
+                {adding?.section ? `Música para ${adding.section.name}` : 'Adicionar músicas'}
+              </DialogTitle>
             </DialogHeader>
 
             <Input
@@ -341,7 +405,7 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
                   <li key={song.id}>
                     <button
                       type="button"
-                      onClick={() => playlistStorage.addSong(playlist.id, song.id)}
+                      onClick={() => pickSong(song.id)}
                       className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
                     >
                       <Plus className="size-4 shrink-0 text-gold-600 dark:text-gold-400" />
@@ -414,14 +478,38 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
 /** Playlist de outra pessoa, aberta pelo link: só leitura, mas toca e baixa o PDF. */
 function SharedPlaylist({ playlist }: { playlist: Playlist }) {
   const navigate = useNavigate();
-  const { songs, isLoading } = usePlaylistEntries(playlist);
+  const { songs, sectionSongs, isLoading } = usePlaylistEntries(playlist);
   const { transpositions, preferFlats } = usePreferences();
+  const missa = isMissa(playlist);
+
+  const renderList = (items: typeof songs) => (
+    <ol className="flex flex-col gap-2.5">
+      {items.map((song) => (
+        <SharedSongItem
+          key={song.id}
+          song={song}
+          position={playlist.songIds.indexOf(song.id) + 1}
+          displayKey={
+            song.key
+              ? getKeyFromSemitones(song.key, transpositions[song.id] ?? 0, preferFlats)
+              : undefined
+          }
+          onOpen={() => navigate(`/musica/${song.id}?playlist=${playlist.id}`)}
+        />
+      ))}
+    </ol>
+  );
 
   return (
     <>
       <PageHeader
         title={playlist.name}
-        subtitle={`Playlist compartilhada · ${songs.length} ${songs.length === 1 ? 'música' : 'músicas'}`}
+        icon={missa ? Church : undefined}
+        subtitle={
+          missa
+            ? playlistSubtitle(playlist, songs.length, '')
+            : `Playlist compartilhada · ${songs.length} ${songs.length === 1 ? 'música' : 'músicas'}`
+        }
         actions={<PlaylistActions playlist={playlist} songCount={songs.length} />}
       />
 
@@ -432,6 +520,12 @@ function SharedPlaylist({ playlist }: { playlist: Playlist }) {
               <div key={i} className="h-[70px] animate-pulse rounded-2xl bg-muted" />
             ))}
           </div>
+        ) : missa ? (
+          <MissaSections
+            playlist={playlist}
+            editable={false}
+            renderSongs={(section) => renderList(sectionSongs(section))}
+          />
         ) : songs.length === 0 ? (
           <EmptyState
             icon={ListMusic}
@@ -439,21 +533,7 @@ function SharedPlaylist({ playlist }: { playlist: Playlist }) {
             description="Quem montou ainda não adicionou músicas."
           />
         ) : (
-          <ol className="flex flex-col gap-2.5">
-            {songs.map((song, index) => (
-              <SharedSongItem
-                key={song.id}
-                song={song}
-                position={index + 1}
-                displayKey={
-                  song.key
-                    ? getKeyFromSemitones(song.key, transpositions[song.id] ?? 0, preferFlats)
-                    : undefined
-                }
-                onOpen={() => navigate(`/musica/${song.id}?playlist=${playlist.id}`)}
-              />
-            ))}
-          </ol>
+          renderList(songs)
         )}
       </div>
     </>

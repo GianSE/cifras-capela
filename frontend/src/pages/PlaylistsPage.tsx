@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ListMusic, Plus, Trash2, ChevronRight, Library } from 'lucide-react';
+import { Church, ListMusic, Plus, Trash2, ChevronRight, Library } from 'lucide-react';
 import { usePlaylists } from '@/hooks/usePlaylists';
 import { playlistStorage } from '@/lib/storage/playlists';
+import { isMissa } from '@/lib/missa';
+import { cn } from '@/lib/utils';
+import type { PlaylistKind } from '@/types/playlist';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/library/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -26,10 +29,12 @@ export function PlaylistsPage() {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
+  const [kind, setKind] = useState<PlaylistKind>('lista');
 
   const handleCreate = () => {
-    const id = playlistStorage.create(name);
+    const id = playlistStorage.create(name, [], kind);
     setName('');
+    setKind('lista');
     setCreating(false);
     navigate(`/playlists/${id}`);
   };
@@ -41,7 +46,10 @@ export function PlaylistsPage() {
         icon={ListMusic}
         subtitle={`${playlists.length} ${playlists.length === 1 ? 'playlist' : 'playlists'} montadas`}
         actions={
-          <Button variant="gold" size="sm" className="gap-1.5"
+          <Button
+            variant="gold"
+            size="sm"
+            className="gap-1.5"
             onClick={() => setCreating(true)}
             aria-label="Nova Playlist"
           >
@@ -78,12 +86,17 @@ export function PlaylistsPage() {
                   className="group card-lift flex items-center gap-3.5 rounded-2xl border border-border bg-card p-3.5 hover:border-gold-400/60"
                 >
                   <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-navy-700 text-gold-300 transition-colors group-hover:bg-navy-600">
-                    <ListMusic className="size-5" />
+                    {isMissa(playlist) ? (
+                      <Church className="size-5" />
+                    ) : (
+                      <ListMusic className="size-5" />
+                    )}
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <p className="font-display truncate text-lg text-foreground">{playlist.name}</p>
                     <p className="truncate text-sm text-muted-foreground">
+                      {isMissa(playlist) && 'Missa · '}
                       {playlist.songIds.length}{' '}
                       {playlist.songIds.length === 1 ? 'música' : 'músicas'} ·{' '}
                       {formatDate(playlist.updatedAt)}
@@ -117,12 +130,43 @@ export function PlaylistsPage() {
             <DialogHeader>
               <DialogTitle>Nova playlist</DialogTitle>
             </DialogHeader>
+
+            {/* Tipo: lista livre ou missa já dividida nas partes da celebração. */}
+            <div role="radiogroup" aria-label="Tipo" className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { value: 'lista', icon: ListMusic, label: 'Playlist', hint: 'Lista livre' },
+                  { value: 'missa', icon: Church, label: 'Missa', hint: 'Entrada, Glória, Santo…' },
+                ] as const
+              ).map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={kind === option.value}
+                  onClick={() => setKind(option.value)}
+                  className={cn(
+                    'flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors',
+                    kind === option.value
+                      ? 'border-gold-500 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]'
+                      : 'border-border hover:border-gold-400/60',
+                  )}
+                >
+                  <option.icon className="size-5 text-gold-600 dark:text-gold-400" />
+                  <span className="text-sm font-semibold text-foreground">{option.label}</span>
+                  <span className="text-xs text-muted-foreground">{option.hint}</span>
+                </button>
+              ))}
+            </div>
+
             <Input
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-              placeholder="Ex.: Culto de domingo"
+              placeholder={
+                kind === 'missa' ? 'Ex.: Missa de domingo 09/11' : 'Ex.: Culto de domingo'
+              }
             />
             <DialogFooter>
               <DialogClose asChild>

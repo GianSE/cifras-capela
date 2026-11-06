@@ -13,7 +13,14 @@
  * fallback caso a rede caia.
  */
 
-import type { Playlist } from '@/types/playlist';
+import type { Playlist, PlaylistKind, PlaylistSection } from '@/types/playlist';
+import {
+  createDefaultSections,
+  createSectionId,
+  isMissa,
+  normalizePlaylist,
+  withSections,
+} from '@/lib/missa';
 import { deleteRemotePlaylist, fetchRemotePlaylists, pushPlaylist } from './playlist-sync';
 
 const STORAGE_KEY = 'cifras-capela:playlists';
@@ -69,7 +76,7 @@ class PlaylistStorage {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as Playlist[];
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) return parsed.map(normalizePlaylist);
       }
     } catch (e) {
       console.warn('Falha ao carregar playlists do localStorage', e);
@@ -154,17 +161,29 @@ class PlaylistStorage {
     return this.playlists.find((p) => p.id === id);
   }
 
-  /** Cria uma playlist e devolve seu ID. */
-  create(name: string, songIds: readonly string[] = []): string {
+  /**
+   * Cria uma playlist e devolve seu ID. Uma missa já nasce com as partes
+   * padrão; as músicas passadas, se houver, entram na primeira parte.
+   */
+  create(name: string, songIds: readonly string[] = [], kind: PlaylistKind = 'lista'): string {
     const id = createId();
     const timestamp = now();
-    const playlist: Playlist = {
+    const base: Playlist = {
       id,
-      name: name.trim() || 'Nova playlist',
+      name: name.trim() || (kind === 'missa' ? 'Nova missa' : 'Nova playlist'),
       songIds: [...songIds],
       createdAt: timestamp,
       updatedAt: timestamp,
     };
+    let playlist = base;
+    if (kind === 'missa') {
+      const sections = createDefaultSections();
+      const [first, ...rest] = sections;
+      playlist = withSections({ ...base, kind }, [
+        { ...first!, songIds: [...new Set(songIds)] },
+        ...rest,
+      ]);
+    }
     this.commit([...this.playlists, playlist]);
     this.persist(() => pushPlaylist(playlist));
     return id;
@@ -180,31 +199,53 @@ class PlaylistStorage {
     this.persist(() => deleteRemotePlaylist(id));
   }
 
-  /** Adiciona a música ao fim (ignora duplicatas). */
-  addSong(id: string, songId: string): void {
-    const updated = this.patch(id, (p) =>
-      p.songIds.includes(songId) ? p : { ...p, songIds: [...p.songIds, songId] },
-    );
+  /**
+   * Adiciona a música ao fim (ignora duplicatas).
+   *
+   * Na missa ela entra na parte `sectionId`; sem parte indicada (ex.: vindo da
+   * biblioteca sem escolher), vai para a primeira parte ainda vazia.
+   */
+  addSong(id: string, songId: string, sectionId?: string): void {
+    const updated = this.patch(id, (p) => {
+      if (p.songIds.includes(songId)) return p;
+      if (!isMissa(p)) return { ...p, songIds: [...p.songIds, songId] };
+
+      const sections = p.sections!;
+      const target =
+        sections.find((s) => s.id === sectionId) ??
+        sections.find((s) => s.songIds.length === 0) ??
+        sections[sections.length - 1];
+      if (!target) return p;
+      return withSections(
+        p,
+        sections.map((s) => (s.id === target.id ? { ...s, songIds: [...s.songIds, songId] } : s)),
+      );
+    });
     this.persistSongIds(id, updated);
   }
 
   removeSong(id: string, songId: string): void {
-    const updated = this.patch(id, (p) => ({
-      ...p,
-      songIds: p.songIds.filter((s) => s !== songId),
-    }));
+    const updated = this.patch(id, (p) =>
+      isMissa(p)
+        ? withSections(
+            p,
+            p.sections!.map((s) => ({ ...s, songIds: s.songIds.filter((x) => x !== songId) })),
+          )
+        : { ...p, songIds: p.songIds.filter((s) => s !== songId) },
+    );
     this.persistSongIds(id, updated);
   }
 
-  /** Substitui a ordem inteira (usado pelo arrastar-e-soltar). */
+  /** Substitui a ordem inteira (usado pelo arrastar-e-soltar). Na missa, use `reorderSection`. */
   reorder(id: string, songIds: readonly string[]): void {
-    const updated = this.patch(id, (p) => ({ ...p, songIds: [...songIds] }));
+    const updated = this.patch(id, (p) => (isMissa(p) ? p : { ...p, songIds: [...songIds] }));
     this.persistSongIds(id, updated);
   }
 
   /** Move uma música de uma posição para outra, preservando as demais. */
   move(id: string, from: number, to: number): void {
     const updated = this.patch(id, (p) => {
+      if (isMissa(p)) return p;
       const songIds = [...p.songIds];
       const [moved] = songIds.splice(from, 1);
       if (moved === undefined) return p;
@@ -212,6 +253,71 @@ class PlaylistStorage {
       return { ...p, songIds };
     });
     this.persistSongIds(id, updated);
+  }
+
+  // ── Partes da missa ────────────────────────────────────────────────────────
+
+  /** Aplica uma transformação às partes de uma missa (ignora playlists comuns). */
+  private patchSections(
+    id: string,
+    fn: (sections: readonly PlaylistSection[]) => readonly PlaylistSection[],
+  ): void {
+    const updated = this.patch(id, (p) => (isMissa(p) ? withSections(p, fn(p.sections!)) : p));
+    this.persistSongIds(id, updated);
+  }
+
+  /** Reordena as músicas dentro de uma parte (arrastar-e-soltar). */
+  reorderSection(id: string, sectionId: string, songIds: readonly string[]): void {
+    this.patchSections(id, (sections) =>
+      sections.map((s) => (s.id === sectionId ? { ...s, songIds: [...songIds] } : s)),
+    );
+  }
+
+  /**
+   * Cria uma parte nova logo depois de `afterSectionId` e devolve seu ID.
+   * Ex.: "Pós-comunhão" depois de "Comunhão". `null` põe no começo; sem
+   * indicar (ou parte inexistente), vai para o fim.
+   */
+  addSection(id: string, name: string, afterSectionId?: string | null): string {
+    const section: PlaylistSection = {
+      id: createSectionId(),
+      name: name.trim() || 'Nova parte',
+      songIds: [],
+    };
+    this.patchSections(id, (sections) => {
+      const index = sections.findIndex((s) => s.id === afterSectionId);
+      const at = afterSectionId === null ? 0 : index === -1 ? sections.length : index + 1;
+      const next = [...sections];
+      next.splice(at, 0, section);
+      return next;
+    });
+    return section.id;
+  }
+
+  renameSection(id: string, sectionId: string, name: string): void {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    this.patchSections(id, (sections) =>
+      sections.map((s) => (s.id === sectionId ? { ...s, name: trimmed } : s)),
+    );
+  }
+
+  /** Exclui a parte (as músicas dela saem da missa, mas continuam na biblioteca). */
+  removeSection(id: string, sectionId: string): void {
+    this.patchSections(id, (sections) => sections.filter((s) => s.id !== sectionId));
+  }
+
+  /** Sobe (`-1`) ou desce (`+1`) uma parte na ordem da missa. */
+  moveSection(id: string, sectionId: string, direction: -1 | 1): void {
+    this.patchSections(id, (sections) => {
+      const from = sections.findIndex((s) => s.id === sectionId);
+      const to = from + direction;
+      if (from === -1 || to < 0 || to >= sections.length) return sections;
+      const next = [...sections];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved!);
+      return next;
+    });
   }
 
   private persistSongIds(id: string, updated: Playlist | undefined): void {

@@ -198,7 +198,9 @@ export function SongPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/home')}
+              onClick={() =>
+                navigate(playlistNav ? `/playlists/${playlistNav.playlistId}` : '/home')
+              }
               aria-label="Voltar"
               className="text-navy-100 hover:bg-white/10 hover:text-ivory"
             >
@@ -210,7 +212,8 @@ export function SongPage() {
               </p>
               {playlistNav ? (
                 <p className="truncate text-xs font-semibold text-gold-300">
-                  {playlistNav.playlistName} · {playlistNav.position}/{playlistNav.total}
+                  {playlistNav.sectionName ?? playlistNav.playlistName} · {playlistNav.position}/
+                  {playlistNav.total}
                 </p>
               ) : (
                 transposedSong.metadata.artist && (
@@ -227,7 +230,9 @@ export function SongPage() {
               size="icon"
               onClick={handleVideoButton}
               aria-pressed={videoId ? videoOpen : undefined}
-              aria-label={videoId ? (videoOpen ? 'Fechar o vídeo' : 'Ver o vídeo') : 'Adicionar vídeo'}
+              aria-label={
+                videoId ? (videoOpen ? 'Fechar o vídeo' : 'Ver o vídeo') : 'Adicionar vídeo'
+              }
               title={videoId ? 'Vídeo da música' : 'Adicionar vídeo'}
               className={cn(
                 'text-navy-100 hover:bg-white/10 hover:text-ivory',
