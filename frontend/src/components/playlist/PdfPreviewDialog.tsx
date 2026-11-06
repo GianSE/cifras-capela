@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, FileText, Loader2, Music } from 'lucide-react';
+import { Download, FileText, Loader2, Minus, Music, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -15,7 +15,27 @@ import { cn } from '@/lib/utils';
 export interface PdfChoice {
   readonly lyricsOnly: boolean;
   readonly toc: boolean;
+  /** Músicas dividem a folha; desligado, cada uma começa numa folha nova. */
+  readonly together: boolean;
+  readonly columns: 1 | 2;
+  /** Tamanho da letra: 1 é o de sempre. */
+  readonly fontScale: number;
 }
+
+export const FONT_SCALE_STEP = 0.1;
+export const FONT_SCALE_RANGE = [0.8, 1.6] as const;
+
+const DEFAULT_CHOICE: PdfChoice = {
+  lyricsOnly: false,
+  toc: true,
+  together: true,
+  columns: 1,
+  fontScale: 1,
+};
+
+/** Arredonda para não acumular 0,1 + 0,1 + … = 1,2000000002. */
+const roundScale = (value: number) =>
+  Math.min(FONT_SCALE_RANGE[1], Math.max(FONT_SCALE_RANGE[0], Math.round(value * 10) / 10));
 
 export interface GeneratedPdf {
   readonly bytes: ArrayBuffer;
@@ -27,9 +47,18 @@ const CHOICE_KEY = 'cifras-capela:pdf-escolha';
 function readChoice(): PdfChoice {
   try {
     const stored = JSON.parse(localStorage.getItem(CHOICE_KEY) ?? '{}') as Partial<PdfChoice>;
-    return { lyricsOnly: stored.lyricsOnly === true, toc: stored.toc !== false };
+    return {
+      lyricsOnly: stored.lyricsOnly === true,
+      toc: stored.toc !== false,
+      together: stored.together !== false,
+      columns: stored.columns === 2 ? 2 : 1,
+      fontScale:
+        typeof stored.fontScale === 'number' && Number.isFinite(stored.fontScale)
+          ? roundScale(stored.fontScale)
+          : 1,
+    };
   } catch {
-    return { lyricsOnly: false, toc: true };
+    return DEFAULT_CHOICE;
   }
 }
 
@@ -52,8 +81,8 @@ type PreviewState =
 
 /**
  * Antes de baixar, a prévia: as páginas do PDF de verdade, do jeito que vão sair.
- * Trocar entre cifras e letra, ou tirar o sumário, refaz a prévia na hora, e o
- * botão baixa exatamente o arquivo que está na tela.
+ * Qualquer opção (cifras ou letra, sumário, juntar as músicas, colunas, tamanho da
+ * letra) refaz a prévia na hora, e o botão baixa exatamente o arquivo da tela.
  */
 export function PdfPreviewDialog({
   open,
@@ -140,9 +169,58 @@ export function PdfPreviewDialog({
             ))}
           </div>
 
+          <div
+            role="group"
+            aria-label="Tamanho da letra"
+            className="flex items-center gap-1 rounded-full border border-[var(--color-outline)] p-0.5"
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              aria-label="Letra menor"
+              disabled={choice.fontScale <= FONT_SCALE_RANGE[0]}
+              onClick={() => update({ fontScale: roundScale(choice.fontScale - FONT_SCALE_STEP) })}
+            >
+              <Minus className="size-3.5" />
+            </Button>
+            <span className="min-w-[3.25rem] text-center text-xs font-semibold text-foreground">
+              Letra {Math.round(choice.fontScale * 100)}%
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              aria-label="Letra maior"
+              disabled={choice.fontScale >= FONT_SCALE_RANGE[1]}
+              onClick={() => update({ fontScale: roundScale(choice.fontScale + FONT_SCALE_STEP) })}
+            >
+              <Plus className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <label className="flex items-center gap-2 text-sm font-medium text-foreground">
             <Switch checked={choice.toc} onCheckedChange={(toc) => update({ toc })} />
             Sumário
+          </label>
+          <label
+            className="flex items-center gap-2 text-sm font-medium text-foreground"
+            title="Desligado, cada música começa numa folha nova"
+          >
+            <Switch
+              checked={choice.together}
+              onCheckedChange={(together) => update({ together })}
+            />
+            Juntar músicas
+          </label>
+          <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Switch
+              checked={choice.columns === 2}
+              onCheckedChange={(two) => update({ columns: two ? 2 : 1 })}
+            />
+            Duas colunas
           </label>
         </div>
 

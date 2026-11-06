@@ -124,3 +124,114 @@ describe('sumário', () => {
     expect(pages[firstSong - 2]).toContain('(Musica 44)');
   });
 });
+
+/** Posição x do texto na página, como o jsPDF escreveu. */
+function xOf(page: string, text: string): number | undefined {
+  const at = page.indexOf(`(${text}) Tj`);
+  if (at < 0) return undefined;
+  const td = /([\d.]+) [\d.]+ Td\s*$/.exec(page.slice(Math.max(0, at - 80), at));
+  return td ? Number(td[1]) : undefined;
+}
+
+describe('juntar ou separar as músicas', () => {
+  it('separando, cada música começa numa folha nova', async () => {
+    const pdf = await buildPlaylistPdf([entry('Um', 3), entry('Dois', 3), entry('Tres', 3)], {
+      breakEach: true,
+    });
+    const pages = pagesText(pdf.doc);
+    expect([pageOf(pages, 'Um'), pageOf(pages, 'Dois'), pageOf(pages, 'Tres')]).toEqual([1, 2, 3]);
+  });
+
+  it('separando, a primeira fica na folha do título, sem folha em branco', async () => {
+    const pdf = await buildPlaylistPdf([entry('Um', 3), entry('Dois', 3)], {
+      title: 'Ensaio',
+      breakEach: true,
+    });
+    expect(pdf.pages).toBe(2);
+    expect(pageOf(pagesText(pdf.doc), 'Um')).toBe(1);
+  });
+
+  it('separando com sumário, nenhuma folha fica vazia', async () => {
+    const pdf = await buildPlaylistPdf([entry('Um', 3), entry('Dois', 3)], {
+      title: 'Ensaio',
+      toc: true,
+      breakEach: true,
+    });
+    expect(pdf.pages).toBe(3);
+    const pages = pagesText(pdf.doc);
+    expect(pageOf(pages, 'Linha 0 de Um')).toBe(2);
+    expect(pageOf(pages, 'Linha 0 de Dois')).toBe(3);
+  });
+});
+
+describe('duas colunas', () => {
+  it('a música que não cabe na primeira coluna vai para a segunda, na mesma folha', async () => {
+    // Em uma coluna, as duas não cabem juntas; em duas, cada uma ocupa uma coluna.
+    const one = await buildPlaylistPdf([entry('Primeira', 14), entry('Segunda', 14)]);
+    expect(one.pages).toBe(2);
+
+    const two = await buildPlaylistPdf([entry('Primeira', 14), entry('Segunda', 14)], {
+      columns: 2,
+    });
+    expect(two.pages).toBe(1);
+    const [page] = pagesText(two.doc);
+    expect(xOf(page!, 'Primeira')).toBe(42);
+    expect(xOf(page!, 'Segunda')).toBeGreaterThan(250);
+  });
+
+  it('a música longa continua na coluna seguinte, e depois na folha seguinte', async () => {
+    const pdf = await buildPlaylistPdf([entry('Enorme', 120)], { columns: 2 });
+    const pages = pagesText(pdf.doc);
+    expect(pdf.pages).toBeGreaterThan(1);
+    expect(xOf(pages[0]!, 'Linha 0 de Enorme')).toBe(42);
+    // Alguma linha da página 1 está na segunda coluna.
+    expect(
+      Array.from({ length: 120 }, (_, i) => xOf(pages[0]!, `Linha ${i} de Enorme`)).some(
+        (x) => x !== undefined && x > 250,
+      ),
+    ).toBe(true);
+    expect(pages[1]).toContain('de Enorme)');
+  });
+
+  it('no modo letra também funciona', async () => {
+    const pdf = await buildPlaylistPdf([entry('Um', 30), entry('Dois', 30)], {
+      columns: 2,
+      lyricsOnly: true,
+    });
+    expect(pdf.pages).toBe(1);
+  });
+
+  it('a foto continua ocupando a folha inteira', async () => {
+    const image = {
+      data: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=',
+      width: 1,
+      height: 1,
+    };
+    const pdf = await buildPlaylistPdf(
+      [entry('Antes', 3), entry('Foto', 0, { images: [image] }), entry('Depois', 3)],
+      { columns: 2 },
+    );
+    const pages = pagesText(pdf.doc);
+    expect([pageOf(pages, 'Antes'), pageOf(pages, 'Foto'), pageOf(pages, 'Depois')]).toEqual([
+      1, 2, 3,
+    ]);
+  });
+});
+
+describe('tamanho da letra', () => {
+  it('letra maior ocupa mais folhas, menor ocupa menos', async () => {
+    const songs = [entry('Um', 10), entry('Dois', 10), entry('Tres', 10)];
+    const normal = await buildPlaylistPdf(songs, { lyricsOnly: true });
+    const big = await buildPlaylistPdf(songs, { lyricsOnly: true, fontScale: 1.6 });
+    const small = await buildPlaylistPdf(songs, { lyricsOnly: true, fontScale: 0.8 });
+    expect(big.pages).toBeGreaterThan(normal.pages);
+    expect(small.pages).toBeLessThanOrEqual(normal.pages);
+  });
+
+  it('fica dentro dos limites, mesmo pedindo demais', async () => {
+    const songs = [entry('Um', 25), entry('Dois', 25)];
+    const max = await buildPlaylistPdf(songs, { lyricsOnly: true, fontScale: 1.6 });
+    const absurd = await buildPlaylistPdf(songs, { lyricsOnly: true, fontScale: 9 });
+    expect(absurd.pages).toBe(max.pages);
+  });
+});

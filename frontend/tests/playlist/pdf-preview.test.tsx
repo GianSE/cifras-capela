@@ -41,7 +41,13 @@ describe('prévia do PDF', () => {
   it('mostra as páginas do PDF de verdade, com cifras e sumário por padrão', async () => {
     open();
     expect(await screen.findAllByRole('img', { name: /Página \d de 3/ })).toHaveLength(3);
-    expect(generate).toHaveBeenLastCalledWith({ lyricsOnly: false, toc: true });
+    expect(generate).toHaveBeenLastCalledWith({
+      lyricsOnly: false,
+      toc: true,
+      together: true,
+      columns: 1,
+      fontScale: 1,
+    });
     expect(screen.getByText('3 páginas')).toBeTruthy();
   });
 
@@ -49,13 +55,68 @@ describe('prévia do PDF', () => {
     open();
     await screen.findAllByRole('img', { name: /de 3/ });
 
-    fireEvent.click(screen.getByRole('switch'));
+    fireEvent.click(screen.getByRole('switch', { name: 'Sumário' }));
     expect(await screen.findAllByRole('img', { name: /de 2/ })).toHaveLength(2);
-    expect(generate).toHaveBeenLastCalledWith({ lyricsOnly: false, toc: false });
+    expect(generate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ lyricsOnly: false, toc: false }),
+    );
 
     fireEvent.click(screen.getByRole('radio', { name: /Só a letra/ }));
     expect(await screen.findAllByRole('img', { name: /de 1/ })).toHaveLength(1);
-    expect(generate).toHaveBeenLastCalledWith({ lyricsOnly: true, toc: false });
+    expect(generate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ lyricsOnly: true, toc: false }),
+    );
+  });
+
+  it('juntar, duas colunas e tamanho da letra vão para o PDF e ficam lembrados', async () => {
+    open();
+    await screen.findAllByRole('img', { name: /de 3/ });
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Juntar músicas' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Duas colunas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Letra maior' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Letra maior' }));
+
+    await waitFor(() =>
+      expect(generate).toHaveBeenLastCalledWith({
+        lyricsOnly: false,
+        toc: true,
+        together: false,
+        columns: 2,
+        fontScale: 1.2,
+      }),
+    );
+    expect(screen.getByText('Letra 120%')).toBeTruthy();
+    cleanup();
+
+    open();
+    await screen.findAllByRole('img');
+    expect(screen.getByRole('switch', { name: 'Duas colunas' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    expect(screen.getByText('Letra 120%')).toBeTruthy();
+  });
+
+  it('o tamanho da letra tem limites', async () => {
+    open();
+    await screen.findAllByRole('img', { name: /de 3/ });
+    const menor = screen.getByRole('button', { name: 'Letra menor' }) as HTMLButtonElement;
+    fireEvent.click(menor);
+    fireEvent.click(menor);
+    expect(screen.getByText('Letra 80%')).toBeTruthy();
+    expect(menor.disabled).toBe(true);
+  });
+
+  it('opções guardadas estranhas voltam ao padrão', async () => {
+    localStorage.setItem(
+      'cifras-capela:pdf-escolha',
+      JSON.stringify({ columns: 7, fontScale: 'grande', together: 'sim' }),
+    );
+    open();
+    await screen.findAllByRole('img');
+    expect(generate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ columns: 1, fontScale: 1, together: true }),
+    );
   });
 
   it('lembra a escolha para a próxima vez', async () => {

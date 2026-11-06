@@ -199,7 +199,7 @@ function usePlaylistPdf(playlist: Playlist) {
   }, [playlist.songIds, loadSongs]);
 
   const generate = useCallback(
-    async ({ lyricsOnly, toc }: PdfChoice): Promise<GeneratedPdf> => {
+    async ({ lyricsOnly, toc, together, columns, fontScale }: PdfChoice): Promise<GeneratedPdf> => {
       const songs = await load();
       const entries = songs.map(({ id, song, images }) => {
         const part = sectionOf(playlist, id)?.name;
@@ -226,6 +226,9 @@ function usePlaylistPdf(playlist: Playlist) {
         title: pdfTitle(playlist),
         lyricsOnly,
         toc,
+        breakEach: !together,
+        columns,
+        fontScale,
       });
       return { bytes: pdfBytes(pdf), filename: pdf.filename };
     },

@@ -58,7 +58,8 @@ Hospedada no **Cloudflare Workers**.
   Missa e oferece as músicas de cada parte. O que já está na biblioteca entra direto; o
   resto passa pela revisão e volta para a parte certa.
 - **PDF da playlist com prévia**: antes de baixar, as páginas como vão sair, com cifras ou
-  só a letra e sumário opcional (com a página de cada música). As músicas se encaixam: as
+  só a letra, sumário opcional (com a página de cada música), uma ou duas colunas, o tamanho
+  da letra e a escolha entre juntar as músicas ou começar cada uma numa folha nova. As músicas se encaixam: as
   curtas dividem a folha, e a que não cabe no resto da folha começa no alto da próxima.
 - **CifraClub**: o site recusa leitura automática (403). Quando isso acontece, o app abre um
   campo para colar a cifra copiada no site, já com o nome da música e o destino na missa.
