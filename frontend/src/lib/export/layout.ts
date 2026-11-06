@@ -119,11 +119,18 @@ const INSTRUMENTAL_LABEL = /^(intro|solo|interl[uú]dio|instrumental)/i;
  * Uma linha da letra pronta para cantar, ou vazia se não houver nada para cantar:
  *  - `DES---POSAR` volta a ser `DESPOSAR` (a cifra estica a sílaba para caber o
  *    acorde), sem mexer no hífen de verdade, como em `pós-comunhão`;
+ *  - `NO-[G]ME` volta a ser `NOME`: os sites põem esse hífen onde o acorde cai no
+ *    meio da palavra. Sem acorde logo depois (`SEGUIR-ME`), o hífen é de verdade;
  *  - acordes que o importador deixou como texto (`Gm C7/4`) saem.
  */
 function singableText(line: Line): string {
   const text = line.segments
-    .map((segment) => segment.lyric)
+    .map((segment, index) => {
+      const next = line.segments[index + 1];
+      return next?.chord && /^\p{L}/u.test(next.lyric)
+        ? segment.lyric.replace(/(\p{L})-$/u, '$1')
+        : segment.lyric;
+    })
     .join('')
     .replace(/-{2,}/g, '')
     .replace(/\s+/g, ' ')

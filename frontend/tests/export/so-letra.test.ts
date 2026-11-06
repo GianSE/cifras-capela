@@ -67,6 +67,20 @@ describe('renderSongLyricsOnly', () => {
     expect(lines.map((l) => l.text)).toEqual(['Para me DESPOSAR', 'Canto de pós-comunhão']);
   });
 
+  it('tira o hífen que marca onde o acorde cai, e mantém o hífen de verdade', () => {
+    const lines = renderSongLyricsOnly(
+      song(
+        'Em [F#]seu NO-[Bm]ME\nHAVERÃO DE SEGUIR-ME\nCanto de pós-comunhão [G]sim\nSANTO- [C]SANTO',
+      ),
+    );
+    expect(lines.map((l) => l.text)).toEqual([
+      'Em seu NOME',
+      'HAVERÃO DE SEGUIR-ME',
+      'Canto de pós-comunhão sim',
+      'SANTO- SANTO',
+    ]);
+  });
+
   it('tira acordes que ficaram como texto, mas não palavras parecidas', () => {
     const lines = renderSongLyricsOnly(song('Gm C7/4\nAmém\nDó de mim'));
     expect(lines.map((l) => l.text)).toEqual(['Amém', 'Dó de mim']);
