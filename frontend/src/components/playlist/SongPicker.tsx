@@ -19,6 +19,7 @@ import { normalizeText } from '@/lib/library/duplicates';
 import { songsForPart } from '@/lib/missa';
 import { SCAN_ACCEPT, uploadScan, type Scan } from '@/lib/scans';
 import { playlistStorage } from '@/lib/storage/playlists';
+import type { PageHint } from '@/lib/import/url-importer';
 import type { SongIndexEntry } from '@/types/library';
 import type { Playlist, PlaylistSection } from '@/types/playlist';
 
@@ -92,11 +93,13 @@ export function SongPicker({
   }, [songs, playlist, playlists, section, text, linked]);
 
   /** A revisão de sempre, levando para onde a música vai depois de salva. */
-  const bring = (url: string) => {
+  const bring = (url: string, hint?: PageHint) => {
     const params = new URLSearchParams({
       url: url.trim(),
       missa: playlist.id,
       ...(section && { parte: section.id }),
+      ...(hint?.title && { titulo: hint.title }),
+      ...(hint?.artist && { artista: hint.artist }),
     });
     navigate(`/importar?${params}`);
   };

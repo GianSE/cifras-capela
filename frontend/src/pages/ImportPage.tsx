@@ -16,7 +16,14 @@ import {
   Link as LinkIcon,
   Copy,
 } from 'lucide-react';
-import { importFromUrl, isUrlImportAvailable } from '@/lib/import/url-importer';
+import {
+  importFromUrl,
+  importPastedText,
+  isUrlImportAvailable,
+  siteNameOf,
+  type PageHint,
+} from '@/lib/import/url-importer';
+import { PasteCifra } from '@/components/import/PasteCifra';
 import { ACCEPTED_FILE_TYPES, importFile, buildSource, type ImportedSong } from '@/lib/import';
 import { SongRenderer } from '@/components/song/SongRenderer';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -125,6 +132,8 @@ export function ImportPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   /** Falha ao ler o link ou o arquivo — aparece na tela inicial, não na revisão. */
   const [importError, setImportError] = useState<string | null>(null);
+  /** Página que o app não conseguiu ler: dá para copiar a cifra no site e colar. */
+  const [pasteFrom, setPasteFrom] = useState<{ url: string; hint?: PageHint } | null>(null);
 
   /**
    * `?folha=<id>`: transcrevendo uma folha guardada. A revisão mostra o
@@ -144,6 +153,8 @@ export function ImportPage() {
   const missa = playlistStorage.get(searchParams.get('missa') ?? '');
   const missaPart = missa?.sections?.find((s) => s.id === searchParams.get('parte'));
   const partName = missaPart?.name;
+  const linkTitle = searchParams.get('titulo');
+  const linkArtist = searchParams.get('artista');
   const leaveTo = missa ? `/playlists/${missa.id}` : '/folhas';
 
   useEffect(() => {
@@ -162,6 +173,13 @@ export function ImportPage() {
       .catch((e: unknown) => {
         if (active) {
           setImportError(e instanceof Error ? e.message : 'Não foi possível ler essa página.');
+          setPasteFrom({
+            url: linkToImport,
+            hint: {
+              ...(linkTitle && { title: linkTitle }),
+              ...(linkArtist && { artist: linkArtist }),
+            },
+          });
         }
       })
       .finally(() => {
@@ -170,7 +188,7 @@ export function ImportPage() {
     return () => {
       active = false;
     };
-  }, [linkToImport, partName]);
+  }, [linkToImport, partName, linkTitle, linkArtist]);
 
   useEffect(() => {
     if (!scanId) return;
@@ -232,6 +250,16 @@ export function ImportPage() {
     setDraft(toDraft(imported));
     setSaveError(null);
     setImportError(null);
+    setPasteFrom(null);
+  };
+
+  /** A cifra copiada no site entra na mesma revisão, com a parte da missa. */
+  const handlePasted = (text: string) => {
+    if (!pasteFrom) return;
+    const song = importPastedText(text, pasteFrom.url, pasteFrom.hint);
+    startReview(
+      partName ? { ...song, categories: withPartCategory(song.categories, partName) } : song,
+    );
   };
 
   const handleFile = async (file: File) => {
@@ -254,23 +282,28 @@ export function ImportPage() {
     if (!pageUrl.trim()) return;
     setUrlLoading(true);
     setImportError(null);
+    setPasteFrom(null);
     try {
       startReview(await importFromUrl(pageUrl.trim()));
       setPageUrl('');
     } catch (e) {
       setImportError(e instanceof Error ? e.message : 'Não foi possível ler essa página.');
+      setPasteFrom({ url: pageUrl.trim() });
     } finally {
       setUrlLoading(false);
     }
   };
 
   /** Música escolhida na busca: mesmo caminho do link colado. */
-  const handleFound = async (url: string) => {
+  const handleFound = async (url: string, hint?: PageHint) => {
     setImportError(null);
+    setPasteFrom(null);
     try {
       startReview(await importFromUrl(url));
     } catch (e) {
       setImportError(e instanceof Error ? e.message : 'Não foi possível ler essa página.');
+      setPasteFrom({ url, ...(hint && { hint }) });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -391,6 +424,13 @@ export function ImportPage() {
                       {importError}
                     </p>
                   )}
+                  {pasteFrom && (
+                    <PasteCifra
+                      url={pasteFrom.url}
+                      siteName={siteNameOf(pasteFrom.url)}
+                      onPaste={handlePasted}
+                    />
+                  )}
                   <Button asChild variant="outline">
                     <Link to={leaveTo}>
                       {missa ? 'Voltar para a missa' : 'Voltar para as folhas'}
@@ -408,6 +448,13 @@ export function ImportPage() {
                 >
                   {importError}
                 </p>
+              )}
+              {pasteFrom && (
+                <PasteCifra
+                  url={pasteFrom.url}
+                  siteName={siteNameOf(pasteFrom.url)}
+                  onPaste={handlePasted}
+                />
               )}
 
               {/* Importar depende do Worker, como o link colado. */}

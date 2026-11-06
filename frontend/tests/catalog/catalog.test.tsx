@@ -191,6 +191,7 @@ describe('CifraSearch', () => {
     fireEvent.click(trazerDoCifraClub);
     expect(onImport).toHaveBeenLastCalledWith(
       'https://www.cifraclub.com.br/catolicas/segura-na-mao-de-deus/',
+      { title: 'Segura Na Mão de Deus', artist: 'Músicas Católicas' },
     );
   });
 

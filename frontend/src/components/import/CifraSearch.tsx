@@ -13,6 +13,7 @@ import {
   type CifraClubResult,
 } from '@/lib/catalog';
 import { normalizeText, normalizeTitle } from '@/lib/library/duplicates';
+import type { PageHint } from '@/lib/import/url-importer';
 import type { SongIndexEntry } from '@/types/library';
 
 /** Menos que isso casaria metade do catálogo. */
@@ -39,7 +40,7 @@ function searchLibrary(songs: readonly SongIndexEntry[], query: string): SongInd
 interface CifraSearchProps {
   songs: readonly SongIndexEntry[];
   /** Abre a revisão com a cifra deste endereço. */
-  onImport: (url: string) => Promise<void>;
+  onImport: (url: string, hint?: PageHint) => Promise<void>;
 }
 
 /**
@@ -115,7 +116,8 @@ export function SiteResults({
 }: {
   query: string;
   songs: readonly SongIndexEntry[];
-  onImport: (url: string) => Promise<void> | void;
+  /** O nome que a busca já conhece vai junto, para o caso de ser preciso colar. */
+  onImport: (url: string, hint?: PageHint) => Promise<void> | void;
   /** Resultados de fora daqui: com eles, não cabe dizer que nada foi encontrado. */
   otherResults?: number;
 }) {
@@ -161,10 +163,10 @@ export function SiteResults({
 
   if (!active) return null;
 
-  const handleImport = async (url: string) => {
+  const handleImport = async (url: string, hint?: PageHint) => {
     setImporting(url);
     try {
-      await onImport(url);
+      await (hint ? onImport(url, hint) : onImport(url));
     } finally {
       setImporting(null);
     }
@@ -224,7 +226,9 @@ export function SiteResults({
                 <TrazerButton
                   url={result.url}
                   importing={importing}
-                  onImport={(url) => void handleImport(url)}
+                  onImport={(url) =>
+                    void handleImport(url, { title: result.title, artist: result.artist })
+                  }
                 />
               </div>
             </ResultRow>

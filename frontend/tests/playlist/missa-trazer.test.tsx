@@ -7,7 +7,8 @@ import { songService } from '../../src/services/song-service';
 import { importFromUrl } from '../../src/lib/import/url-importer';
 import type { SongIndexEntry } from '../../src/types/library';
 
-vi.mock('../../src/lib/import/url-importer', () => ({
+vi.mock('../../src/lib/import/url-importer', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/lib/import/url-importer')>()),
   importFromUrl: vi.fn(),
   isUrlImportAvailable: vi.fn(() => Promise.resolve(true)),
 }));
