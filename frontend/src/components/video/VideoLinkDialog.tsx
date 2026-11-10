@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Loader2, Search, Trash2 } from 'lucide-react';
+import { Check, Copy, ExternalLink, Loader2, Search, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -50,6 +50,7 @@ export function VideoLinkDialog({
   const [error, setError] = useState<string | null>(null);
   /** Worker sem `YOUTUBE_API_KEY`: some a busca interna, fica o modo manual. */
   const [searchAvailable, setSearchAvailable] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -60,6 +61,18 @@ export function VideoLinkDialog({
 
   const parsed = parseYoutubeId(link);
   const invalid = link.trim() !== '' && !parsed;
+
+  /** Link limpo (`https://youtu.be/<id>`), pronto para colar em outro lugar. */
+  const copyLink = async () => {
+    if (!parsed) return;
+    try {
+      await navigator.clipboard.writeText(`https://youtu.be/${parsed}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard indisponível */
+    }
+  };
 
   const save = async (next: string | undefined) => {
     setSaving(true);
@@ -112,18 +125,33 @@ export function VideoLinkDialog({
               <Label htmlFor="video-link" className="mb-1.5 block text-sm">
                 {searchAvailable ? 'Ou cole o link do vídeo' : 'Link do vídeo'}
               </Label>
-              <Input
-                id="video-link"
-                inputMode="url"
-                autoComplete="off"
-                value={link}
-                onChange={(e) => setLink(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && parsed && !saving) void save(parsed);
-                }}
-                placeholder="https://youtu.be/..."
-                aria-invalid={invalid}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="video-link"
+                  inputMode="url"
+                  autoComplete="off"
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && parsed && !saving) void save(parsed);
+                  }}
+                  placeholder="https://youtu.be/..."
+                  aria-invalid={invalid}
+                />
+                {parsed && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={() => void copyLink()}
+                    aria-label="Copiar o link do vídeo"
+                    title="Copiar o link do vídeo"
+                  >
+                    {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                  </Button>
+                )}
+              </div>
               {invalid && (
                 <p className="mt-1.5 text-xs text-destructive">
                   Não reconheci esse link. Use o endereço de um vídeo do YouTube.

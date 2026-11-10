@@ -25,6 +25,14 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
+/** Filtro da listagem: todas, só playlists livres ou só missas. */
+type Filter = 'todas' | PlaylistKind;
+const FILTERS: ReadonlyArray<{ value: Filter; label: string }> = [
+  { value: 'todas', label: 'Todas' },
+  { value: 'lista', label: 'Playlists' },
+  { value: 'missa', label: 'Missas' },
+];
+
 export function PlaylistsPage() {
   const playlists = usePlaylists();
   const navigate = useNavigate();
@@ -32,6 +40,12 @@ export function PlaylistsPage() {
   const [name, setName] = useState('');
   const [kind, setKind] = useState<PlaylistKind>('lista');
   const [missaDate, setMissaDate] = useState('');
+  const [filter, setFilter] = useState<Filter>('todas');
+
+  const visible = playlists.filter((p) => {
+    if (filter === 'todas') return true;
+    return isMissa(p) === (filter === 'missa');
+  });
 
   /** A missa quase sempre é no domingo: a data já vem preenchida com o próximo. */
   const openCreate = () => {
@@ -92,50 +106,80 @@ export function PlaylistsPage() {
             }
           />
         ) : (
-          <ul className="flex flex-col gap-2.5">
-            {playlists.map((playlist) => (
-              <li key={playlist.id}>
-                <Link
-                  to={`/playlists/${playlist.id}`}
-                  className="group card-lift flex items-center gap-3.5 rounded-2xl border border-border bg-card p-3.5 hover:border-gold-400/60"
+          <>
+            <div
+              className="mb-4 flex flex-wrap gap-1.5"
+              role="group"
+              aria-label="Filtrar playlists"
+            >
+              {FILTERS.map(({ value, label }) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={filter === value ? 'default' : 'outline'}
+                  aria-pressed={filter === value}
+                  onClick={() => setFilter(value)}
+                  className="h-8 px-3.5 text-xs"
                 >
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-navy-700 text-gold-300 transition-colors group-hover:bg-navy-600">
-                    {isMissa(playlist) ? (
-                      <Church className="size-5" />
-                    ) : (
-                      <ListMusic className="size-5" />
-                    )}
-                  </div>
+                  {label}
+                </Button>
+              ))}
+            </div>
 
-                  <div className="min-w-0 flex-1">
-                    <p className="font-display truncate text-lg text-foreground">{playlist.name}</p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {isMissa(playlist) && 'Missa · '}
-                      {playlist.songIds.length}{' '}
-                      {playlist.songIds.length === 1 ? 'música' : 'músicas'} ·{' '}
-                      {formatDate(playlist.updatedAt)}
-                    </p>
-                  </div>
+            {visible.length === 0 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                Nenhuma {filter === 'missa' ? 'missa' : 'playlist'} por aqui ainda.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2.5">
+                {visible.map((playlist) => (
+                  <li key={playlist.id}>
+                    <Link
+                      to={`/playlists/${playlist.id}`}
+                      className="group card-lift flex items-center gap-3.5 rounded-2xl border border-border bg-card p-3.5 hover:border-gold-400/60"
+                    >
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-navy-700 text-gold-300 transition-colors group-hover:bg-navy-600">
+                        {isMissa(playlist) ? (
+                          <Church className="size-5" />
+                        ) : (
+                          <ListMusic className="size-5" />
+                        )}
+                      </div>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (confirm(`Excluir a playlist "${playlist.name}"?`)) {
-                        playlistStorage.remove(playlist.id);
-                      }
-                    }}
-                    aria-label={`Excluir ${playlist.name}`}
-                    className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:text-destructive"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display truncate text-lg text-foreground">
+                          {playlist.name}
+                        </p>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {isMissa(playlist) && 'Missa · '}
+                          {playlist.songIds.length}{' '}
+                          {playlist.songIds.length === 1 ? 'música' : 'músicas'} ·{' '}
+                          {formatDate(playlist.updatedAt)}
+                        </p>
+                      </div>
 
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </li>
-            ))}
-          </ul>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (confirm(`Excluir a playlist "${playlist.name}"?`)) {
+                            playlistStorage.remove(playlist.id);
+                          }
+                        }}
+                        aria-label={`Excluir ${playlist.name}`}
+                        className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:text-destructive"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
 
         {/* Criar playlist */}

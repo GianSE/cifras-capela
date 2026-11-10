@@ -13,8 +13,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Volta para a página de origem (se veio de um redirecionamento) ou à biblioteca.
-  const from = (location.state as { from?: string } | null)?.from ?? '/home';
+  // Volta para a página de origem (se veio de um redirecionamento) ou às playlists.
+  const from = (location.state as { from?: string } | null)?.from ?? '/playlists';
   const goToApp = () => navigate(from, { replace: true });
 
   return (

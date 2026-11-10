@@ -46,14 +46,6 @@ import {
   type GeneratedPdf,
   type PdfChoice,
 } from '@/components/playlist/PdfPreviewDialog';
-import {
-  MissaDayBanner,
-  SuggestionsButton,
-  SuggestionsDialog,
-} from '@/components/playlist/MissaSuggestions';
-import { useAuth } from '@/hooks/useAuth';
-import { useMissaSuggestions } from '@/hooks/useMissaSuggestions';
-import { suggestionsForSection } from '@/lib/missa-suggestions';
 import { MissaSections } from '@/components/playlist/MissaSections';
 import { SongPicker } from '@/components/playlist/SongPicker';
 import { transposeSong, getKeyFromSemitones } from '@/lib/transpose';
@@ -199,7 +191,14 @@ function usePlaylistPdf(playlist: Playlist) {
   }, [playlist.songIds, loadSongs]);
 
   const generate = useCallback(
-    async ({ lyricsOnly, toc, together, columns, fontScale }: PdfChoice): Promise<GeneratedPdf> => {
+    async ({
+      lyricsOnly,
+      toc,
+      together,
+      columns,
+      fontScale,
+      includeYoutube,
+    }: PdfChoice): Promise<GeneratedPdf> => {
       const songs = await load();
       const entries = songs.map(({ id, song, images }) => {
         const part = sectionOf(playlist, id)?.name;
@@ -229,6 +228,7 @@ function usePlaylistPdf(playlist: Playlist) {
         breakEach: !together,
         columns,
         fontScale,
+        includeYoutube,
       });
       return { bytes: pdfBytes(pdf), filename: pdf.filename };
     },
@@ -294,11 +294,6 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
   const { songs, allSongs, sectionSongs, isLoading } = usePlaylistEntries(playlist);
   const { transpositions, preferFlats } = usePreferences();
   const missa = isMissa(playlist);
-
-  // Trazer música do site é de quem pode importar: para os demais, não há sugestões.
-  const { isAdmin } = useAuth();
-  const suggestions = useMissaSuggestions(missa && isAdmin ? playlist : null);
-  const [suggesting, setSuggesting] = useState<PlaylistSection | null>(null);
 
   /** Seletor de músicas aberto; na missa, aponta a parte que vai recebê-la. */
   const [adding, setAdding] = useState<{ section?: PlaylistSection } | null>(null);
@@ -432,41 +427,19 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
             ))}
           </div>
         ) : missa ? (
-          <>
-            {isAdmin && <MissaDayBanner suggestions={suggestions} />}
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-              onDragEnd={handleDragEnd}
-            >
-              <MissaSections
-                playlist={playlist}
-                editable
-                renderSongs={(section) => renderSortable(sectionSongs(section))}
-                onAddSong={(section) => setAdding({ section })}
-                renderExtra={(section) => {
-                  const group = suggestionsForSection(suggestions.groups, section.name);
-                  return group ? (
-                    <SuggestionsButton
-                      count={group.songs.length}
-                      onClick={() => setSuggesting(section)}
-                    />
-                  ) : null;
-                }}
-              />
-            </DndContext>
-            <SuggestionsDialog
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+            onDragEnd={handleDragEnd}
+          >
+            <MissaSections
               playlist={playlist}
-              section={suggesting}
-              group={
-                suggesting ? suggestionsForSection(suggestions.groups, suggesting.name) : undefined
-              }
-              {...(suggestions.day && { day: suggestions.day })}
-              songs={allSongs}
-              onClose={() => setSuggesting(null)}
+              editable
+              renderSongs={(section) => renderSortable(sectionSongs(section))}
+              onAddSong={(section) => setAdding({ section })}
             />
-          </>
+          </DndContext>
         ) : songs.length === 0 ? (
           <EmptyState
             icon={ListMusic}

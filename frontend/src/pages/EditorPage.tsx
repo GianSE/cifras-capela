@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { useLocation, useNavigate, useParams, Link } from 'react-router';
+import { useLocation, useNavigate, useParams, useSearchParams, Link } from 'react-router';
 import {
   Download,
   Copy,
@@ -46,15 +46,28 @@ language: pt
 [Em]Cada acorde fica [C]acima da sílaba [G]certa.
 `;
 
-const QUICK_SECTIONS = ['{verso 1}', '{refrão}', '{ponte}', '{intro}'];
+const QUICK_SECTIONS = ['{refrão}', '{ponte}', '{intro}'];
+
+/** `{verso 1}` já escrito → sugere `{verso 2}`, e assim por diante. */
+function nextVersoSection(source: string): string {
+  const numbers = Array.from(source.matchAll(/\{\s*verso\s+(\d+)\s*\}/gi)).map((m) =>
+    Number(m[1]),
+  );
+  const next = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+  return `{verso ${next}}`;
+}
 
 export function EditorPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams();
+  const [searchParams] = useSearchParams();
 
   /** Id da música em edição (`/editor/harpa-crista/porque-ele-vive`). Vazio = nova. */
   const editingId = params['*'] || undefined;
+  /** De qual playlist se veio (`?playlist=<id>`) — salvar ou sair volta para lá. */
+  const playlistId = searchParams.get('playlist') ?? undefined;
+  const songHref = (id: string) => (playlistId ? `/musica/${id}?playlist=${playlistId}` : `/musica/${id}`);
 
   // Pré-carregamento via navigation state (usado pelo importador).
   const stateSource = (location.state as { source?: string } | null)?.source;
@@ -141,7 +154,7 @@ export function EditorPage() {
     try {
       await songService.saveSong({ id, source });
       setSavedId(id);
-      navigate(`/musica/${id}`);
+      navigate(songHref(id));
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Não foi possível salvar.');
     } finally {
@@ -158,7 +171,7 @@ export function EditorPage() {
     setSaveError(null);
     try {
       await songService.deleteSong(savedId);
-      navigate('/home');
+      navigate(playlistId ? `/playlists/${playlistId}` : '/home');
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Não foi possível excluir.');
     } finally {
@@ -198,6 +211,7 @@ export function EditorPage() {
         key={song.metadata.key ?? ''}
         onInsert={insertAtCursor}
         songKey={song.metadata.key}
+        source={source}
       />
       <textarea
         ref={textareaRef}
@@ -355,12 +369,21 @@ export function EditorPage() {
   );
 }
 
-function Toolbar({ onInsert, songKey }: { onInsert: (text: string) => void; songKey?: string }) {
+function Toolbar({
+  onInsert,
+  songKey,
+  source,
+}: {
+  onInsert: (text: string) => void;
+  songKey?: string;
+  source: string;
+}) {
   // Começa no tom da própria música (se for um dos campos conhecidos).
   const [key, setKey] = useState<string>(() =>
     songKey && songKey in HARMONIC_FIELDS ? songKey : 'C',
   );
   const chords = HARMONIC_FIELDS[key] ?? [];
+  const sections = [nextVersoSection(source), ...QUICK_SECTIONS];
 
   return (
     <div className="mb-2 flex flex-col gap-1.5">
@@ -394,7 +417,7 @@ function Toolbar({ onInsert, songKey }: { onInsert: (text: string) => void; song
 
       {/* Seções (abaixo dos acordes, sempre visíveis) */}
       <div className="flex flex-wrap gap-1">
-        {QUICK_SECTIONS.map((s) => (
+        {sections.map((s) => (
           <button
             key={s}
             type="button"

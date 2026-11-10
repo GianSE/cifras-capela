@@ -5,8 +5,8 @@ import { MoreMenu, useMoreItems } from './MoreMenu';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { to: '/home', icon: Library, label: 'Biblioteca', end: true },
   { to: '/playlists', icon: ListMusic, label: 'Playlists', end: false },
+  { to: '/home', icon: Library, label: 'Biblioteca', end: true },
   { to: '/editor', icon: PenLine, label: 'Editor', end: false },
 ] as const;
 

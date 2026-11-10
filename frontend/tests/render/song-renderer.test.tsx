@@ -16,9 +16,13 @@ describe('SongRenderer', () => {
     const { song } = parse(CHO);
     const { container } = render(<SongRenderer song={song} fontSize={18} />);
 
-    // Letra presente
-    expect(container.textContent).toContain('Porque Ele');
-    expect(container.textContent).toContain('vive');
+    // Letra presente (cada palavra é sua própria coluna, daí o join)
+    const lyrics = Array.from(container.querySelectorAll('.song-segment-lyric'))
+      .map((el) => el.textContent)
+      .join('')
+      .replace(/\s+/g, ' ');
+    expect(lyrics).toContain('Porque Ele');
+    expect(lyrics).toContain('vive');
 
     // Acordes renderizados como .chord-badge
     const chords = Array.from(container.querySelectorAll('.chord-badge')).map(
@@ -76,6 +80,27 @@ title: T
     const last = segments[segments.length - 1]!;
     expect(last.querySelector('.chord-badge')?.textContent).toBe('D7');
     expect(last.querySelector('.song-segment-lyric')?.textContent?.trim()).toBe('');
+  });
+
+  it('não separa o acorde no meio da palavra do resto dela, para não quebrar a palavra ao pular linha', () => {
+    // "bu[C]sco" vira dois segmentos (antes e depois do acorde); sem o
+    // agrupamento, cada um quebraria linha por conta própria.
+    const { song } = parse(`---\ntitle: T\n---\nEu bu[C]sco a Ti\n`);
+    const { container } = render(<SongRenderer song={song} />);
+
+    const words = container.querySelectorAll('.song-word');
+    // Uma palavra por espaço: "Eu", "busco", "a", "Ti".
+    expect(words).toHaveLength(4);
+
+    const lyricOf = (word: Element) =>
+      Array.from(word.querySelectorAll('.song-segment-lyric'))
+        .map((el) => el.textContent)
+        .join('')
+        .trim();
+    const buscoWord = Array.from(words).find((w) => lyricOf(w) === 'busco');
+    expect(buscoWord).not.toBeUndefined();
+    // "bu" e "sco" são segmentos diferentes, mas moram na mesma palavra.
+    expect(buscoWord!.querySelectorAll('.song-segment')).toHaveLength(2);
   });
 
   it('mostra o acorde transposto, mantendo o tamanho uniforme', () => {

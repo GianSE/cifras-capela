@@ -64,7 +64,7 @@ function EntryRoute() {
 
   if (isLoading) return <PageFallback />;
   if (isSignedIn) {
-    const from = (location.state as { from?: string } | null)?.from ?? '/home';
+    const from = (location.state as { from?: string } | null)?.from ?? '/playlists';
     return <Navigate to={from} replace />;
   }
   return <LoginPage />;

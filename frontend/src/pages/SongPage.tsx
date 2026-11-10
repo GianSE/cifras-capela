@@ -301,12 +301,20 @@ export function SongPage() {
               }
             />
 
-            {/* Atalho para corrigir a cifra (o editor carrega pelo id da URL). */}
+            {/* Atalho para corrigir a cifra (o editor carrega pelo id da URL).
+                O ?playlist= segue junto: editar a partir de uma playlist e
+                salvar tem de voltar para ela, não para a biblioteca. */}
             {showEditUI && (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => navigate(`/editor/${songId}`)}
+                onClick={() =>
+                  navigate(
+                    playlistNav
+                      ? `/editor/${songId}?playlist=${playlistNav.playlistId}`
+                      : `/editor/${songId}`,
+                  )
+                }
                 aria-label="Corrigir esta cifra no editor"
                 title="Corrigir esta cifra"
                 className="text-navy-100 hover:bg-white/10 hover:text-ivory"

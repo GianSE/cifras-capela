@@ -47,6 +47,7 @@ describe('prévia do PDF', () => {
       together: true,
       columns: 1,
       fontScale: 1,
+      includeYoutube: false,
     });
     expect(screen.getByText('3 páginas')).toBeTruthy();
   });
@@ -84,6 +85,7 @@ describe('prévia do PDF', () => {
         together: false,
         columns: 2,
         fontScale: 1.2,
+        includeYoutube: false,
       }),
     );
     expect(screen.getByText('Letra 120%')).toBeTruthy();
@@ -95,6 +97,23 @@ describe('prévia do PDF', () => {
       'true',
     );
     expect(screen.getByText('Letra 120%')).toBeTruthy();
+  });
+
+  it('liga o link do vídeo e fica lembrado', async () => {
+    open();
+    await screen.findAllByRole('img', { name: /de 3/ });
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Link do vídeo' }));
+    await waitFor(() =>
+      expect(generate).toHaveBeenLastCalledWith(expect.objectContaining({ includeYoutube: true })),
+    );
+    cleanup();
+
+    open();
+    await screen.findAllByRole('img');
+    expect(
+      screen.getByRole('switch', { name: 'Link do vídeo' }).getAttribute('aria-checked'),
+    ).toBe('true');
   });
 
   it('o tamanho da letra tem limites', async () => {

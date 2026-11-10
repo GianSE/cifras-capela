@@ -84,6 +84,8 @@ export interface PlaylistPdfOptions {
   readonly fontScale?: number;
   /** Nome do arquivo (sem extensão). */
   readonly filename?: string;
+  /** Inclui o link do YouTube de cada música, quando ela tiver um salvo. */
+  readonly includeYoutube?: boolean;
 }
 
 interface Geom {
@@ -283,8 +285,25 @@ function drawTitle(flow: Flow, title: string, size: number, lineHeight: number):
   }
 }
 
+/** O link do YouTube da música, como uma linha clicável no cabeçalho. */
+function drawYoutubeLink(flow: Flow, videoId: string, scale: number): void {
+  const { doc } = flow;
+  const url = `https://youtu.be/${videoId}`;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9 * scale);
+  doc.setTextColor(...COLOR_LABEL);
+  doc.textWithLink(url, flow.x, flow.y, { url });
+  flow.y += 13 * scale;
+}
+
 /** Cifra com acordes. Cuida da quebra de coluna e nunca separa um acorde da sua letra. */
-function chordsDrawer(song: Song, width: number, scale: number, note?: string): Drawer {
+function chordsDrawer(
+  song: Song,
+  width: number,
+  scale: number,
+  note?: string,
+  includeYoutube?: boolean,
+): Drawer {
   const lines = renderSongToLines(song);
 
   // Ajusta a fonte para que a linha mais longa caiba na coluna.
@@ -297,7 +316,7 @@ function chordsDrawer(song: Song, width: number, scale: number, note?: string): 
 
   return (flow) => {
     const { doc } = flow;
-    const { title, artist, key, tempo, capo } = song.metadata;
+    const { title, artist, key, tempo, capo, youtube } = song.metadata;
 
     // ── Cabeçalho da música ──────────────────────────────────────────────
     drawTitle(flow, title, 18 * scale, 20 * scale);
@@ -326,6 +345,8 @@ function chordsDrawer(song: Song, width: number, scale: number, note?: string): 
         flow.y += 12 * scale;
       }
     }
+
+    if (includeYoutube && youtube) drawYoutubeLink(flow, youtube, scale);
 
     doc.setDrawColor(...COLOR_RULE);
     doc.line(flow.x, flow.y, flow.x + flow.width, flow.y);
@@ -387,7 +408,12 @@ const LYRICS_FONT_SIZE = 13;
 const LYRICS_LINE_HEIGHT = 17;
 
 /** Só a letra, para quem canta. A `note` é a parte da missa, em cima do título. */
-function lyricsDrawer(song: Song, scale: number, note?: string): Drawer {
+function lyricsDrawer(
+  song: Song,
+  scale: number,
+  note?: string,
+  includeYoutube?: boolean,
+): Drawer {
   const lines = renderSongLyricsOnly(song);
   const size = LYRICS_FONT_SIZE * scale;
   const lineHeight = LYRICS_LINE_HEIGHT * scale;
@@ -405,6 +431,11 @@ function lyricsDrawer(song: Song, scale: number, note?: string): Drawer {
 
     drawTitle(flow, song.metadata.title, 15 * scale, 18 * scale);
     flow.y += 4 * scale;
+
+    if (includeYoutube && song.metadata.youtube) {
+      drawYoutubeLink(flow, song.metadata.youtube, scale);
+      flow.y += 2 * scale;
+    }
 
     for (const line of lines) {
       if (line.kind === 'blank') {
@@ -440,7 +471,12 @@ function lyricsDrawer(song: Song, scale: number, note?: string): Drawer {
  * A folha no lugar da cifra: o título em cima e cada página ocupando a folha toda,
  * por cima das colunas. Começa sempre numa folha própria.
  */
-function imagesDrawer(song: Song, images: readonly PdfImage[], note?: string): Drawer {
+function imagesDrawer(
+  song: Song,
+  images: readonly PdfImage[],
+  note?: string,
+  includeYoutube?: boolean,
+): Drawer {
   return (flow) => {
     const { doc, geom } = flow;
     images.forEach((image, index) => {
@@ -460,6 +496,12 @@ function imagesDrawer(song: Song, images: readonly PdfImage[], note?: string): D
         doc.setTextColor(...COLOR_LYRIC);
         doc.text(song.metadata.title || 'Sem título', PAGE_MARGIN, y);
         y += 12;
+
+        if (includeYoutube && song.metadata.youtube) {
+          flow.y = y;
+          drawYoutubeLink(flow, song.metadata.youtube, 1);
+          y = flow.y;
+        }
       }
 
       const height = geom.pageHeight - y - PAGE_MARGIN - 14;
@@ -511,11 +553,14 @@ function drawerFor(
   width: number,
   lyricsOnly: boolean,
   scale: number,
+  includeYoutube: boolean,
 ): Drawer {
-  if (entry.images?.length) return imagesDrawer(entry.song, entry.images, entry.note);
+  if (entry.images?.length) {
+    return imagesDrawer(entry.song, entry.images, entry.note, includeYoutube);
+  }
   return lyricsOnly
-    ? lyricsDrawer(entry.song, scale, entry.note)
-    : chordsDrawer(entry.song, width, scale, entry.note);
+    ? lyricsDrawer(entry.song, scale, entry.note, includeYoutube)
+    : chordsDrawer(entry.song, width, scale, entry.note, includeYoutube);
 }
 
 /* ==========================================================================
@@ -659,6 +704,7 @@ export async function buildPlaylistPdf(
     columns = 1,
     fontScale,
     filename,
+    includeYoutube = false,
   }: PlaylistPdfOptions = {},
 ): Promise<BuiltPdf> {
   const { doc, geom } = await createDoc();
@@ -687,7 +733,7 @@ export async function buildPlaylistPdf(
   const songPages: number[] = [];
   for (const entry of entries) {
     songPages.push(
-      placeSong(flow, drawerFor(entry, flow.width, lyricsOnly, scale), {
+      placeSong(flow, drawerFor(entry, flow.width, lyricsOnly, scale, includeYoutube), {
         gap,
         ownPage: Boolean(entry.images?.length),
         breakEach,

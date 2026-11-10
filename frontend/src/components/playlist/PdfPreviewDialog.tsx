@@ -20,6 +20,8 @@ export interface PdfChoice {
   readonly columns: 1 | 2;
   /** Tamanho da letra: 1 é o de sempre. */
   readonly fontScale: number;
+  /** Inclui o link do YouTube de cada música, para quem abrir o PDF escanear. */
+  readonly includeYoutube: boolean;
 }
 
 export const FONT_SCALE_STEP = 0.1;
@@ -31,6 +33,7 @@ const DEFAULT_CHOICE: PdfChoice = {
   together: true,
   columns: 1,
   fontScale: 1,
+  includeYoutube: false,
 };
 
 /** Arredonda para não acumular 0,1 + 0,1 + … = 1,2000000002. */
@@ -56,6 +59,7 @@ function readChoice(): PdfChoice {
         typeof stored.fontScale === 'number' && Number.isFinite(stored.fontScale)
           ? roundScale(stored.fontScale)
           : 1,
+      includeYoutube: stored.includeYoutube === true,
     };
   } catch {
     return DEFAULT_CHOICE;
@@ -221,6 +225,16 @@ export function PdfPreviewDialog({
               onCheckedChange={(two) => update({ columns: two ? 2 : 1 })}
             />
             Duas colunas
+          </label>
+          <label
+            className="flex items-center gap-2 text-sm font-medium text-foreground"
+            title="Cada música com vídeo salvo ganha um link para ele no PDF"
+          >
+            <Switch
+              checked={choice.includeYoutube}
+              onCheckedChange={(includeYoutube) => update({ includeYoutube })}
+            />
+            Link do vídeo
           </label>
         </div>
 

@@ -1,13 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { partKey, songsForPart, withPartCategory } from '../../src/lib/missa';
-import { parse } from '../../src/lib/parser';
 import { resetCatalogForTests } from '../../src/lib/catalog';
 import { playlistStorage } from '../../src/lib/storage/playlists';
-import { songService } from '../../src/services/song-service';
 import { SongPicker } from '../../src/components/playlist/SongPicker';
-import { SuggestionsDialog } from '../../src/components/playlist/MissaSuggestions';
 import type { SongIndexEntry } from '../../src/types/library';
 import type { Playlist } from '../../src/types/playlist';
 
@@ -217,43 +214,14 @@ describe('Escolher música', () => {
     );
   });
 
-  it('a foto vira música com o nome digitado e a parte, e entra na parte', async () => {
-    const save = vi.spyOn(songService, 'saveSong').mockResolvedValue(undefined as never);
+  it('Importar música leva para o importador, com a missa e a parte', () => {
     open();
-    fireEvent.change(field(), { target: { value: 'Canto Novo' } });
-
-    const file = new File(['x'], 'foto.jpg', { type: 'image/jpeg' });
-    fireEvent.change(screen.getByLabelText('Foto da câmera'), { target: { files: [file] } });
-
-    const dialog = await screen.findByRole('dialog', { name: 'Usar como música' });
-    expect((within(dialog).getByLabelText('Nome da música') as HTMLInputElement).value).toBe(
-      'Canto Novo',
-    );
-    expect((within(dialog).getByLabelText(/Categorias/) as HTMLInputElement).value).toBe(
-      'Comunhão',
-    );
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Criar música' }));
-
-    await waitFor(() => expect(onClose).toHaveBeenCalled());
-    const { id, source } = save.mock.calls[0]![0] as { id: string; source: string };
-    expect(id).toBe('comunhao/canto-novo');
-    const { metadata } = parse(source).song;
-    expect(metadata.scan).toBe('fl_novo');
-    expect(metadata.categories).toEqual(['Comunhão']);
-    const parte = playlistStorage.get(missaId)!.sections!.find((s) => s.id === comunhao.id)!;
-    expect(parte.songIds).toEqual(['comunhao/canto-novo']);
-  });
-
-  it('falha no envio avisa e deixa tentar de novo', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => Response.json({ error: 'Arquivo grande demais.' }, { status: 413 })),
-    );
-    open();
-    const file = new File(['x'], 'foto.jpg', { type: 'image/jpeg' });
-    fireEvent.change(screen.getByLabelText('Foto da câmera'), { target: { files: [file] } });
-    expect((await screen.findByRole('alert')).textContent).toBe('Arquivo grande demais.');
+    fireEvent.click(screen.getByRole('button', { name: 'Importar música' }));
+    const target = new URL(screen.getByTestId('onde').textContent!, 'http://x');
+    expect(target.pathname).toBe('/importar');
+    expect(target.searchParams.get('missa')).toBe(missaId);
+    expect(target.searchParams.get('parte')).toBe(comunhao.id);
+    expect(target.searchParams.has('url')).toBe(false);
   });
 
   it('numa playlist comum também funciona, sem parte nem categoria', async () => {
@@ -270,83 +238,13 @@ describe('Escolher música', () => {
     expect(target.searchParams.has('parte')).toBe(false);
   });
 
-  it('quem só lê escolhe da biblioteca, sem foto nem busca nos sites', async () => {
+  it('quem só lê escolhe da biblioteca, sem importar nem busca nos sites', async () => {
     isAdmin = false;
     open();
-    expect(screen.queryByRole('button', { name: /Tirar foto/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Importar música/ })).toBeNull();
     fireEvent.change(field(), { target: { value: 'vinde todos' } });
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(fetch).not.toHaveBeenCalled();
     expect(screen.getByText('Nenhuma música disponível.')).toBeTruthy();
-  });
-});
-
-describe('filtro das sugestões do dia', () => {
-  const GROUP = {
-    heading: 'Comunhão',
-    songs: [
-      { title: 'PÃO DA VIDA (Coral)', url: 'https://x/pao' },
-      { title: 'VINDE TODOS', url: 'https://x/vinde' },
-      { title: 'NOVO CANTO', url: 'https://x/novo' },
-    ],
-  };
-  const section = { id: 's', name: 'Comunhão', songIds: [] };
-  const playlist: Playlist = {
-    id: 'p',
-    name: 'Domingo, 08/11/2026',
-    kind: 'missa',
-    songIds: [],
-    sections: [section],
-    createdAt: '',
-    updatedAt: '',
-  };
-
-  const open = (songs: SongIndexEntry[]) =>
-    render(
-      <MemoryRouter>
-        <SuggestionsDialog
-          playlist={playlist}
-          section={section}
-          group={GROUP}
-          songs={songs}
-          onClose={() => {}}
-        />
-      </MemoryRouter>,
-    );
-
-  afterEach(cleanup);
-
-  const listed = () =>
-    within(screen.getByRole('dialog'))
-      .getAllByRole('listitem')
-      .map((li) => li.querySelector('a')?.childNodes[0]?.textContent);
-
-  it('começa com todas, e mostra quantas há em cada filtro', () => {
-    open([song('a', 'Pão da Vida')]);
-    expect(screen.getByRole('radio', { name: 'Todas (3)' }).getAttribute('aria-checked')).toBe(
-      'true',
-    );
-    expect(screen.getByRole('radio', { name: 'Novas (2)' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Na biblioteca (1)' })).toBeTruthy();
-    expect(listed()).toHaveLength(3);
-  });
-
-  it('Novas mostra só o que falta trazer', () => {
-    open([song('a', 'Pão da Vida')]);
-    fireEvent.click(screen.getByRole('radio', { name: 'Novas (2)' }));
-    expect(listed()).toEqual(['VINDE TODOS', 'NOVO CANTO']);
-  });
-
-  it('Na biblioteca mostra só o que dá para usar direto', () => {
-    open([song('a', 'Pão da Vida')]);
-    fireEvent.click(screen.getByRole('radio', { name: 'Na biblioteca (1)' }));
-    expect(listed()).toEqual(['PÃO DA VIDA (Coral)']);
-    expect(screen.getByRole('button', { name: /Usar/ })).toBeTruthy();
-  });
-
-  it('explica quando o filtro fica vazio', () => {
-    open([]);
-    fireEvent.click(screen.getByRole('radio', { name: 'Na biblioteca (0)' }));
-    expect(screen.getByText(/Nenhuma destas sugestões está na sua biblioteca/)).toBeTruthy();
   });
 });

@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Camera, Download, ImageUp, Loader2, Plus } from 'lucide-react';
+import { Download, Plus, Upload } from 'lucide-react';
 import { MIN_SITE_QUERY, SEARCH_DEBOUNCE_MS, SiteResults } from '@/components/import/CifraSearch';
-import { UseScanAsSongDialog } from '@/components/scans/UseScanAsSongDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,8 +16,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePlaylists } from '@/hooks/usePlaylists';
 import { normalizeText } from '@/lib/library/duplicates';
 import { songsForPart } from '@/lib/missa';
-import { SCAN_ACCEPT, uploadScan, type Scan } from '@/lib/scans';
-import { playlistStorage } from '@/lib/storage/playlists';
 import type { PageHint } from '@/lib/import/url-importer';
 import type { SongIndexEntry } from '@/types/library';
 import type { Playlist, PlaylistSection } from '@/types/playlist';
@@ -28,7 +25,8 @@ const isLink = (text: string) => /^https?:\/\/\S+$/i.test(text.trim());
 /**
  * Escolher a música sem sair da playlist: o que já foi usado nesta parte vem
  * primeiro, depois a biblioteca. Quem pode importar resolve aqui mesmo o que ainda
- * não tem: um campo só aceita o nome ou o link, e a foto já vira música.
+ * não tem: um campo só aceita o nome ou o link; foto e arquivo passam pela
+ * página de importar, que já sabe fazer isso.
  */
 export function SongPicker({
   playlist,
@@ -52,18 +50,11 @@ export function SongPicker({
 
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  /** A foto enviada, esperando um nome para virar música. */
-  const [naming, setNaming] = useState<Scan | null>(null);
-  const cameraInput = useRef<HTMLInputElement>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
     setText('');
     setQuery('');
-    setError(null);
   }, [open]);
 
   useEffect(() => {
@@ -104,18 +95,13 @@ export function SongPicker({
     navigate(`/importar?${params}`);
   };
 
-  const handleFile = async (files: FileList | null) => {
-    const file = files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setError(null);
-    try {
-      setNaming(await uploadScan(file));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Não foi possível enviar o arquivo.');
-    } finally {
-      setUploading(false);
-    }
+  /** Importar de um arquivo ou foto: a página de importar já sabe fazer isso. */
+  const importElsewhere = () => {
+    const params = new URLSearchParams({
+      missa: playlist.id,
+      ...(section && { parte: section.id }),
+    });
+    navigate(`/importar?${params}`);
   };
 
   const row = (song: SongIndexEntry) => (
@@ -142,163 +128,92 @@ export function SongPicker({
   const libraryCount = forPart.length + others.length;
 
   return (
-    <>
-      <Dialog open={open && naming === null} onOpenChange={(next) => !next && onClose()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {section ? `Música para ${section.name}` : 'Adicionar músicas'}
-            </DialogTitle>
-          </DialogHeader>
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{section ? `Música para ${section.name}` : 'Adicionar músicas'}</DialogTitle>
+        </DialogHeader>
 
-          <Input
-            autoFocus
-            type="search"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={
-              isAdmin ? 'Nome da música ou link da cifra' : 'Buscar por título ou artista…'
-            }
-            aria-label="Procurar música"
-          />
+        <Input
+          autoFocus
+          type="search"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={
+            isAdmin ? 'Nome da música ou link da cifra' : 'Buscar por título ou artista…'
+          }
+          aria-label="Procurar música"
+        />
 
-          <div className="-mx-1 flex max-h-[55vh] flex-col gap-3 overflow-y-auto px-1">
-            {isAdmin && linked && (
-              <Button className="gap-2" onClick={() => bring(text)}>
-                <Download className="size-4" /> Trazer desta página
-              </Button>
-            )}
-
-            {forPart.length > 0 && (
-              <section aria-label={`Já usadas em ${section?.name}`}>
-                <h3 className="px-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Para {section?.name}
-                </h3>
-                <ul>{forPart.map(row)}</ul>
-              </section>
-            )}
-
-            {others.length > 0 && (
-              <section aria-label="Na biblioteca">
-                {forPart.length > 0 && (
-                  <h3 className="px-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Na biblioteca
-                  </h3>
-                )}
-                <ul>{others.map(row)}</ul>
-              </section>
-            )}
-
-            {!isAdmin && libraryCount === 0 && (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                Nenhuma música disponível.
-              </p>
-            )}
-
-            {isAdmin && !linked && (
-              <>
-                <SiteResults
-                  query={query}
-                  songs={songs}
-                  onImport={bring}
-                  otherResults={libraryCount}
-                />
-
-                {query.length < MIN_SITE_QUERY && libraryCount === 0 && (
-                  <p className="py-2 text-center text-sm text-muted-foreground">
-                    Nada na biblioteca ainda.
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-
-          {isAdmin && (
-            <div className="border-t border-border pt-3">
-              <p className="mb-2 text-xs text-muted-foreground">
-                Não tem? Digite o nome para procurar nos sites, cole o link ou use uma foto
-                {section && `: ela já entra em ${section.name}`}.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  disabled={uploading}
-                  onClick={() => cameraInput.current?.click()}
-                >
-                  {uploading ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Camera className="size-4" />
-                  )}
-                  Tirar foto
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  disabled={uploading}
-                  onClick={() => fileInput.current?.click()}
-                >
-                  <ImageUp className="size-4" /> Enviar arquivo
-                </Button>
-              </div>
-              {/* `capture` abre direto a câmera traseira no celular; no PC vira seletor. */}
-              <input
-                ref={cameraInput}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                aria-label="Foto da câmera"
-                onChange={(e) => {
-                  void handleFile(e.target.files);
-                  e.target.value = '';
-                }}
-              />
-              <input
-                ref={fileInput}
-                type="file"
-                accept={SCAN_ACCEPT}
-                className="hidden"
-                aria-label="Arquivo da folha"
-                onChange={(e) => {
-                  void handleFile(e.target.files);
-                  e.target.value = '';
-                }}
-              />
-              {error && (
-                <p
-                  role="alert"
-                  className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive"
-                >
-                  {error}
-                </p>
-              )}
-            </div>
+        <div className="-mx-1 flex max-h-[55vh] flex-col gap-3 overflow-y-auto px-1">
+          {isAdmin && linked && (
+            <Button className="gap-2" onClick={() => bring(text)}>
+              <Download className="size-4" /> Trazer desta página
+            </Button>
           )}
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="ghost">Concluir</Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {forPart.length > 0 && (
+            <section aria-label={`Já usadas em ${section?.name}`}>
+              <h3 className="px-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Para {section?.name}
+              </h3>
+              <ul>{forPart.map(row)}</ul>
+            </section>
+          )}
 
-      <UseScanAsSongDialog
-        scan={naming}
-        songs={songs}
-        initial={{
-          title: linked ? '' : text.trim(),
-          categories: section ? section.name : '',
-        }}
-        onClose={() => setNaming(null)}
-        onCreated={(songId) => {
-          playlistStorage.addSong(playlist.id, songId, section?.id);
-          setNaming(null);
-          onClose();
-        }}
-      />
-    </>
+          {others.length > 0 && (
+            <section aria-label="Na biblioteca">
+              {forPart.length > 0 && (
+                <h3 className="px-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Na biblioteca
+                </h3>
+              )}
+              <ul>{others.map(row)}</ul>
+            </section>
+          )}
+
+          {!isAdmin && libraryCount === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Nenhuma música disponível.
+            </p>
+          )}
+
+          {isAdmin && !linked && (
+            <>
+              <SiteResults
+                query={query}
+                songs={songs}
+                onImport={bring}
+                otherResults={libraryCount}
+              />
+
+              {query.length < MIN_SITE_QUERY && libraryCount === 0 && (
+                <p className="py-2 text-center text-sm text-muted-foreground">
+                  Nada na biblioteca ainda.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        {isAdmin && (
+          <div className="border-t border-border pt-3">
+            <p className="mb-2 text-xs text-muted-foreground">
+              Não tem? Digite o nome para procurar nos sites, cole o link ou importe de um
+              arquivo ou foto{section && `: ela já entra em ${section.name}`}.
+            </p>
+            <Button variant="outline" className="w-full gap-2" onClick={importElsewhere}>
+              <Upload className="size-4" /> Importar música
+            </Button>
+          </div>
+        )}
+
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="ghost">Concluir</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -386,6 +386,13 @@ body {
     margin-bottom: 0.5rem;
     min-height: 2rem;
   }
+  /* Palavra = um ou mais segmentos que não têm espaço entre si (um acorde no
+     meio da palavra parte a letra em dois segmentos). Não quebra por dentro:
+     é ela, inteira, que entra na quebra de linha do `.song-line`. */
+  .song-word {
+    display: flex;
+    align-items: flex-end;
+  }
   .song-segment {
     display: flex;
     flex-direction: column;
