@@ -194,6 +194,12 @@ class PlaylistStorage {
     this.push(id);
   }
 
+  /** Liga/desliga aparecer na lista de quem mais está logado (só o dono muda isto). */
+  setShared(id: string, shared: boolean): void {
+    this.patch(id, (p) => ({ ...p, shared }));
+    this.push(id);
+  }
+
   remove(id: string): void {
     this.commit(this.playlists.filter((p) => p.id !== id));
     this.persist(() => deleteRemotePlaylist(id));

@@ -17,6 +17,9 @@ interface RemotePlaylist {
   songIds: string[];
   kind?: PlaylistKind | null;
   sections?: PlaylistSection[] | null;
+  shared?: boolean;
+  isOwner?: boolean;
+  ownerName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +31,9 @@ function fromRemote(p: RemotePlaylist): Playlist {
     songIds: p.songIds,
     ...(p.kind === 'missa' && { kind: 'missa' as const }),
     ...(p.kind === 'missa' && Array.isArray(p.sections) && { sections: p.sections }),
+    ...(p.shared && { shared: true }),
+    ...(p.isOwner === false && { isOwner: false }),
+    ...(p.ownerName && { ownerName: p.ownerName }),
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   });
@@ -57,6 +63,7 @@ export async function pushPlaylist(playlist: Playlist): Promise<boolean> {
         songIds: [...playlist.songIds],
         kind: playlist.kind ?? 'lista',
         sections: playlist.sections ?? null,
+        shared: playlist.shared ?? false,
         createdAt: playlist.createdAt,
       }),
     });

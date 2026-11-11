@@ -156,22 +156,27 @@ export function PlaylistsPage() {
                           {playlist.songIds.length}{' '}
                           {playlist.songIds.length === 1 ? 'música' : 'músicas'} ·{' '}
                           {formatDate(playlist.updatedAt)}
+                          {playlist.isOwner === false && playlist.ownerName && (
+                            <> · de {playlist.ownerName}</>
+                          )}
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (confirm(`Excluir a playlist "${playlist.name}"?`)) {
-                            playlistStorage.remove(playlist.id);
-                          }
-                        }}
-                        aria-label={`Excluir ${playlist.name}`}
-                        className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:text-destructive"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
+                      {playlist.isOwner !== false && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (confirm(`Excluir a playlist "${playlist.name}"?`)) {
+                              playlistStorage.remove(playlist.id);
+                            }
+                          }}
+                          aria-label={`Excluir ${playlist.name}`}
+                          className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:text-destructive"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      )}
 
                       <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                     </Link>

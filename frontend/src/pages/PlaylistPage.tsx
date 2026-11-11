@@ -62,6 +62,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { songHasContent } from '@/lib/library/derive';
 import type { Playlist, PlaylistSection } from '@/types/playlist';
 import type { Song } from '@/types/song';
@@ -76,9 +77,14 @@ import { VideoButton } from '@/components/video/VideoButton';
 export function PlaylistPage() {
   const { id = '' } = useParams();
   const local = usePlaylist(id);
-  const remote = useRemotePlaylist(id, !local);
+  // Sincronizada mas de outra conta (`shared` a trouxe para a lista): leitura,
+  // igual à que chega só pelo link. Ausência de `isOwner` é sempre sua — vale
+  // para toda playlist puramente local, criada sem sessão nenhuma.
+  const localIsMine = local && local.isOwner !== false;
+  const remote = useRemotePlaylist(id, !localIsMine);
 
-  if (local) return <OwnPlaylist playlist={local} />;
+  if (localIsMine) return <OwnPlaylist playlist={local} />;
+  if (local) return <SharedPlaylist playlist={local} />;
   if (remote.status === 'found') return <SharedPlaylist playlist={remote.playlist} />;
 
   if (remote.status === 'loading' || remote.status === 'idle') {
@@ -132,6 +138,11 @@ function usePlaylistEntries(playlist: Playlist) {
 }
 
 /** Subtítulo: na missa, conta também quantas partes já têm música. */
+/** " · de Fulano", quando o servidor manda o nome de quem é dono. */
+function ownerSuffix(playlist: Playlist): string {
+  return playlist.ownerName ? ` · de ${playlist.ownerName}` : '';
+}
+
 function playlistSubtitle(playlist: Playlist, songCount: number, suffix: string): string {
   const songs = `${songCount} ${songCount === 1 ? 'música' : 'músicas'}`;
   if (!isMissa(playlist)) return `${songs}${suffix}`;
@@ -498,6 +509,18 @@ function OwnPlaylist({ playlist }: { playlist: Playlist }) {
                 onKeyDown={(e) => e.key === 'Enter' && saveName()}
               />
             )}
+
+            <label
+              className="flex items-center gap-2 text-sm font-medium text-foreground"
+              title="Aparece na lista de playlists de todo mundo que está logado — não só de quem já tem o link"
+            >
+              <Switch
+                checked={playlist.shared ?? false}
+                onCheckedChange={(shared) => playlistStorage.setShared(playlist.id, shared)}
+              />
+              Compartilhar com todo mundo
+            </label>
+
             <DialogFooter>
               <DialogClose asChild>
                 <Button variant="ghost">Cancelar</Button>
@@ -545,8 +568,8 @@ function SharedPlaylist({ playlist }: { playlist: Playlist }) {
         icon={missa ? Church : undefined}
         subtitle={
           missa
-            ? playlistSubtitle(playlist, songs.length, '')
-            : `Playlist compartilhada · ${songs.length} ${songs.length === 1 ? 'música' : 'músicas'}`
+            ? playlistSubtitle(playlist, songs.length, ownerSuffix(playlist))
+            : `Playlist compartilhada${ownerSuffix(playlist)} · ${songs.length} ${songs.length === 1 ? 'música' : 'músicas'}`
         }
         actions={<PlaylistActions playlist={playlist} songCount={songs.length} />}
       />

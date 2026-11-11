@@ -119,4 +119,15 @@ describe('playlistStorage', () => {
     expect(playlistBefore.songIds).toEqual(['a']);
     expect(playlistStorage.getSnapshot()).not.toBe(snapshot);
   });
+
+  it('nasce sem compartilhar, e o dono liga/desliga', () => {
+    const id = fresh();
+    expect(playlistStorage.get(id)?.shared).toBeFalsy();
+
+    playlistStorage.setShared(id, true);
+    expect(playlistStorage.get(id)?.shared).toBe(true);
+
+    playlistStorage.setShared(id, false);
+    expect(playlistStorage.get(id)?.shared).toBe(false);
+  });
 });

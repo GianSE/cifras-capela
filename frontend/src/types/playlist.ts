@@ -42,4 +42,16 @@ export interface Playlist {
   readonly createdAt: string;
   /** Timestamp ISO da última alteração. */
   readonly updatedAt: string;
+  /**
+   * Ligada pelo dono: aparece também na lista de quem mais está logado, não
+   * só para quem já tinha o link. Ausente/`false` = só o dono vê na lista.
+   */
+  readonly shared?: boolean;
+  /**
+   * Dona é quem criou. Ausente ou `true` = é sua (inclusive toda playlist só
+   * local, sem sessão). O servidor manda `false` nas que são de outra conta.
+   */
+  readonly isOwner?: boolean;
+  /** Nome de quem é dono — só vem preenchido quando não é sua. */
+  readonly ownerName?: string;
 }
