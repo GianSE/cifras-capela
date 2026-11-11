@@ -435,14 +435,6 @@ body {
     .song-columns .song-line {
       break-inside: avoid;
     }
-    /* Cada filho direto é uma seção (verso, refrão, ponte). Mantê-las
-       inteiras é o que faz a leitura funcionar: partir um refrão ao meio
-       obriga a saltar de coluna no meio da frase — justamente o que as duas
-       colunas vieram evitar. Numa seção mais alta que a coluna o navegador
-       quebra assim mesmo, então não há risco de estouro. */
-    .song-columns > div {
-      break-inside: avoid;
-    }
     /* Rótulo de seção nunca fica órfão no pé da coluna. */
     .song-columns .section-label {
       break-after: avoid;
