@@ -1,17 +1,18 @@
 /**
  * Contas do site (`/api/users`), gerenciadas por quem é administrador.
  *
- * Não há cadastro aberto: o administrador cria as contas e diz o que cada uma
- * pode — tudo (`admin`) ou só consumir o site (`leitor`). A senha nunca é
- * devolvida nem guardada em texto puro (PBKDF2-SHA256, como no login).
+ * Não há cadastro aberto: o administrador diz quem entra e o que cada um
+ * pode — tudo (`admin`) ou só consumir o site (`leitor`). Mas a senha é de
+ * quem usa a conta, nunca do administrador: contas novas nascem por convite
+ * (`POST /api/invites`, em `invites.ts`) e, para trocar a senha de uma conta
+ * que já existe, o administrador gera um link de redefinição aqui
+ * (`POST /api/users/:id/reset-link`) — a pessoa escolhe a senha ao abri-lo.
  */
 
 import type { Env } from '../types';
 import { json, readJson, methodNotAllowed, unauthorized } from '../lib/http';
 import { currentAccount, forbidden, toRole, type Role } from '../lib/access';
-import { hashPassword } from '../lib/crypto';
-
-const MIN_PASSWORD = 8;
+import { generateToken } from '../lib/tokens';
 
 interface UserRow {
   id: number;
@@ -21,12 +22,8 @@ interface UserRow {
   created_at: string;
 }
 
-interface UserBody {
-  email: string;
-  name: string;
-  password: string;
-  role: string;
-}
+/** Validade do link de redefinir senha — bem mais curta que a do convite. */
+const RESET_HOURS = 24;
 
 function rowToUser(row: UserRow) {
   return {
@@ -52,24 +49,23 @@ export async function usersRoute(request: Request, env: Env, pathname: string): 
   if (account.role !== 'admin') return forbidden();
 
   const rest = pathname.slice('/api/users'.length).replace(/^\//, '');
-  const id = rest ? Number.parseInt(rest, 10) : null;
-  if (rest && (id === null || Number.isNaN(id))) {
+  const [idPart, action] = rest.split('/');
+  const id = idPart ? Number.parseInt(idPart, 10) : null;
+  if (idPart && (id === null || Number.isNaN(id))) {
     return json({ error: 'Usuário inválido.' }, 400);
   }
 
   if (id === null) {
-    switch (request.method) {
-      case 'GET': {
-        const { results } = await env.DB.prepare(
-          `SELECT id, email, name, role, created_at FROM admin_users ORDER BY name COLLATE NOCASE`,
-        ).all<UserRow>();
-        return json({ users: (results ?? []).map(rowToUser) });
-      }
-      case 'POST':
-        return createUser(request, env);
-      default:
-        return methodNotAllowed();
-    }
+    if (request.method !== 'GET') return methodNotAllowed();
+    const { results } = await env.DB.prepare(
+      `SELECT id, email, name, role, created_at FROM admin_users ORDER BY name COLLATE NOCASE`,
+    ).all<UserRow>();
+    return json({ users: (results ?? []).map(rowToUser) });
+  }
+
+  if (action === 'reset-link') {
+    if (request.method !== 'POST') return methodNotAllowed();
+    return createResetLink(env, id, account.id);
   }
 
   switch (request.method) {
@@ -82,43 +78,17 @@ export async function usersRoute(request: Request, env: Env, pathname: string): 
   }
 }
 
-async function createUser(request: Request, env: Env): Promise<Response> {
-  const body = await readJson<UserBody>(request);
-  const email = (body.email ?? '').trim().toLowerCase();
-  const name = (body.name ?? '').trim();
-  const password = body.password ?? '';
-  const role: Role = toRole(body.role);
-
-  if (!email.includes('@')) return json({ error: 'Informe um e-mail válido.' }, 400);
-  if (!name) return json({ error: 'Informe o nome.' }, 400);
-  if (password.length < MIN_PASSWORD) {
-    return json({ error: `A senha precisa de pelo menos ${MIN_PASSWORD} caracteres.` }, 400);
-  }
-
-  const existing = await env.DB.prepare(`SELECT id FROM admin_users WHERE email = ?`)
-    .bind(email)
-    .first<{ id: number }>();
-  if (existing) return json({ error: 'Já existe uma conta com esse e-mail.' }, 409);
-
-  const hash = await hashPassword(password);
-  const { meta } = await env.DB.prepare(
-    `INSERT INTO admin_users (email, name, password_hash, role) VALUES (?, ?, ?, ?)`,
-  )
-    .bind(email, name, hash, role)
-    .run();
-
-  return json({ id: meta.last_row_id, email, name, role }, 201);
-}
-
 async function updateUser(
   request: Request,
   env: Env,
   id: number,
   myId: number,
 ): Promise<Response> {
-  const body = await readJson<Partial<UserBody>>(request);
+  const body = await readJson<{ name?: string; role?: string }>(request);
 
-  const current = await env.DB.prepare(`SELECT id, email, name, role, created_at FROM admin_users WHERE id = ?`)
+  const current = await env.DB.prepare(
+    `SELECT id, email, name, role, created_at FROM admin_users WHERE id = ?`,
+  )
     .bind(id)
     .first<UserRow>();
   if (!current) return json({ error: 'Usuário não encontrado.' }, 404);
@@ -136,21 +106,32 @@ async function updateUser(
     return json({ error: 'Você não pode tirar o próprio acesso de administrador.' }, 409);
   }
 
-  if (typeof body.password === 'string' && body.password !== '') {
-    if (body.password.length < MIN_PASSWORD) {
-      return json({ error: `A senha precisa de pelo menos ${MIN_PASSWORD} caracteres.` }, 400);
-    }
-    const hash = await hashPassword(body.password);
-    await env.DB.prepare(`UPDATE admin_users SET name = ?, role = ?, password_hash = ? WHERE id = ?`)
-      .bind(name, role, hash, id)
-      .run();
-  } else {
-    await env.DB.prepare(`UPDATE admin_users SET name = ?, role = ? WHERE id = ?`)
-      .bind(name, role, id)
-      .run();
-  }
+  await env.DB.prepare(`UPDATE admin_users SET name = ?, role = ? WHERE id = ?`)
+    .bind(name, role, id)
+    .run();
 
   return json({ id, email: current.email, name, role });
+}
+
+/**
+ * Link de uso único para a própria pessoa trocar a senha — o administrador
+ * nunca escolhe ou vê a senha de ninguém, só manda este link por fora.
+ */
+async function createResetLink(env: Env, id: number, adminId: number): Promise<Response> {
+  const user = await env.DB.prepare(`SELECT id, email, name FROM admin_users WHERE id = ?`)
+    .bind(id)
+    .first<{ id: number; email: string; name: string }>();
+  if (!user) return json({ error: 'Usuário não encontrado.' }, 404);
+
+  const token = generateToken();
+  await env.DB.prepare(
+    `INSERT INTO invite_tokens (token, kind, email, name, user_id, created_by, expires_at)
+     VALUES (?, 'redefinir', ?, ?, ?, ?, datetime('now', '+${RESET_HOURS} hours'))`,
+  )
+    .bind(token, user.email, user.name, id, adminId)
+    .run();
+
+  return json({ token }, 201);
 }
 
 async function deleteUser(env: Env, id: number, myId: number): Promise<Response> {

@@ -19,6 +19,7 @@ import { songsRoute } from './api/songs';
 import { playlistsRoute } from './api/playlists';
 import { youtubeRoute } from './api/youtube';
 import { usersRoute } from './api/users';
+import { invitesRoute } from './api/invites';
 import { scansRoute } from './api/scans';
 import { catalogRoute } from './api/catalog';
 import { currentAccount, forbidden } from './lib/access';
@@ -213,6 +214,12 @@ export default {
 
     if (url.pathname === '/api/users' || url.pathname.startsWith('/api/users/')) {
       return withSecurityHeaders(await usersRoute(request, env, url.pathname));
+    }
+
+    // Convite e redefinir senha: rotas públicas (quem recebe o link ainda não
+    // tem sessão), menos a criação do convite em si, que é de administrador.
+    if (url.pathname === '/api/invites' || url.pathname.startsWith('/api/invites/')) {
+      return withSecurityHeaders(await invitesRoute(request, env, url.pathname));
     }
 
     if (url.pathname === '/api/scans' || url.pathname.startsWith('/api/scans/')) {

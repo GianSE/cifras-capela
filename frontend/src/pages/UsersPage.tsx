@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, Loader2, Plus, Shield, Trash2, UserRound, Users } from 'lucide-react';
+import { Check, Copy, Eye, KeyRound, Loader2, Plus, Shield, Trash2, UserRound, Users } from 'lucide-react';
 import { useAuth, type Role } from '@/hooks/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/library/EmptyState';
@@ -14,16 +14,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  createUser,
-  deleteUser,
-  listUsers,
-  updateUser,
-  type AppUser,
-} from '@/lib/users-api';
+import { deleteUser, listUsers, updateUser, type AppUser } from '@/lib/users-api';
+import { createInvite, createResetLink, inviteUrl } from '@/lib/invites-api';
 import { cn } from '@/lib/utils';
-
-const MIN_PASSWORD = 8;
 
 /**
  * `/usuarios` — quem entra no site e o que pode fazer.
@@ -31,13 +24,21 @@ const MIN_PASSWORD = 8;
  * Só administradores chegam aqui (o menu esconde e o Worker recusa). São dois
  * papéis: **administrador**, que faz tudo, e **somente leitura**, que consome o
  * site e monta as próprias playlists.
+ *
+ * Ninguém aqui escolhe a senha de outra pessoa: uma conta nova nasce por
+ * convite, e trocar a senha de uma que já existe é um link — em ambos, quem
+ * abre o link é quem escolhe a senha.
  */
 export function UsersPage() {
   const { user: me } = useAuth();
   const [users, setUsers] = useState<AppUser[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState<AppUser | 'novo' | null>(null);
+  const [editing, setEditing] = useState<AppUser | null>(null);
+  const [inviting, setInviting] = useState(false);
   const [removing, setRemoving] = useState<AppUser | null>(null);
+  const [link, setLink] = useState<{ title: string; description: string; url: string } | null>(
+    null,
+  );
 
   const load = useCallback(async () => {
     try {
@@ -52,6 +53,19 @@ export function UsersPage() {
     void load();
   }, [load]);
 
+  const handleResetLink = async (account: AppUser) => {
+    try {
+      const { token } = await createResetLink(account.id);
+      setLink({
+        title: `Link para ${account.name} trocar a senha`,
+        description: 'Vale por 24 horas e uma vez só. Mande por onde quiser.',
+        url: inviteUrl(token),
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Não foi possível gerar o link.');
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -62,8 +76,8 @@ export function UsersPage() {
           users ? `${users.length} ${users.length === 1 ? 'conta' : 'contas'}` : 'Carregando…'
         }
         actions={
-          <Button variant="gold" size="sm" className="gap-1.5" onClick={() => setEditing('novo')}>
-            <Plus className="size-4" /> <span className="hidden sm:inline">Nova conta</span>
+          <Button variant="gold" size="sm" className="gap-1.5" onClick={() => setInviting(true)}>
+            <Plus className="size-4" /> <span className="hidden sm:inline">Convidar</span>
           </Button>
         }
       />
@@ -85,7 +99,7 @@ export function UsersPage() {
           <EmptyState
             icon={Users}
             title="Nenhuma conta ainda"
-            description="Crie a conta de quem vai tocar com você."
+            description="Convide quem vai tocar com você."
           />
         ) : (
           <ul className="flex flex-col gap-2.5">
@@ -120,6 +134,15 @@ export function UsersPage() {
                   <RoleBadge role={account.role} className="mt-1" />
                 </div>
 
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => void handleResetLink(account)}
+                  aria-label={`Gerar link para ${account.name} trocar a senha`}
+                  title="Gerar link para trocar a senha"
+                >
+                  <KeyRound className="size-4" />
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setEditing(account)}>
                   Editar
                 </Button>
@@ -141,10 +164,24 @@ export function UsersPage() {
         )}
       </div>
 
+      {inviting && (
+        <InviteDialog
+          onClose={() => setInviting(false)}
+          onCreated={(token, email) => {
+            setInviting(false);
+            setLink({
+              title: `Convite para ${email}`,
+              description: 'Vale por 7 dias e uma vez só. Mande por onde quiser.',
+              url: inviteUrl(token),
+            });
+          }}
+        />
+      )}
+
       {editing && (
-        <UserDialog
-          account={editing === 'novo' ? null : editing}
-          isMe={editing !== 'novo' && editing.id === me?.id}
+        <EditDialog
+          account={editing}
+          isMe={editing.id === me?.id}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -161,6 +198,15 @@ export function UsersPage() {
             setRemoving(null);
             void load();
           }}
+        />
+      )}
+
+      {link && (
+        <LinkDialog
+          title={link.title}
+          description={link.description}
+          url={link.url}
+          onClose={() => setLink(null)}
         />
       )}
     </>
@@ -185,45 +231,137 @@ function RoleBadge({ role, className }: { role: Role; className?: string }) {
   );
 }
 
-/** Criar (sem `account`) ou editar uma conta. */
-function UserDialog({
-  account,
-  isMe,
+/** Convidar: só e-mail, nome e papel — quem aceita o convite escolhe a senha. */
+function InviteDialog({
   onClose,
-  onSaved,
+  onCreated,
 }: {
-  account: AppUser | null;
-  isMe: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onCreated: (token: string, email: string) => void;
 }) {
-  const [email, setEmail] = useState(account?.email ?? '');
-  const [name, setName] = useState(account?.name ?? '');
-  const [role, setRole] = useState<Role>(account?.role ?? 'leitor');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState<Role>('leitor');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const novo = account === null;
-  const senhaCurta = password !== '' && password.length < MIN_PASSWORD;
-  const podeSalvar =
-    name.trim() !== '' &&
-    !senhaCurta &&
-    (!novo || (email.includes('@') && password.length >= MIN_PASSWORD));
+  const podeEnviar = email.includes('@') && name.trim() !== '';
 
   const save = async () => {
     setSaving(true);
     setError(null);
     try {
-      if (novo) {
-        await createUser({ email: email.trim(), name: name.trim(), role, password });
-      } else {
-        await updateUser(account.id, {
-          name: name.trim(),
-          role,
-          ...(password ? { password } : {}),
-        });
-      }
+      const trimmedEmail = email.trim();
+      const { token } = await createInvite({ email: trimmedEmail, name: name.trim(), role });
+      onCreated(token, trimmedEmail);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Não foi possível criar o convite.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[88dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Convidar para o site</DialogTitle>
+          <DialogDescription>
+            Você diz o e-mail, o nome e o que a pessoa pode fazer; ela escolhe a própria senha ao
+            abrir o link.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div>
+          <Label htmlFor="invite-email" className="mb-1.5 block text-sm">
+            E-mail
+          </Label>
+          <Input
+            id="invite-email"
+            type="email"
+            inputMode="email"
+            autoComplete="off"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="pessoa@exemplo.com"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="invite-name" className="mb-1.5 block text-sm">
+            Nome
+          </Label>
+          <Input
+            id="invite-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Como aparece no app"
+          />
+        </div>
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1.5 text-sm font-medium text-foreground">O que pode fazer</legend>
+          <RoleOption
+            value="admin"
+            current={role}
+            onChange={setRole}
+            title="Administrador"
+            description="Cria, edita, importa e exclui músicas — e cuida das contas."
+          />
+          <RoleOption
+            value="leitor"
+            current={role}
+            onChange={setRole}
+            title="Somente leitura"
+            description="Abre a biblioteca, toca e monta as próprias playlists."
+          />
+        </fieldset>
+
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={() => void save()} disabled={!podeEnviar || saving} className="gap-2">
+            {saving && <Loader2 className="size-4 animate-spin" />}
+            Criar convite
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Editar uma conta que já existe: nome e papel. A senha é só de quem usa. */
+function EditDialog({
+  account,
+  isMe,
+  onClose,
+  onSaved,
+}: {
+  account: AppUser;
+  isMe: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(account.name);
+  const [role, setRole] = useState<Role>(account.role);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const podeSalvar = name.trim() !== '';
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await updateUser(account.id, { name: name.trim(), role });
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Não foi possível salvar.');
@@ -236,34 +374,9 @@ function UserDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[88dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{novo ? 'Nova conta' : 'Editar conta'}</DialogTitle>
-          <DialogDescription>
-            {novo
-              ? 'A pessoa entra com este e-mail e senha. Você pode trocar os dois depois.'
-              : 'Deixe a senha em branco para manter a atual.'}
-          </DialogDescription>
+          <DialogTitle>Editar conta</DialogTitle>
+          <DialogDescription>{account.email}</DialogDescription>
         </DialogHeader>
-
-        <div>
-          <Label htmlFor="user-email" className="mb-1.5 block text-sm">
-            E-mail
-          </Label>
-          <Input
-            id="user-email"
-            type="email"
-            inputMode="email"
-            autoComplete="off"
-            value={email}
-            disabled={!novo}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="pessoa@exemplo.com"
-          />
-          {!novo && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              O e-mail é a identidade da conta e não muda.
-            </p>
-          )}
-        </div>
 
         <div>
           <Label htmlFor="user-name" className="mb-1.5 block text-sm">
@@ -275,26 +388,6 @@ function UserDialog({
             onChange={(e) => setName(e.target.value)}
             placeholder="Como aparece no app"
           />
-        </div>
-
-        <div>
-          <Label htmlFor="user-password" className="mb-1.5 block text-sm">
-            {novo ? 'Senha' : 'Nova senha (opcional)'}
-          </Label>
-          <Input
-            id="user-password"
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={`Pelo menos ${MIN_PASSWORD} caracteres`}
-            aria-invalid={senhaCurta}
-          />
-          {senhaCurta && (
-            <p className="mt-1 text-xs text-destructive">
-              A senha precisa de pelo menos {MIN_PASSWORD} caracteres.
-            </p>
-          )}
         </div>
 
         <fieldset className="flex flex-col gap-2">
@@ -334,7 +427,7 @@ function UserDialog({
           </Button>
           <Button onClick={() => void save()} disabled={!podeSalvar || saving} className="gap-2">
             {saving && <Loader2 className="size-4 animate-spin" />}
-            {novo ? 'Criar conta' : 'Salvar'}
+            Salvar
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -379,6 +472,61 @@ function RoleOption({
         <span className="block text-xs text-muted-foreground">{description}</span>
       </span>
     </label>
+  );
+}
+
+/** Mostra um link de convite/redefinir, pronto para copiar e mandar por fora. */
+function LinkDialog({
+  title,
+  description,
+  url,
+  onClose,
+}: {
+  title: string;
+  description: string;
+  url: string;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard indisponível */
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+
+        <div className="flex gap-2">
+          <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="shrink-0"
+            onClick={() => void copy()}
+            aria-label="Copiar o link"
+            title="Copiar o link"
+          >
+            {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+          </Button>
+        </div>
+
+        <DialogFooter>
+          <Button onClick={onClose}>Concluído</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

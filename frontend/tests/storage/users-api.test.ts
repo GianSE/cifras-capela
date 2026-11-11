@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createUser, deleteUser, listUsers } from '../../src/lib/users-api';
+import { deleteUser, listUsers } from '../../src/lib/users-api';
+import { createInvite } from '../../src/lib/invites-api';
 
 const resposta = (status: number, body: unknown) =>
   vi.fn().mockResolvedValue({
@@ -29,7 +30,7 @@ describe('contas do site', () => {
   it('mostra o motivo que o servidor deu (e-mail repetido)', async () => {
     vi.stubGlobal('fetch', resposta(409, { error: 'Já existe uma conta com esse e-mail.' }));
     await expect(
-      createUser({ email: 'a@x.com', name: 'Ana', role: 'leitor', password: 'senha-longa' }),
+      createInvite({ email: 'a@x.com', name: 'Ana', role: 'leitor' }),
     ).rejects.toThrow('Já existe uma conta com esse e-mail.');
   });
 

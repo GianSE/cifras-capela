@@ -7,6 +7,7 @@ import { useEditAccess } from '@/hooks/useEditAccess';
 import { useAuth } from '@/hooks/useAuth';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
+import { AcceptInvitePage } from '@/pages/AcceptInvitePage';
 
 // Rotas pesadas carregadas sob demanda (code-splitting).
 const PlaylistsPage = lazy(() =>
@@ -94,6 +95,8 @@ export function App() {
           {/* Entrada (fora do guard): o endereço principal abre o login */}
           <Route index element={<EntryRoute />} />
           <Route path="login" element={<LegacyLoginRedirect />} />
+          {/* Convite de conta e redefinir senha: links de uso único, sem sessão. */}
+          <Route path="convite/:token" element={<AcceptInvitePage />} />
 
           {/* Tudo o mais exige ter entrado */}
           <Route element={<RequireEntry />}>

@@ -2,6 +2,10 @@
  * @module lib/users-api
  * @description Contas do site (`/api/users`). Só administradores enxergam
  * estas rotas — o Worker recusa as demais com 403.
+ *
+ * Não há mais como o administrador definir a senha de alguém: contas novas
+ * nascem por convite e trocar a senha de uma já existente é um link de uso
+ * único (`lib/invites-api`) — a pessoa escolhe a própria senha nos dois casos.
  */
 
 import type { Role } from '@/hooks/useAuth';
@@ -15,11 +19,8 @@ export interface AppUser {
 }
 
 export interface UserInput {
-  readonly email?: string;
   readonly name: string;
   readonly role: Role;
-  /** Vazio ao editar = mantém a senha atual. */
-  readonly password?: string;
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -38,14 +39,6 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export async function listUsers(): Promise<AppUser[]> {
   const data = await request<{ users: AppUser[] }>('/api/users');
   return data.users;
-}
-
-export function createUser(input: UserInput): Promise<AppUser> {
-  return request<AppUser>('/api/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
 }
 
 export function updateUser(id: number, input: UserInput): Promise<AppUser> {
