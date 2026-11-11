@@ -57,6 +57,12 @@ function nextVersoSection(source: string): string {
   return `{verso ${next}}`;
 }
 
+/** Já tem um refrão escrito? Então dá para trazê-lo de volta sem reescrever. */
+const HAS_CHORUS_RE = /\{\s*(refrão|refrao|chorus|coro|estribilho)\s*\}/i;
+function hasWrittenChorus(source: string): boolean {
+  return HAS_CHORUS_RE.test(source);
+}
+
 export function EditorPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -383,7 +389,11 @@ function Toolbar({
     songKey && songKey in HARMONIC_FIELDS ? songKey : 'C',
   );
   const chords = HARMONIC_FIELDS[key] ?? [];
-  const sections = [nextVersoSection(source), ...QUICK_SECTIONS];
+  const sections = [
+    nextVersoSection(source),
+    ...QUICK_SECTIONS,
+    ...(hasWrittenChorus(source) ? ['{refrão again}'] : []),
+  ];
 
   return (
     <div className="mb-2 flex flex-col gap-1.5">

@@ -79,4 +79,73 @@ Letra da música
     expect(result.errors[0].message).toContain('Título da música não definido');
     expect(result.errors[0].severity).toBe('warning');
   });
+
+  describe('{refrão again} — repete o refrão sem reescrever', () => {
+    it('traz de volta as linhas do refrão já escrito', () => {
+      const input = `
+{title: Teste}
+{verso 1}
+[G]Primeiro verso
+
+{refrão}
+[C]Letra do [G]refrão
+
+{verso 2}
+[G]Segundo verso
+
+{refrão again}
+`;
+      const result = parse(input);
+      expect(result.errors).toHaveLength(0);
+
+      const choruses = result.song.sections.filter((s) => s.type === 'chorus');
+      expect(choruses).toHaveLength(2);
+      // A seção repetida tem as MESMAS linhas do refrão original.
+      expect(choruses[1]!.lines).toEqual(choruses[0]!.lines);
+      expect(choruses[1]!.lines.flatMap((l) => l.segments.map((s) => s.lyric))).toContain(
+        'refrão',
+      );
+    });
+
+    it('{refrão} normal continua abrindo uma seção vazia, mesmo com um refrão antes', () => {
+      const input = `
+{title: Teste}
+{refrão}
+[C]Primeiro refrão
+
+{refrão}
+[C]Segundo refrão, escrito por extenso
+`;
+      const result = parse(input);
+      const choruses = result.song.sections.filter((s) => s.type === 'chorus');
+      expect(choruses).toHaveLength(2);
+      expect(choruses[1]!.lines).not.toEqual(choruses[0]!.lines);
+    });
+
+    it('sem refrão nenhum antes, avisa e não insere seção', () => {
+      const input = `
+{title: Teste}
+[G]Só um verso solto
+
+{refrão again}
+`;
+      const result = parse(input);
+      expect(result.song.sections.some((s) => s.type === 'chorus')).toBe(false);
+      expect(result.errors.some((e) => e.message.includes('repetido'))).toBe(true);
+    });
+
+    it('também funciona em inglês e sem acento ("chorus", "refrao", "repeat")', () => {
+      const input = `
+{title: Teste}
+{chorus}
+[C]La la la
+
+{refrao: repeat}
+`;
+      const result = parse(input);
+      const choruses = result.song.sections.filter((s) => s.type === 'chorus');
+      expect(choruses).toHaveLength(2);
+      expect(choruses[1]!.lines).toEqual(choruses[0]!.lines);
+    });
+  });
 });

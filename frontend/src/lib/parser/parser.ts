@@ -247,6 +247,25 @@ function buildSectionLabel(name: string, value: string): string {
   return value ? `${capitalized} ${value}` : capitalized;
 }
 
+/**
+ * Valores que pedem para **repetir** a seção, em vez de abrir uma nova —
+ * `{refrão again}` traz de volta o refrão já escrito, sem copiar tudo de
+ * novo. É um recurso por seção: `{refrão}` sozinho continua abrindo uma
+ * seção vazia, para quem escreve o refrão por extenso a cada vez.
+ */
+const REPEAT_VALUES: ReadonlySet<string> = new Set([
+  'again',
+  'repeat',
+  'repete',
+  'repetir',
+  'de novo',
+  'denovo',
+]);
+
+function isRepeatMarker(value: string): boolean {
+  return REPEAT_VALUES.has(value.trim().toLowerCase());
+}
+
 // ---------------------------------------------------------------------------
 // Classificação de linhas
 // ---------------------------------------------------------------------------
@@ -367,8 +386,23 @@ function processToken(state: ParserState, token: Token): void {
       const sectionType = SECTION_KEYWORDS[token.name];
       if (sectionType) {
         flushSection(state);
-        state.currentSectionType = sectionType;
-        state.currentSectionLabel = buildSectionLabel(token.name, token.value);
+        if (isRepeatMarker(token.value)) {
+          // `{refrão again}`: traz de volta a última seção deste tipo, já
+          // escrita antes, em vez de abrir uma seção nova e vazia.
+          const previous = [...state.sections].reverse().find((s) => s.type === sectionType);
+          if (previous) {
+            state.sections.push({ type: previous.type, label: previous.label, lines: previous.lines });
+          } else {
+            state.errors.push({
+              line: token.line,
+              message: `"${buildSectionLabel(token.name, '')}" repetido, mas nenhum foi escrito antes.`,
+              severity: 'warning',
+            });
+          }
+        } else {
+          state.currentSectionType = sectionType;
+          state.currentSectionLabel = buildSectionLabel(token.name, token.value);
+        }
       } else {
         applyDirective(state.metadata, token.name, token.value, state.errors, token.line);
       }

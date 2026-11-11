@@ -58,3 +58,16 @@ describe('atalho de seção no editor — numeração do verso', () => {
     expect(screen.getByRole('button', { name: '{verso 3}' })).toBeTruthy();
   });
 });
+
+describe('atalho de seção no editor — repetir o refrão', () => {
+  it('o modelo de música nova já tem um refrão: o atalho de repetir aparece', () => {
+    renderEditor();
+    expect(screen.getByRole('button', { name: '{refrão again}' })).toBeTruthy();
+  });
+
+  it('sem nenhum refrão escrito, o atalho de repetir não aparece', () => {
+    renderEditor();
+    fireEvent.change(codeField(), { target: { value: '---\ntitle: T\n---\n[G]Letra\n' } });
+    expect(screen.queryByRole('button', { name: '{refrão again}' })).toBeNull();
+  });
+});
