@@ -138,30 +138,3 @@ export function loadCatalog(): Promise<{ entries: CatalogEntry[]; failed: Catalo
   return loading;
 }
 
-/** Só para os testes: esquece o catálogo carregado. */
-export function resetCatalogForTests(): void {
-  loading = null;
-}
-
-export interface CifraClubResult {
-  readonly title: string;
-  readonly artist: string;
-  readonly url: string;
-}
-
-/** Sugestões do CifraClub. Qualquer falha vira lista vazia: é um extra da busca. */
-export async function searchCifraClub(
-  query: string,
-  signal?: AbortSignal,
-): Promise<CifraClubResult[]> {
-  try {
-    const res = await fetch(`/api/catalog/cifraclub?q=${encodeURIComponent(query)}`, {
-      credentials: 'same-origin',
-      ...(signal && { signal }),
-    });
-    if (!res.ok) return [];
-    return ((await res.json()) as { results?: CifraClubResult[] }).results ?? [];
-  } catch {
-    return [];
-  }
-}

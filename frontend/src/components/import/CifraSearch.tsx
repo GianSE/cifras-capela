@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { Download, ExternalLink, Library, Loader2, Search } from 'lucide-react';
+import { Download, Library, Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   SOURCE_NAMES,
   loadCatalog,
   searchCatalog,
-  searchCifraClub,
   type CatalogEntry,
   type CatalogSource,
-  type CifraClubResult,
 } from '@/lib/catalog';
 import { normalizeText, normalizeTitle } from '@/lib/library/duplicates';
 import type { PageHint } from '@/lib/import/url-importer';
@@ -22,18 +20,11 @@ export const SEARCH_DEBOUNCE_MS = 300;
 const MAX_LIBRARY_RESULTS = 5;
 const ALREADY_THERE = 'Pode já estar na biblioteca';
 
-/** Uma fonte de busca: os sitemaps do catálogo, e o CifraClub por fora deles. */
-type SiteKey = CatalogSource | 'cifraclub';
-
 /** Pílulas de "buscar em", na ordem em que aparecem. */
-const SITE_PILLS: ReadonlyArray<{ key: SiteKey; label: string }> = [
-  { key: 'cifraclub', label: 'CifraClub' },
-  ...(Object.entries(SOURCE_NAMES) as [CatalogSource, string][]).map(([key, label]) => ({
-    key,
-    label,
-  })),
-];
-const ALL_SITES: ReadonlySet<SiteKey> = new Set(SITE_PILLS.map((p) => p.key));
+const SITE_PILLS: ReadonlyArray<{ key: CatalogSource; label: string }> = Object.entries(
+  SOURCE_NAMES,
+).map(([key, label]) => ({ key: key as CatalogSource, label }));
+const ALL_SITES: ReadonlySet<CatalogSource> = new Set(SITE_PILLS.map((p) => p.key));
 
 /** Na biblioteca vale também um trecho da letra, que é o que se lembra da música. */
 function searchLibrary(songs: readonly SongIndexEntry[], query: string): SongIndexEntry[] {
@@ -63,7 +54,7 @@ interface CifraSearchProps {
 export function CifraSearch({ songs, onImport }: CifraSearchProps) {
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
-  const [sites, setSites] = useState<ReadonlySet<SiteKey>>(ALL_SITES);
+  const [sites, setSites] = useState<ReadonlySet<CatalogSource>>(ALL_SITES);
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(text.trim()), SEARCH_DEBOUNCE_MS);
@@ -73,7 +64,7 @@ export function CifraSearch({ songs, onImport }: CifraSearchProps) {
   const active = query.length >= MIN_SITE_QUERY;
   const inLibrary = useMemo(() => searchLibrary(songs, query), [songs, query]);
 
-  const toggleSite = (key: SiteKey) =>
+  const toggleSite = (key: CatalogSource) =>
     setSites((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -148,8 +139,8 @@ export function CifraSearch({ songs, onImport }: CifraSearchProps) {
 }
 
 /**
- * O que dá para trazer dos sites para uma busca: o mapa dos sitemaps e as sugestões
- * do CifraClub. Com menos de {@link MIN_SITE_QUERY} letras, não busca nada.
+ * O que dá para trazer dos sites para uma busca: o mapa dos sitemaps do catálogo.
+ * Com menos de {@link MIN_SITE_QUERY} letras, não busca nada.
  */
 export function SiteResults({
   query,
@@ -165,15 +156,13 @@ export function SiteResults({
   /** Resultados de fora daqui: com eles, não cabe dizer que nada foi encontrado. */
   otherResults?: number;
   /** Só busca (e mostra) nos sites marcados. */
-  sites?: ReadonlySet<SiteKey>;
+  sites?: ReadonlySet<CatalogSource>;
 }) {
   const [catalog, setCatalog] = useState<CatalogEntry[] | null>(null);
   const [failed, setFailed] = useState<CatalogSource[]>([]);
-  const [cifraClub, setCifraClub] = useState<CifraClubResult[]>([]);
   const [importing, setImporting] = useState<string | null>(null);
 
   const active = query.length >= MIN_SITE_QUERY;
-  const wantsCifraClub = sites.has('cifraclub');
 
   // O catálogo só é baixado quando alguém procura de fato. `loadCatalog` guarda o
   // que deu certo, então isto só vai à rede de novo para tentar o que falhou.
@@ -189,18 +178,6 @@ export function SiteResults({
       current = false;
     };
   }, [active, query]);
-
-  useEffect(() => {
-    if (!active || !wantsCifraClub) {
-      setCifraClub([]);
-      return;
-    }
-    const controller = new AbortController();
-    void searchCifraClub(query, controller.signal).then((results) => {
-      if (!controller.signal.aborted) setCifraClub(results);
-    });
-    return () => controller.abort();
-  }, [active, query, wantsCifraClub]);
 
   const found = useMemo(
     () =>
@@ -222,8 +199,7 @@ export function SiteResults({
     }
   };
 
-  const nothing =
-    catalog !== null && otherResults === 0 && found.length === 0 && cifraClub.length === 0;
+  const nothing = catalog !== null && otherResults === 0 && found.length === 0;
 
   return (
     <>
@@ -247,40 +223,6 @@ export function SiteResults({
                 importing={importing}
                 onImport={(url) => void handleImport(url)}
               />
-            </ResultRow>
-          ))}
-        </ResultGroup>
-      )}
-
-      {cifraClub.length > 0 && (
-        <ResultGroup title="No CifraClub">
-          {cifraClub.map((result) => (
-            <ResultRow
-              key={result.url}
-              title={result.title}
-              detail={result.artist}
-              badge={titles.has(normalizeTitle(result.title)) ? ALREADY_THERE : undefined}
-            >
-              <div className="flex items-center gap-1">
-                <Button
-                  asChild
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`Ver ${result.title} no CifraClub`}
-                  title="Ver no site"
-                >
-                  <a href={result.url} target="_blank" rel="noreferrer">
-                    <ExternalLink className="size-4" />
-                  </a>
-                </Button>
-                <TrazerButton
-                  url={result.url}
-                  importing={importing}
-                  onImport={(url) =>
-                    void handleImport(url, { title: result.title, artist: result.artist })
-                  }
-                />
-              </div>
             </ResultRow>
           ))}
         </ResultGroup>
