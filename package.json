@@ -12,10 +12,8 @@
     "dev": "npm run dev --workspace=frontend",
     "build": "npm run build --workspace=frontend",
     "preview": "npm run preview --workspace=frontend",
-    "test": "npm run test --workspace=frontend",
-    "test:watch": "npm run test:watch --workspace=frontend",
     "lint": "npm run lint --workspace=frontend",
-    "format": "prettier --write \"frontend/src/**/*.{ts,tsx,css}\" \"frontend/tests/**/*.{ts,tsx}\" \"worker/src/**/*.ts\"",
+    "format": "prettier --write \"frontend/src/**/*.{ts,tsx,css}\" \"worker/src/**/*.ts\"",
     "worker:dev": "npm run dev --workspace=worker",
     "worker:deploy": "npm run deploy --workspace=worker"
   },

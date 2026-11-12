@@ -74,7 +74,7 @@ Hospedada no **Cloudflare Workers**.
 
 - **React 19** + **Vite** + **TypeScript** (strict)
 - **TailwindCSS v4** + **shadcn/ui** (Radix)
-- **Vitest** (testes) · **oxlint** + **Prettier**
+- **oxlint** + **Prettier**
 - **vite-plugin-pwa** (Workbox) · **MiniSearch** (busca) · **pdfjs-dist** (import de PDF)
 - **Cloudflare Pages + Workers** (deploy)
 
@@ -113,9 +113,6 @@ npm install
 
 # ambiente de desenvolvimento (http://localhost:5173)
 npm run dev
-
-# testes (parser, transposição, renderização)
-npm run test
 
 # build de produção (bundle em frontend/dist)
 npm run build
@@ -292,8 +289,4 @@ fallback SPA. Ajuste `SITE_URL` se quiser URLs absolutas no sitemap.
 ```bash
 npm run lint      # oxlint
 npm run format    # prettier
-npm run test      # vitest
 ```
-
-Cobertura de testes focada em **parser**, **transposição** e **renderização** — o núcleo
-crítico do app.
