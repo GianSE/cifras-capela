@@ -59,8 +59,10 @@ const PARSERS: Readonly<
       ? { title: slugToTitle(slug), artist: slugToTitle(artist) }
       : null,
   // Mesmo formato do Cifras Católicas; páginas de uma música só têm dois pedaços.
+  // "musicas/artistas" é a única página do próprio site nesse formato — o
+  // índice de artistas, não uma música — por isso a exceção.
   decifrando: ([artist, slug, ...rest]) =>
-    artist && slug && rest.length === 0
+    artist && slug && rest.length === 0 && !(artist === 'musicas' && slug === 'artistas')
       ? { title: slugToTitle(slug), artist: slugToTitle(artist) }
       : null,
 };
