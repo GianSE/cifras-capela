@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router';
-import { Library, ListMusic, MoreHorizontal, PenLine } from 'lucide-react';
+import { Library, ListMusic, MoreHorizontal, Upload } from 'lucide-react';
 import { useEditAccess } from '@/hooks/useEditAccess';
 import { MoreMenu, useMoreItems } from './MoreMenu';
 import { cn } from '@/lib/utils';
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 const NAV_ITEMS = [
   { to: '/playlists', icon: ListMusic, label: 'Playlists', end: false },
   { to: '/home', icon: Library, label: 'Biblioteca', end: true },
-  { to: '/editor', icon: PenLine, label: 'Editor', end: false },
+  { to: '/importar', icon: Upload, label: 'Importar', end: false },
 ] as const;
 
 /** Mesmo visual dos itens fixos, para o "Mais" não destoar ao lado deles. */
@@ -22,7 +22,7 @@ const ITEM =
 export function BottomNav() {
   const { showEditUI } = useEditAccess();
   const { pathname } = useLocation();
-  const items = NAV_ITEMS.filter((item) => item.to !== '/editor' || showEditUI);
+  const items = NAV_ITEMS.filter((item) => item.to !== '/importar' || showEditUI);
   const moreItems = useMoreItems();
   const moreActive = moreItems.some((item) => pathname.startsWith(item.to));
 

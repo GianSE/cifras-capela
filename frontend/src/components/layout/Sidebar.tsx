@@ -1,14 +1,13 @@
-import { Link, useLocation, useNavigate } from 'react-router';
-import { Music, ListMusic, PenLine, MoreHorizontal, Library, UserRound, LogOut } from 'lucide-react';
+import { Link, useLocation } from 'react-router';
+import { Music, ListMusic, Upload, Library } from 'lucide-react';
 import { useEditAccess } from '@/hooks/useEditAccess';
-import { useAuth } from '@/hooks/useAuth';
-import { MoreMenu, useMoreItems } from './MoreMenu';
+import { useMoreItems } from './MoreMenu';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { name: 'Playlists', path: '/playlists', icon: ListMusic },
   { name: 'Biblioteca', path: '/home', icon: Library },
-  { name: 'Editor', path: '/editor', icon: PenLine },
+  { name: 'Importar', path: '/importar', icon: Upload },
 ] as const;
 
 /** Largura do trilho recolhido (só ícones). */
@@ -27,16 +26,23 @@ const LABEL =
  * O `<aside>` é só um espaçador de 72px no fluxo; o painel de verdade é
  * `absolute` dentro dele, então ao expandir ele **sobrepõe** o conteúdo em vez
  * de empurrá-lo. Também expande via `focus-within` (navegação por teclado).
+ *
+ * Sem o botão "Mais": no trilho cabe todo mundo, ícone a ícone — esse atalho
+ * é só para o espaço curto da navegação do celular. A conta de quem entrou
+ * também não mora aqui: já está na barra de cima, nos dois tamanhos de tela.
  */
 export function Sidebar() {
   const { pathname } = useLocation();
   const { showEditUI } = useEditAccess();
+  const moreItems = useMoreItems();
 
   const isActive = (path: string) => pathname.startsWith(path);
-  const moreActive = useMoreItems().some((item) => pathname.startsWith(item.to));
 
-  // O Editor só aparece para quem pode escrever (logado, ou modo arquivo).
-  const items = NAV_ITEMS.filter((item) => item.path !== '/editor' || showEditUI);
+  // Importar e as telas do "Mais" (Folhas, Usuários) só para quem escreve.
+  const items = [
+    ...NAV_ITEMS.filter((item) => item.path !== '/importar' || showEditUI),
+    ...moreItems.map(({ to, label, icon }) => ({ name: label, path: to, icon })),
+  ];
 
   return (
     <aside className={cn('relative hidden shrink-0 md:block', RAIL)}>
@@ -93,77 +99,8 @@ export function Sidebar() {
               </Link>
             );
           })}
-          <MoreMenu
-            align="start"
-            trigger={
-              <button
-                type="button"
-                title="Mais"
-                className={cn(
-                  'relative flex h-12 shrink-0 items-center rounded-full transition-colors',
-                  moreActive
-                    ? 'bg-white/10 text-gold-300'
-                    : 'text-navy-200 hover:bg-white/6 hover:text-ivory',
-                )}
-              >
-                {moreActive && (
-                  <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-[image:var(--gradient-gold)]" />
-                )}
-                <span className="grid size-12 shrink-0 place-items-center">
-                  <MoreHorizontal className="size-5" strokeWidth={moreActive ? 2.25 : 1.75} />
-                </span>
-                <span className={cn(LABEL, 'text-sm font-semibold')}>Mais</span>
-              </button>
-            }
-          />
         </nav>
-
-        {/* Rodapé: a conta de quem entrou */}
-        <SidebarAccount />
       </div>
     </aside>
-  );
-}
-
-/** Quem entrou e o que a conta pode fazer, com o botão de sair. */
-function SidebarAccount() {
-  const { user, isAdmin, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  const handleExit = async () => {
-    await signOut();
-    navigate('/', { replace: true });
-  };
-
-  if (!user) return null;
-
-  const name = user.name || user.email.split('@')[0] || 'Conta';
-  const sub = isAdmin ? user.email : 'Somente leitura';
-
-  return (
-    <div className="shrink-0 border-t border-white/10 p-3">
-      <div className="flex items-center">
-        <span className="grid size-12 shrink-0 place-items-center" title={sub}>
-          <span className="flex size-9 items-center justify-center rounded-full border border-gold-400/30 bg-white/8 text-gold-300">
-            <UserRound className="size-4" />
-          </span>
-        </span>
-        <div className={cn(LABEL, 'flex min-w-0 flex-1 items-center gap-1')}>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-ivory">{name}</p>
-            <p className="truncate text-xs text-navy-200">{sub}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void handleExit()}
-            title="Sair"
-            aria-label="Sair"
-            className="grid size-9 shrink-0 place-items-center rounded-full text-navy-200 transition-colors hover:bg-white/10 hover:text-gold-300"
-          >
-            <LogOut className="size-4" />
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }

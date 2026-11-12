@@ -15,6 +15,7 @@ import {
   Search,
   Link as LinkIcon,
   Copy,
+  ClipboardPaste,
 } from 'lucide-react';
 import {
   importFromUrl,
@@ -25,6 +26,7 @@ import {
 } from '@/lib/import/url-importer';
 import { PasteCifra } from '@/components/import/PasteCifra';
 import { ACCEPTED_FILE_TYPES, importFile, buildSource, type ImportedSong } from '@/lib/import';
+import { importPlainText } from '@/lib/import/text-importer';
 import { SongRenderer } from '@/components/song/SongRenderer';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { RequireAuth } from '@/components/auth/RequireAuth';
@@ -294,6 +296,12 @@ export function ImportPage() {
     }
   };
 
+  /** Cifra digitada ou colada direto, sem passar por site nenhum. */
+  const handlePasteText = (text: string) => {
+    if (!text.trim()) return;
+    startReview(importPlainText(text));
+  };
+
   /** Música escolhida na busca: mesmo caminho do link colado. */
   const handleFound = async (url: string, hint?: PageHint) => {
     setImportError(null);
@@ -403,7 +411,7 @@ export function ImportPage() {
           subtitle={
             scanId
               ? 'Confira a transcrição com a folha original'
-              : 'Traga de um link, de um arquivo ou de uma foto da folha'
+              : 'Da foto da folha, de um site, de um arquivo ou do texto colado'
           }
         />
         <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8">
@@ -457,10 +465,7 @@ export function ImportPage() {
                 />
               )}
 
-              {/* Importar depende do Worker, como o link colado. */}
-              {urlAvailable && <CifraSearch songs={songs} onImport={handleFound} />}
-
-              {/* Foto rápida: guarda agora, transcreve depois. */}
+              {/* Foto rápida: guarda agora, transcreve depois. O mais rápido de todos. */}
               {songService.canWrite && (
                 <Link
                   to="/folhas"
@@ -481,7 +486,10 @@ export function ImportPage() {
                 </Link>
               )}
 
-              {/* Link da cifra — o caminho mais curto, então vem primeiro. */}
+              {/* Importar depende do Worker, como o link colado. */}
+              {urlAvailable && <CifraSearch songs={songs} onImport={handleFound} />}
+
+              {/* Link da cifra */}
               {urlAvailable && (
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
                   <div className="mb-1 flex items-center gap-2">
@@ -549,6 +557,9 @@ export function ImportPage() {
                   }}
                 />
               </label>
+
+              {/* Colar o texto direto — sem link nem arquivo, só a letra com os acordes. */}
+              <PasteTextCard onPaste={handlePasteText} />
             </div>
           ) : (
             <ReviewForm
@@ -624,6 +635,35 @@ export function ImportPage() {
         </Dialog>
       </>
     </RequireAuth>
+  );
+}
+
+/** Colar a letra com os acordes direto, sem link nem arquivo — o último recurso. */
+function PasteTextCard({ onPaste }: { onPaste: (text: string) => void }) {
+  const [text, setText] = useState('');
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+      <div className="mb-1 flex items-center gap-2">
+        <ClipboardPaste className="size-4 text-gold-600 dark:text-gold-400" />
+        <h2 className="font-display text-xl text-foreground">Colar o texto da música</h2>
+      </div>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Já tem a cifra em mãos (de um grupo, de um caderno, de outro app)? Cole aqui, com os
+        acordes entre colchetes ou em cima da letra — o app ajeita o resto.
+      </p>
+      <Textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={6}
+        placeholder={'Título\nArtista\n\n[G]Letra da música [C]com os acordes'}
+        aria-label="Letra e acordes da música"
+        className="mb-3 font-mono text-sm"
+      />
+      <Button onClick={() => onPaste(text)} disabled={!text.trim()} className="gap-2">
+        <ClipboardPaste className="size-4" /> Usar este texto
+      </Button>
+    </div>
   );
 }
 
