@@ -27,6 +27,7 @@ import {
 import { PasteCifra } from '@/components/import/PasteCifra';
 import { ACCEPTED_FILE_TYPES, importFile, buildSource, type ImportedSong } from '@/lib/import';
 import { importPlainText } from '@/lib/import/text-importer';
+import { capitalizar } from '@/lib/import/capitalize';
 import { SongRenderer } from '@/components/song/SongRenderer';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { RequireAuth } from '@/components/auth/RequireAuth';
@@ -36,6 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ErrorDialog } from '@/components/ui/error-dialog';
 import { downloadTextFile, slugify } from '@/lib/export/download';
 import { parseYoutubeId, youtubeThumbnailUrl } from '@/lib/youtube';
 import { VideoLinkDialog } from '@/components/video/VideoLinkDialog';
@@ -249,7 +251,13 @@ export function ImportPage() {
 
   /** Abre a revisão de uma música importada. */
   const startReview = (imported: ImportedSong) => {
-    setDraft(toDraft(imported));
+    setDraft(
+      toDraft({
+        ...imported,
+        title: capitalizar(imported.title ?? ''),
+        ...(imported.artist && { artist: capitalizar(imported.artist) }),
+      }),
+    );
     setSaveError(null);
     setImportError(null);
     setPasteFrom(null);
@@ -424,14 +432,6 @@ export function ImportPage() {
                 </>
               ) : (
                 <>
-                  {importError && (
-                    <p
-                      role="alert"
-                      className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive"
-                    >
-                      {importError}
-                    </p>
-                  )}
                   {pasteFrom && (
                     <PasteCifra
                       url={pasteFrom.url}
@@ -449,14 +449,6 @@ export function ImportPage() {
             </div>
           ) : !draft ? (
             <div className="flex flex-col gap-5">
-              {importError && (
-                <p
-                  role="alert"
-                  className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive"
-                >
-                  {importError}
-                </p>
-              )}
               {pasteFrom && (
                 <PasteCifra
                   url={pasteFrom.url}
@@ -570,6 +562,7 @@ export function ImportPage() {
               onSave={save}
               saving={saving}
               saveError={saveError}
+              onDismissError={() => setSaveError(null)}
               onRestart={restart}
               original={scan ?? undefined}
               {...(missa && {
@@ -633,6 +626,8 @@ export function ImportPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <ErrorDialog message={importError} onClose={() => setImportError(null)} />
       </>
     </RequireAuth>
   );
@@ -675,6 +670,7 @@ function ReviewForm({
   onSave,
   saving,
   saveError,
+  onDismissError,
   onRestart,
   original,
   songs,
@@ -695,6 +691,7 @@ function ReviewForm({
   onSave: () => void;
   saving: boolean;
   saveError: string | null;
+  onDismissError: () => void;
   onRestart: () => void;
 }) {
   const previewSong = parse(draftToSource(draft)).song;
@@ -717,9 +714,7 @@ function ReviewForm({
 
       <DuplicateWarning title={draft.title} lyrics={extractLyricsText(draft.body)} songs={songs} />
 
-      {saveError && (
-        <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{saveError}</p>
-      )}
+      <ErrorDialog message={saveError} onClose={onDismissError} />
 
       {draft.warnings.length > 0 && (
         <div className="flex flex-col gap-2 rounded-lg bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] p-3 text-xs text-foreground">

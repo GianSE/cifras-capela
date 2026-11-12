@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/library/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ErrorDialog } from '@/components/ui/error-dialog';
 import {
   Dialog,
   DialogContent,
@@ -83,12 +84,6 @@ export function UsersPage() {
       />
 
       <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8">
-        {error && (
-          <p role="alert" className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
-          </p>
-        )}
-
         {!users ? (
           <div className="space-y-2.5">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -209,6 +204,8 @@ export function UsersPage() {
           onClose={() => setLink(null)}
         />
       )}
+
+      <ErrorDialog message={error} onClose={() => setError(null)} />
     </>
   );
 }

@@ -17,6 +17,7 @@ import { SongHeader } from '@/components/song/SongHeader';
 import { SongRenderer } from '@/components/song/SongRenderer';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ErrorDialog } from '@/components/ui/error-dialog';
 import { downloadTextFile, slugify } from '@/lib/export/download';
 import { buildSongId, extractLyricsText, nextFreeSongId } from '@/lib/library/derive';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
@@ -328,12 +329,8 @@ export function EditorPage() {
           </div>
         </header>
 
-        {/* Avisos de escrita */}
-        {saveError && (
-          <p className="mb-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-            {saveError}
-          </p>
-        )}
+        <ErrorDialog message={saveError} onClose={() => setSaveError(null)} />
+
         {/* Só em música nova: editando, ela mesma apareceria como repetida. */}
         {!savedId && (
           <div className="mb-3">

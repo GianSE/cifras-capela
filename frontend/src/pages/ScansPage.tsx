@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { SectionTitle } from '@/components/layout/SectionTitle';
 import { EmptyState } from '@/components/library/EmptyState';
 import { Button } from '@/components/ui/button';
+import { ErrorDialog } from '@/components/ui/error-dialog';
 import { useSongLibrary } from '@/hooks/useSongLibrary';
 import { AddToPlaylist } from '@/components/playlist/AddToPlaylist';
 import { UseScanAsSongDialog } from '@/components/scans/UseScanAsSongDialog';
@@ -189,11 +190,7 @@ export function ScansPage() {
           />
         </div>
 
-        {loadError && (
-          <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-            {loadError}
-          </p>
-        )}
+        <ErrorDialog message={loadError} onClose={() => setLoadError(null)} />
 
         {/* Para transcrever */}
         <section>

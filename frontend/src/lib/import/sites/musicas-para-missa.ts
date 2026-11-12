@@ -10,6 +10,7 @@
  */
 
 import { importPlainText, DEDUCED_TITLE_WARNING } from '../text-importer';
+import { capitalizar } from '../capitalize';
 import type { ImportedSong } from '../types';
 
 /**
@@ -62,30 +63,6 @@ function campoDaInfo(info: string, rotulo: RegExp): string | undefined {
     if (valor !== linha.trim() && valor) return valor;
   }
   return undefined;
-}
-
-/**
- * O site escreve tudo em caixa alta. No título isso grita ao lado das outras
- * músicas da biblioteca, então vira "Senhor, Que Vieste Salvar" — as palavrinhas
- * de ligação ficam minúsculas, como se escreve em português.
- */
-const MINUSCULAS = new Set([
-  'a', 'à', 'ao', 'aos', 'as', 'às', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'na', 'nas',
-  'no', 'nos', 'o', 'os', 'ou', 'para', 'pelo', 'pela', 'por', 'que', 'com', 'um', 'uma',
-]);
-
-export function capitalizar(texto: string): string {
-  if (/[a-zà-ú]/.test(texto)) return texto; // já tem minúsculas: é do autor, não mexe.
-
-  return texto
-    .toLocaleLowerCase('pt-BR')
-    .split(/(\s+)/)
-    .map((parte, i) => {
-      if (/^\s+$/.test(parte) || parte === '') return parte;
-      if (i > 0 && MINUSCULAS.has(parte.replace(/[^\wà-ú]/gi, ''))) return parte;
-      return parte.replace(/\p{L}/u, (letra) => letra.toLocaleUpperCase('pt-BR'));
-    })
-    .join('');
 }
 
 /**
