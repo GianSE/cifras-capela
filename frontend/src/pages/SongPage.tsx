@@ -401,6 +401,25 @@ export function SongPage() {
             />
           )}
 
+          {/* De onde a cifra foi importada (import em lote) — link pro original. */}
+          {transposedSong.metadata.custom.fonte_site && (
+            <p className="mt-6 text-center text-xs text-muted-foreground">
+              Fonte:{' '}
+              {transposedSong.metadata.custom.fonte_url ? (
+                <a
+                  href={transposedSong.metadata.custom.fonte_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-accent underline underline-offset-2"
+                >
+                  {transposedSong.metadata.custom.fonte_site}
+                </a>
+              ) : (
+                transposedSong.metadata.custom.fonte_site
+              )}
+            </p>
+          )}
+
           {/* Navegação do setlist */}
           {playlistNav && (
             <nav className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-6">

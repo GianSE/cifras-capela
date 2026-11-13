@@ -98,6 +98,21 @@ export async function fetchPlaylist(id: string): Promise<PlaylistLookup> {
   }
 }
 
+/** Reordena a LISTAGEM de playlists na conta logada (arrastar-e-soltar). */
+export async function reorderRemotePlaylists(ids: readonly string[]): Promise<boolean> {
+  try {
+    const res = await fetch('/api/playlists/_reorder', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ ids }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function deleteRemotePlaylist(id: string): Promise<boolean> {
   try {
     const res = await fetch(`/api/playlists/${encodeURIComponent(id)}`, {

@@ -1,10 +1,28 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Church, ListMusic, Plus, Trash2, ChevronRight, Library } from 'lucide-react';
+import { Church, ListMusic, Plus, Library } from 'lucide-react';
+import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import { usePlaylists } from '@/hooks/usePlaylists';
 import { playlistStorage } from '@/lib/storage/playlists';
 import { formatMissaName, isMissa, suggestMissaDates } from '@/lib/missa';
 import { MissaDatePicker } from '@/components/playlist/MissaDatePicker';
+import { SortablePlaylistItem } from '@/components/playlist/SortablePlaylistItem';
 import { cn } from '@/lib/utils';
 import type { PlaylistKind } from '@/types/playlist';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -46,6 +64,35 @@ export function PlaylistsPage() {
     if (filter === 'todas') return true;
     return isMissa(p) === (filter === 'missa');
   });
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+      keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space'] },
+    }),
+  );
+
+  /**
+   * O arraste só vê o subconjunto filtrado (`visible`); a ordem de verdade é
+   * a da lista inteira. Percorre a lista completa e, a cada playlist que
+   * também aparece no filtro, troca pela próxima da nova ordem — quem não
+   * está no filtro fica exatamente onde estava.
+   */
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const oldIndex = visible.findIndex((p) => p.id === active.id);
+    const newIndex = visible.findIndex((p) => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reorderedVisible = arrayMove(visible, oldIndex, newIndex);
+    const queue = [...reorderedVisible];
+    const visibleIds = new Set(visible.map((p) => p.id));
+    const merged = playlists.map((p) => (visibleIds.has(p.id) ? queue.shift()! : p));
+
+    playlistStorage.reorderPlaylists(merged.map((p) => p.id));
+  };
 
   /** A missa quase sempre é no domingo: a data já vem preenchida com o próximo. */
   const openCreate = () => {
@@ -132,57 +179,39 @@ export function PlaylistsPage() {
                 Nenhuma {filter === 'missa' ? 'missa' : 'playlist'} por aqui ainda.
               </p>
             ) : (
-              <ul className="flex flex-col gap-2.5">
-                {visible.map((playlist) => (
-                  <li key={playlist.id}>
-                    <Link
-                      to={`/playlists/${playlist.id}`}
-                      className="group card-lift flex items-center gap-3.5 rounded-2xl border border-border bg-card p-3.5 hover:border-gold-400/60"
-                    >
-                      <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-navy-700 text-gold-300 transition-colors group-hover:bg-navy-600">
-                        {isMissa(playlist) ? (
-                          <Church className="size-5" />
-                        ) : (
-                          <ListMusic className="size-5" />
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <p className="font-display truncate text-lg text-foreground">
-                          {playlist.name}
-                        </p>
-                        <p className="truncate text-sm text-muted-foreground">
-                          {isMissa(playlist) && 'Missa · '}
-                          {playlist.songIds.length}{' '}
-                          {playlist.songIds.length === 1 ? 'música' : 'músicas'} ·{' '}
-                          {formatDate(playlist.updatedAt)}
-                          {playlist.isOwner === false && playlist.ownerName && (
-                            <> · de {playlist.ownerName}</>
-                          )}
-                        </p>
-                      </div>
-
-                      {playlist.isOwner !== false && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            if (confirm(`Excluir a playlist "${playlist.name}"?`)) {
-                              playlistStorage.remove(playlist.id);
-                            }
-                          }}
-                          aria-label={`Excluir ${playlist.name}`}
-                          className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:text-destructive"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      )}
-
-                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={visible.map((p) => p.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <ul className="flex flex-col gap-2.5">
+                    {visible.map((playlist) => (
+                      <SortablePlaylistItem
+                        key={playlist.id}
+                        playlist={playlist}
+                        missa={isMissa(playlist)}
+                        subtitle={`${isMissa(playlist) ? 'Missa · ' : ''}${playlist.songIds.length} ${
+                          playlist.songIds.length === 1 ? 'música' : 'músicas'
+                        } · ${formatDate(playlist.updatedAt)}${
+                          playlist.isOwner === false && playlist.ownerName
+                            ? ` · de ${playlist.ownerName}`
+                            : ''
+                        }`}
+                        onRemove={() => {
+                          if (confirm(`Excluir a playlist "${playlist.name}"?`)) {
+                            playlistStorage.remove(playlist.id);
+                          }
+                        }}
+                      />
+                    ))}
+                  </ul>
+                </SortableContext>
+              </DndContext>
             )}
           </>
         )}

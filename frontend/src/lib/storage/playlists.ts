@@ -21,7 +21,12 @@ import {
   normalizePlaylist,
   withSections,
 } from '@/lib/missa';
-import { deleteRemotePlaylist, fetchRemotePlaylists, pushPlaylist } from './playlist-sync';
+import {
+  deleteRemotePlaylist,
+  fetchRemotePlaylists,
+  pushPlaylist,
+  reorderRemotePlaylists,
+} from './playlist-sync';
 
 const STORAGE_KEY = 'cifras-capela:playlists';
 
@@ -184,7 +189,8 @@ class PlaylistStorage {
         ...rest,
       ]);
     }
-    this.commit([...this.playlists, playlist]);
+    // Nasce no topo da listagem, empurrando as demais pra baixo.
+    this.commit([playlist, ...this.playlists]);
     this.persist(() => pushPlaylist(playlist));
     return id;
   }
@@ -192,6 +198,19 @@ class PlaylistStorage {
   rename(id: string, name: string): void {
     this.patch(id, (p) => ({ ...p, name: name.trim() || p.name }));
     this.push(id);
+  }
+
+  /**
+   * Reordena a LISTAGEM de playlists (arrastar-e-soltar na tela de
+   * playlists) — nada a ver com a ordem das músicas dentro de uma delas.
+   */
+  reorderPlaylists(orderedIds: readonly string[]): void {
+    const byId = new Map(this.playlists.map((p) => [p.id, p] as const));
+    const next = orderedIds.map((id) => byId.get(id)).filter((p): p is Playlist => p !== undefined);
+    // Qualquer playlist fora da lista (não devia acontecer) fica no fim, sem desaparecer.
+    for (const p of this.playlists) if (!orderedIds.includes(p.id)) next.push(p);
+    this.commit(next);
+    if (this.userId) void reorderRemotePlaylists(next.map((p) => p.id));
   }
 
   /** Liga/desliga aparecer na lista de quem mais está logado (só o dono muda isto). */

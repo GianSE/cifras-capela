@@ -25,6 +25,7 @@ interface PlaylistRow {
   kind: string | null;
   sections: string | null;
   shared: number;
+  position: number;
   owner_name?: string | null;
   created_at: string;
   updated_at: string;
@@ -39,6 +40,7 @@ function rowToPlaylist(row: PlaylistRow, viewerId: number) {
     kind: row.kind === 'missa' ? 'missa' : 'lista',
     sections: row.kind === 'missa' ? parseSections(row.sections) : null,
     shared: row.shared === 1,
+    position: row.position,
     isOwner,
     ...(!isOwner && row.owner_name && { ownerName: row.owner_name }),
     createdAt: row.created_at,
@@ -100,10 +102,29 @@ export async function playlistsRoute(
 
   const id = decodeURIComponent(pathname.slice('/api/playlists'.length).replace(/^\//, ''));
 
+  // Arrastar-e-soltar na LISTAGEM de playlists (não as músicas de dentro):
+  // `ids` já vem na ordem desejada, de cima para baixo.
+  if (id === '_reorder' && request.method === 'PUT') {
+    const body = await readJson<{ ids: string[] }>(request);
+    const ids = Array.isArray(body.ids) ? body.ids.filter((v) => typeof v === 'string') : [];
+    if (ids.length === 0) return json({ ok: true });
+
+    await env.DB.batch(
+      ids.map((playlistId, index) =>
+        env.DB.prepare(`UPDATE playlists SET position = ? WHERE id = ? AND user_id = ?`).bind(
+          ids.length - index,
+          playlistId,
+          user.id,
+        ),
+      ),
+    );
+    return json({ ok: true });
+  }
+
   // Leitura de uma playlist: basta ter o link.
   if (id && request.method === 'GET') {
     const row = await env.DB.prepare(
-      `SELECT id, user_id, name, song_ids, kind, sections, shared, created_at, updated_at
+      `SELECT id, user_id, name, song_ids, kind, sections, shared, position, created_at, updated_at
          FROM playlists WHERE id = ?`,
     )
       .bind(id)
@@ -128,12 +149,12 @@ export async function playlistsRoute(
     // interessa nessas últimas — é o que diferencia "sua" de "compartilhada"
     // na lista.
     const { results } = await env.DB.prepare(
-      `SELECT p.id, p.user_id, p.name, p.song_ids, p.kind, p.sections, p.shared,
+      `SELECT p.id, p.user_id, p.name, p.song_ids, p.kind, p.sections, p.shared, p.position,
               p.created_at, p.updated_at, u.name AS owner_name
          FROM playlists p
          LEFT JOIN admin_users u ON u.id = p.user_id
         WHERE p.user_id = ? OR p.shared = 1
-        ORDER BY p.updated_at DESC`,
+        ORDER BY p.position DESC`,
     )
       .bind(user.id)
       .all<PlaylistRow>();
@@ -161,11 +182,15 @@ export async function playlistsRoute(
     const sections = kind === 'missa' ? JSON.stringify(sanitizeSections(body.sections)) : null;
     const shared = body.shared === true ? 1 : 0;
 
+    // Nasce no topo (maior `position` do usuário); editar não move na lista —
+    // só o arrastar-e-soltar da listagem (`_reorder`) muda isso depois.
     // `user_id` entra também no UPDATE do conflito: sem isso, conhecer o id de
     // uma playlist alheia bastaria para sobrescrevê-la.
     const result = await env.DB.prepare(
-      `INSERT INTO playlists (id, user_id, name, song_ids, kind, sections, shared, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, datetime('now')), datetime('now'))
+      `INSERT INTO playlists (id, user_id, name, song_ids, kind, sections, shared, position, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?,
+         (SELECT COALESCE(MAX(position), 0) + 1 FROM playlists WHERE user_id = ?),
+         COALESCE(?, datetime('now')), datetime('now'))
        ON CONFLICT (id) DO UPDATE SET
          name = excluded.name,
          song_ids = excluded.song_ids,
@@ -183,6 +208,7 @@ export async function playlistsRoute(
         kind,
         sections,
         shared,
+        user.id,
         typeof body.createdAt === 'string' ? body.createdAt : null,
       )
       .run();
