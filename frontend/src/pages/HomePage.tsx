@@ -5,6 +5,7 @@ import { useLibrary } from '@/hooks/useLibrary';
 import { RECENT_LIMIT, useHistory } from '@/hooks/useHistory';
 import { useEditAccess } from '@/hooks/useEditAccess';
 import { useFavorites } from '@/hooks/useFavorites';
+import { usePagedList } from '@/hooks/usePagedList';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { OfflineNotice } from '@/components/layout/OfflineNotice';
@@ -13,6 +14,7 @@ import { SearchBar } from '@/components/library/SearchBar';
 import { CategoryFilter } from '@/components/library/CategoryFilter';
 import { filterChipClass } from '@/components/library/filter-chip';
 import { SongListItem } from '@/components/library/SongListItem';
+import { InfiniteScrollSentinel } from '@/components/library/InfiniteScrollSentinel';
 import { EmptyState } from '@/components/library/EmptyState';
 import { Button } from '@/components/ui/button';
 
@@ -52,6 +54,8 @@ export function HomePage() {
     keepIdOrder: collection === 'recents',
     maxIds: collection === 'recents' ? RECENT_LIMIT : undefined,
   });
+
+  const { visible, hasMore, loadMore } = usePagedList(results);
 
   const hasRecents = useMemo(() => {
     const existing = new Set(songs.map((s) => s.id));
@@ -177,13 +181,16 @@ export function HomePage() {
               }
             />
           ) : (
-            <ul className="flex flex-col gap-2.5">
-              {results.map((song) => (
-                <li key={song.id}>
-                  <SongListItem song={song} />
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="flex flex-col gap-2.5">
+                {visible.map((song) => (
+                  <li key={song.id}>
+                    <SongListItem song={song} />
+                  </li>
+                ))}
+              </ul>
+              {hasMore && <InfiniteScrollSentinel onVisible={loadMore} />}
+            </>
           )}
         </section>
       </div>

@@ -14,8 +14,10 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlaylists } from '@/hooks/usePlaylists';
+import { usePagedList } from '@/hooks/usePagedList';
 import { normalizeText } from '@/lib/library/duplicates';
 import { songsForPart } from '@/lib/missa';
+import { InfiniteScrollSentinel } from '@/components/library/InfiniteScrollSentinel';
 import type { PageHint } from '@/lib/import/url-importer';
 import type { SongIndexEntry } from '@/types/library';
 import type { Playlist, PlaylistSection } from '@/types/playlist';
@@ -126,6 +128,7 @@ export function SongPicker({
   );
 
   const libraryCount = forPart.length + others.length;
+  const { visible: visibleOthers, hasMore, loadMore } = usePagedList(others);
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
@@ -168,7 +171,8 @@ export function SongPicker({
                   Na biblioteca
                 </h3>
               )}
-              <ul>{others.map(row)}</ul>
+              <ul>{visibleOthers.map(row)}</ul>
+              {hasMore && <InfiniteScrollSentinel onVisible={loadMore} />}
             </section>
           )}
 
