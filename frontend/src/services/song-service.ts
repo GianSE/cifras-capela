@@ -24,6 +24,16 @@ class SongService {
   private readonly listeners = new Set<() => void>();
 
   /**
+   * Índice da biblioteca (metadados de todas as músicas), guardado por toda a
+   * sessão: com ~16 mil músicas, buscar e reindexar (MiniSearch, com a letra
+   * inteira) a cada tela aberta — biblioteca, playlist, modal de adicionar
+   * música — travava a navegação. Só busca de novo quando uma música muda
+   * (`notify`, abaixo) ou quando pedem explicitamente (`reload`).
+   */
+  private indexCache: LibraryLoad | null = null;
+  private indexPromise: Promise<LibraryLoad> | null = null;
+
+  /**
    * Assina mudanças na biblioteca (música criada, editada ou excluída).
    * Retorna a função de cancelamento.
    */
@@ -35,6 +45,7 @@ class SongService {
   };
 
   private notify(): void {
+    this.indexCache = null;
     for (const listener of this.listeners) listener();
   }
 
@@ -42,9 +53,27 @@ class SongService {
    * Metadados de todas as músicas (para listar e buscar), com a informação de
    * se vieram da rede ou da cópia local — quem monta a tela precisa saber
    * para avisar que os dados podem estar velhos.
+   *
+   * Cacheado pela sessão: a 2ª tela que montar (ou a mesma, remontando) recebe
+   * a mesma resposta na hora, sem repetir a ida à rede. Chamadas simultâneas
+   * (duas telas montando ao mesmo tempo) compartilham a mesma requisição.
    */
   async getSongIndex(): Promise<LibraryLoad> {
-    return repository.listSongs();
+    if (this.indexCache) return this.indexCache;
+    if (!this.indexPromise) {
+      this.indexPromise = repository.listSongs().finally(() => {
+        this.indexPromise = null;
+      });
+    }
+    const result = await this.indexPromise;
+    this.indexCache = result;
+    return result;
+  }
+
+  /** Força buscar a biblioteca de novo (ex.: botão "atualizar"). */
+  async reloadSongIndex(): Promise<LibraryLoad> {
+    this.indexCache = null;
+    return this.getSongIndex();
   }
 
   /** O `.cho` completo de uma música (com cache em memória por sessão). */

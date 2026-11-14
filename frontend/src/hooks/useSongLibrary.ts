@@ -51,7 +51,7 @@ export function useSongLibrary() {
   }, []);
 
   const reload = useCallback(() => {
-    songService.getSongIndex().then(({ entries: index, source: from, cachedAt }) => {
+    songService.reloadSongIndex().then(({ entries: index, source: from, cachedAt }) => {
       setSongs(index);
       searchEngine.init(index);
       setSource(from);

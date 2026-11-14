@@ -22,6 +22,9 @@ function foldTerm(term: string): string {
 
 export class SearchEngine {
   private miniSearch: MiniSearch<SongIndexEntry>;
+  /** Evita reindexar (caro, com a letra inteira de milhares de músicas) quando
+   * a lista é a mesma de antes — toda vez que uma tela monta, por exemplo. */
+  private indexed: SongIndexEntry[] | null = null;
 
   constructor() {
     this.miniSearch = new MiniSearch({
@@ -56,6 +59,8 @@ export class SearchEngine {
    * refletir isso na hora.
    */
   init(songs: SongIndexEntry[]) {
+    if (songs === this.indexed) return;
+    this.indexed = songs;
     this.miniSearch.removeAll();
     this.miniSearch.addAll(songs);
   }
