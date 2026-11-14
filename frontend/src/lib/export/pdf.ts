@@ -319,6 +319,14 @@ function chordsDrawer(
     const { title, artist, key, tempo, capo, youtube } = song.metadata;
 
     // ── Cabeçalho da música ──────────────────────────────────────────────
+    if (note) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10 * scale);
+      doc.setTextColor(...COLOR_LABEL);
+      doc.text(note.toUpperCase(), flow.x, flow.y);
+      flow.y += 15 * scale;
+    }
+
     drawTitle(flow, title, 18 * scale, 20 * scale);
 
     if (artist) {
@@ -333,7 +341,6 @@ function chordsDrawer(
       key ? `Tom: ${key}` : '',
       tempo !== undefined ? `${tempo} BPM` : '',
       capo ? `Capo: ${capo}` : '',
-      note ?? '',
     ].filter(Boolean);
 
     if (meta.length > 0) {
