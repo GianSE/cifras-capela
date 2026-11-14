@@ -20,12 +20,14 @@ import { parse } from '@/lib/parser';
 import type { LibraryLoad, SaveSongInput, SongRepository } from './song-repository';
 
 const CACHE_KEY = 'cifras-capela:songs-cache';
+const SOURCES_CACHE_KEY = 'cifras-capela:songs-sources-cache';
+/** Só as últimas N músicas abertas: o `.cho` de todo mundo não cabe (a
+ * biblioteca passou de 15 mil), então o cache offline vira um LRU pequeno. */
+const MAX_CACHED_SOURCES = 200;
 
 interface CacheShape {
   /** Metadados de todas as músicas. */
   readonly entries: SongIndexEntry[];
-  /** `.cho` por id, para o leitor funcionar offline. */
-  readonly sources: Record<string, string>;
   readonly cachedAt: string;
 }
 
@@ -46,6 +48,31 @@ function writeCache(cache: CacheShape): void {
   }
 }
 
+function readSourcesCache(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(SOURCES_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Guarda o `.cho` desta música no cache, descartando o mais antigo se passar do limite. */
+function cacheSource(id: string, source: string): void {
+  try {
+    const cache = readSourcesCache();
+    delete cache[id]; // reinsere no fim (mais recente) se já existia
+    cache[id] = source;
+    const ids = Object.keys(cache);
+    for (const oldId of ids.slice(0, Math.max(0, ids.length - MAX_CACHED_SOURCES))) {
+      delete cache[oldId];
+    }
+    localStorage.setItem(SOURCES_CACHE_KEY, JSON.stringify(cache));
+  } catch (e) {
+    console.warn('Não foi possível cachear esta música localmente', e);
+  }
+}
+
 /** Mensagem do corpo da resposta, quando houver. */
 async function errorFrom(res: Response, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -61,14 +88,10 @@ class WorkerSongRepository implements SongRepository {
       const res = await fetch('/api/songs', { credentials: 'same-origin' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const data = (await res.json()) as {
-        entries: SongIndexEntry[];
-        sources: Record<string, string>;
-      };
+      const data = (await res.json()) as { entries: SongIndexEntry[] };
 
       writeCache({
         entries: data.entries,
-        sources: data.sources ?? {},
         cachedAt: new Date().toISOString(),
       });
 
@@ -96,9 +119,10 @@ class WorkerSongRepository implements SongRepository {
       const res = await fetch(`/api/songs/${id}`, { credentials: 'same-origin' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { source: string };
+      cacheSource(id, data.source);
       return data.source;
     } catch (err) {
-      const cached = readCache()?.sources[id];
+      const cached = readSourcesCache()[id];
       if (cached) return cached;
       throw err instanceof Error ? err : new Error(`Não foi possível carregar "${id}".`);
     }

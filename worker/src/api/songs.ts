@@ -72,19 +72,22 @@ function rowToEntry(row: SongRow): SongEntry {
   };
 }
 
-/** `GET /api/songs` — índice completo, em ordem alfabética. */
+/**
+ * `GET /api/songs` — índice completo, em ordem alfabética.
+ *
+ * Só os metadados: com a biblioteca na faixa de 15 mil músicas, mandar o
+ * `.cho` inteiro de cada uma (a coluna `source`) nessa resposta passava de
+ * 30MB e travava o carregamento. O `.cho` de cada música só é buscado
+ * quando ela é de fato aberta (`GET /api/songs/<id>`).
+ */
 export async function listSongs(env: Env): Promise<Response> {
   const { results } = await env.DB.prepare(
-    `SELECT * FROM songs ORDER BY title COLLATE NOCASE ASC`,
+    `SELECT id, title, artist, song_key, tempo, capo, categories, tags, language, youtube, lyrics,
+            substr(source, 1, 600) AS source
+       FROM songs ORDER BY title COLLATE NOCASE ASC`,
   ).all<SongRow>();
 
-  const rows = results ?? [];
-  // Manda as cifras junto: o app guarda tudo no cache offline de uma vez, e
-  // 23 arquivos pequenos numa resposta custam menos que 23 idas ao servidor.
-  const sources: Record<string, string> = {};
-  for (const row of rows) sources[row.id] = row.source;
-
-  return json({ entries: rows.map(rowToEntry), sources });
+  return json({ entries: (results ?? []).map(rowToEntry) });
 }
 
 /** `GET /api/songs/<id>` — só o `.cho`. */
