@@ -42,7 +42,10 @@ export function normalizeTitle(title: string): string {
   return normalizeText(main);
 }
 
-function shingles(text: string): Set<string> {
+/** Reaproveitados pela auditoria da biblioteca (letra parecida em massa). */
+export const SHINGLE_MIN = MIN_SHINGLES;
+
+export function shingles(text: string): Set<string> {
   const words = normalizeText(text).split(' ').filter(Boolean);
   const result = new Set<string>();
   for (let i = 0; i + SHINGLE_WORDS <= words.length; i++) {
@@ -55,7 +58,7 @@ function shingles(text: string): Set<string> {
  * Mede sobre a letra **menor**: uma versão com um verso a mais continua sendo a
  * mesma música, e o refrão repetido não pesa porque cada trecho conta uma vez.
  */
-function lyricsAreSimilar(a: Set<string>, b: Set<string>): boolean {
+export function lyricsAreSimilar(a: Set<string>, b: Set<string>): boolean {
   if (a.size < MIN_SHINGLES || b.size < MIN_SHINGLES) return false;
   const [small, large] = a.size <= b.size ? [a, b] : [b, a];
   let shared = 0;

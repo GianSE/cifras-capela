@@ -28,6 +28,7 @@ const SettingsPage = lazy(() =>
 );
 const ScansPage = lazy(() => import('@/pages/ScansPage').then((m) => ({ default: m.ScansPage })));
 const UsersPage = lazy(() => import('@/pages/UsersPage').then((m) => ({ default: m.UsersPage })));
+const AuditPage = lazy(() => import('@/pages/AuditPage').then((m) => ({ default: m.AuditPage })));
 
 function PageFallback() {
   return (
@@ -122,6 +123,14 @@ export function App() {
                 element={
                   <RequireAdmin>
                     <UsersPage />
+                  </RequireAdmin>
+                }
+              />
+              <Route
+                path="auditoria"
+                element={
+                  <RequireAdmin>
+                    <AuditPage />
                   </RequireAdmin>
                 }
               />
