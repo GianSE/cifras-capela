@@ -11,17 +11,17 @@
  */
 
 import { normalizeTitle, shingles, lyricsAreSimilar, SHINGLE_MIN } from './duplicates';
-import type { SongIndexEntry } from '@/types/library';
+import type { SongWithLyrics } from '@/types/library';
 
 export interface AuditGroup {
   readonly key: string;
-  readonly songs: readonly SongIndexEntry[];
+  readonly songs: readonly SongWithLyrics[];
   /** Índice, dentro de `songs`, da versão sugerida para manter. */
   readonly suggestedKeepIndex: number;
 }
 
 /** Quanto maior, mais "completa" parece a versão — decide qual sugerir manter. */
-function completeness(song: SongIndexEntry): number {
+function completeness(song: SongWithLyrics): number {
   return (
     (song.lyrics?.length ?? 0) +
     (song.key ? 80 : 0) +
@@ -31,7 +31,7 @@ function completeness(song: SongIndexEntry): number {
   );
 }
 
-function suggestKeepIndex(songs: readonly SongIndexEntry[]): number {
+function suggestKeepIndex(songs: readonly SongWithLyrics[]): number {
   let best = 0;
   for (let i = 1; i < songs.length; i++) {
     if (completeness(songs[i]!) > completeness(songs[best]!)) best = i;
@@ -48,8 +48,8 @@ const MAX_SHINGLE_FANOUT = 40;
 export const LARGE_GROUP_THRESHOLD = 10;
 
 /** Títulos iguais (ignorando acento, maiúscula e "(Ao vivo)"/artista depois do "-"). */
-export function groupByExactTitle(songs: readonly SongIndexEntry[]): AuditGroup[] {
-  const byTitle = new Map<string, SongIndexEntry[]>();
+export function groupByExactTitle(songs: readonly SongWithLyrics[]): AuditGroup[] {
+  const byTitle = new Map<string, SongWithLyrics[]>();
   for (const song of songs) {
     const key = normalizeTitle(song.title);
     if (!key) continue;
@@ -90,7 +90,7 @@ class UnionFind {
  * palavras como índice: só compara músicas que já compartilham uma trinca,
  * em vez de todas contra todas.
  */
-export function groupBySimilarLyrics(songs: readonly SongIndexEntry[]): AuditGroup[] {
+export function groupBySimilarLyrics(songs: readonly SongWithLyrics[]): AuditGroup[] {
   const shinglesById = new Map<string, Set<string>>();
   const invertedIndex = new Map<string, string[]>();
 
@@ -167,11 +167,11 @@ function spanishScore(text: string): number {
 const SPANISH_THRESHOLD = 3;
 
 export interface SpanishFlag {
-  readonly song: SongIndexEntry;
+  readonly song: SongWithLyrics;
   readonly score: number;
 }
 
-export function findPossibleSpanish(songs: readonly SongIndexEntry[]): SpanishFlag[] {
+export function findPossibleSpanish(songs: readonly SongWithLyrics[]): SpanishFlag[] {
   return songs
     .map((song) => ({ song, score: spanishScore(`${song.title} ${song.lyrics ?? ''}`) }))
     .filter((flag) => flag.score >= SPANISH_THRESHOLD)

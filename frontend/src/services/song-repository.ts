@@ -50,6 +50,24 @@ export interface SongRepository {
   listSongs(): Promise<LibraryLoad>;
   /** O `.cho` completo de uma música. */
   getSource(id: string): Promise<string>;
+  /**
+   * Ids das músicas cujo título, artista **ou letra** casam com o texto, da
+   * mais relevante para a menos.
+   *
+   * É o que o índice não dá mais: a letra ficou no servidor. Exige rede —
+   * offline, quem responde é só a busca local por título e artista.
+   */
+  searchIds(query: string): Promise<readonly string[]>;
+  /**
+   * A letra em texto puro destas músicas, por id. Ids sem letra (ou que não
+   * existem) simplesmente não aparecem no resultado.
+   */
+  getLyrics(ids: readonly string[]): Promise<ReadonlyMap<string, string>>;
+  /**
+   * A letra de **toda** a biblioteca, em páginas. Só para a auditoria, que
+   * compara letra a letra e roda sob pedido; `onPage` acompanha o progresso.
+   */
+  getAllLyrics(onPage?: (loaded: number) => void): Promise<ReadonlyMap<string, string>>;
   /** Cria ou atualiza. Só quando `canWrite`. */
   saveSong(input: SaveSongInput): Promise<void>;
   /** Exclui. Só quando `canWrite`. */

@@ -11,6 +11,7 @@ import {
   type CatalogSource,
 } from '@/lib/catalog';
 import { normalizeText, normalizeTitle } from '@/lib/library/duplicates';
+import { songService } from '@/services/song-service';
 import type { PageHint } from '@/lib/import/url-importer';
 import type { SongIndexEntry } from '@/types/library';
 
@@ -26,19 +27,35 @@ const SITE_PILLS: ReadonlyArray<{ key: CatalogSource; label: string }> = Object.
 ).map(([key, label]) => ({ key: key as CatalogSource, label }));
 const ALL_SITES: ReadonlySet<CatalogSource> = new Set(SITE_PILLS.map((p) => p.key));
 
-/** Na biblioteca vale também um trecho da letra, que é o que se lembra da música. */
-function searchLibrary(songs: readonly SongIndexEntry[], query: string): SongIndexEntry[] {
-  const normalized = normalizeText(query);
-  const tokens = normalized.split(' ').filter(Boolean);
-  return songs
+/**
+ * Na biblioteca vale também um trecho da letra, que é o que se lembra da
+ * música. O nome casa aqui mesmo, na hora; o trecho de letra vem dos ids que o
+ * servidor achou (`lyricHits`), porque a letra não está mais no índice.
+ */
+function searchLibrary(
+  songs: readonly SongIndexEntry[],
+  query: string,
+  lyricHits: readonly string[],
+): SongIndexEntry[] {
+  const tokens = normalizeText(query).split(' ').filter(Boolean);
+  const found = songs
     .filter((song) => {
       const name = ` ${normalizeText(`${song.title} ${song.artist ?? ''}`)}`;
-      return (
-        tokens.every((token) => name.includes(` ${token}`)) ||
-        normalizeText(song.lyrics ?? '').includes(normalized)
-      );
+      return tokens.every((token) => name.includes(` ${token}`));
     })
     .slice(0, MAX_LIBRARY_RESULTS);
+
+  if (found.length >= MAX_LIBRARY_RESULTS) return found;
+
+  const seen = new Set(found.map((song) => song.id));
+  const byId = new Map(songs.map((song) => [song.id, song] as const));
+  for (const id of lyricHits) {
+    if (found.length >= MAX_LIBRARY_RESULTS) break;
+    if (seen.has(id)) continue;
+    const song = byId.get(id);
+    if (song) found.push(song);
+  }
+  return found;
 }
 
 interface CifraSearchProps {
@@ -61,8 +78,28 @@ export function CifraSearch({ songs, onImport }: CifraSearchProps) {
     return () => clearTimeout(timer);
   }, [text]);
 
+  /** Ids que o servidor achou pela letra (o `query` já vem debounced). */
+  const [lyricHits, setLyricHits] = useState<readonly string[]>([]);
+
+  useEffect(() => {
+    if (query.length < MIN_SITE_QUERY) {
+      setLyricHits([]);
+      return;
+    }
+    let running = true;
+    void songService.searchIds(query).then((found) => {
+      if (running) setLyricHits(found);
+    });
+    return () => {
+      running = false;
+    };
+  }, [query]);
+
   const active = query.length >= MIN_SITE_QUERY;
-  const inLibrary = useMemo(() => searchLibrary(songs, query), [songs, query]);
+  const inLibrary = useMemo(
+    () => searchLibrary(songs, query, lyricHits),
+    [songs, query, lyricHits],
+  );
 
   const toggleSite = (key: CatalogSource) =>
     setSites((prev) => {

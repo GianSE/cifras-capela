@@ -8,10 +8,10 @@
  * vários "Santo" diferentes com o mesmo texto, e quem decide é a pessoa.
  */
 
-import type { SongIndexEntry } from '@/types/library';
+import type { SongWithLyrics } from '@/types/library';
 
 export interface DuplicateMatch {
-  readonly song: SongIndexEntry;
+  readonly song: SongWithLyrics;
   readonly sameTitle: boolean;
   readonly similarLyrics: boolean;
 }
@@ -69,10 +69,15 @@ export function lyricsAreSimilar(a: Set<string>, b: Set<string>): boolean {
 /**
  * Músicas parecidas com o rascunho, as mais prováveis primeiro: título e letra
  * batendo, depois só a letra e, por fim, só o título (o sinal mais fraco).
+ *
+ * `songs` são os **candidatos**, com a letra junto — não a biblioteca inteira.
+ * Quem chama escolhe quem entra aqui (título igual, mais o que o FTS5 do
+ * servidor apontou) e busca as letras desses poucos, porque o índice da
+ * biblioteca não traz mais a letra de 15 mil músicas.
  */
 export function findDuplicates(
   draft: { readonly title: string; readonly lyrics?: string },
-  songs: readonly SongIndexEntry[],
+  songs: readonly SongWithLyrics[],
 ): DuplicateMatch[] {
   const title = normalizeTitle(draft.title);
   const lyrics = shingles(draft.lyrics ?? '');

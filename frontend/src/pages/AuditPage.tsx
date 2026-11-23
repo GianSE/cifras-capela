@@ -12,7 +12,7 @@ import {
   type AuditGroup,
   type SpanishFlag,
 } from '@/lib/library/audit';
-import type { SongIndexEntry } from '@/types/library';
+import type { SongIndexEntry, SongWithLyrics } from '@/types/library';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/library/EmptyState';
 import { InfiniteScrollSentinel } from '@/components/library/InfiniteScrollSentinel';
@@ -275,20 +275,41 @@ export function AuditPage() {
   const [similarGroups, setSimilarGroups] = useState<readonly AuditGroup[]>([]);
   const [spanishFlags, setSpanishFlags] = useState<readonly SpanishFlag[]>([]);
 
-  const analyze = () => {
+  /** Quantas letras já chegaram, para a espera não ficar muda. */
+  const [loaded, setLoaded] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  /**
+   * Busca as letras e só então compara.
+   *
+   * A letra não vem no índice da biblioteca — eram 12MB por abertura do app.
+   * Esta tela é a única que precisa do texto de todas as músicas, e ela roda
+   * sob pedido, então busca em páginas na hora do botão.
+   */
+  const analyze = async () => {
     setAnalyzing(true);
-    // Dá um instante para o spinner pintar antes da varredura (pesada) travar a thread.
-    setTimeout(() => {
+    setFailed(false);
+    setLoaded(0);
+
+    try {
+      const texts = await songService.getAllLyrics(setLoaded);
+      const full: SongWithLyrics[] = songs.map((song) => {
+        const lyrics = texts.get(song.id);
+        return lyrics ? { ...song, lyrics } : song;
+      });
+
       const ignoredGroups = readIgnored(IGNORED_GROUPS_KEY);
       const ignoredSpanish = readIgnored(IGNORED_SPANISH_KEY);
 
-      setExactGroups(groupByExactTitle(songs).filter((g) => !ignoredGroups.has(g.key)));
-      setSimilarGroups(groupBySimilarLyrics(songs).filter((g) => !ignoredGroups.has(g.key)));
-      setSpanishFlags(findPossibleSpanish(songs).filter((f) => !ignoredSpanish.has(f.song.id)));
-
-      setAnalyzing(false);
+      setExactGroups(groupByExactTitle(full).filter((g) => !ignoredGroups.has(g.key)));
+      setSimilarGroups(groupBySimilarLyrics(full).filter((g) => !ignoredGroups.has(g.key)));
+      setSpanishFlags(findPossibleSpanish(full).filter((f) => !ignoredSpanish.has(f.song.id)));
       setAnalyzed(true);
-    }, 30);
+    } catch {
+      setFailed(true);
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const counts = useMemo(
@@ -317,7 +338,7 @@ export function AuditPage() {
               biblioteca. Não apaga nada por conta própria.
             </p>
             <Button
-              onClick={analyze}
+              onClick={() => void analyze()}
               disabled={isLoading || analyzing}
               size="lg"
               variant="gold"
@@ -326,6 +347,16 @@ export function AuditPage() {
               {analyzing && <Loader2 className="size-4 animate-spin" />}
               Analisar biblioteca
             </Button>
+            {analyzing && (
+              <p role="status" className="text-xs text-muted-foreground">
+                Lendo as letras… {loaded} de {songs.length}
+              </p>
+            )}
+            {failed && (
+              <p role="alert" className="text-xs text-destructive">
+                Não foi possível carregar as letras. A auditoria precisa de internet.
+              </p>
+            )}
           </div>
         ) : (
           <Tabs defaultValue="exact">

@@ -129,6 +129,64 @@ class WorkerSongRepository implements SongRepository {
   }
 
   /**
+   * Busca no servidor, que é quem tem a letra.
+   *
+   * Devolve lista vazia quando a rede falha: a busca local por título e
+   * artista já respondeu, e é melhor a pessoa ver esses resultados do que um
+   * erro no lugar deles.
+   */
+  async searchIds(query: string): Promise<readonly string[]> {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    try {
+      const res = await fetch(`/api/songs/busca?q=${encodeURIComponent(trimmed)}`, {
+        credentials: 'same-origin',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { ids: string[] };
+      return data.ids ?? [];
+    } catch (err) {
+      console.warn('Busca no servidor indisponível — só a busca local.', err);
+      return [];
+    }
+  }
+
+  async getLyrics(ids: readonly string[]): Promise<ReadonlyMap<string, string>> {
+    if (ids.length === 0) return new Map();
+
+    const res = await fetch(`/api/songs/letras?ids=${encodeURIComponent(ids.join(','))}`, {
+      credentials: 'same-origin',
+    });
+    if (!res.ok) throw new Error(await errorFrom(res, 'Não foi possível carregar as letras.'));
+
+    const data = (await res.json()) as { entries: Array<{ id: string; lyrics: string }> };
+    return new Map((data.entries ?? []).map((e) => [e.id, e.lyrics] as const));
+  }
+
+  async getAllLyrics(onPage?: (loaded: number) => void): Promise<ReadonlyMap<string, string>> {
+    const all = new Map<string, string>();
+    let after: string | null = '';
+
+    while (after !== null) {
+      const res = await fetch(`/api/songs/letras?depois=${encodeURIComponent(after)}`, {
+        credentials: 'same-origin',
+      });
+      if (!res.ok) throw new Error(await errorFrom(res, 'Não foi possível carregar as letras.'));
+
+      const page = (await res.json()) as {
+        entries: Array<{ id: string; lyrics: string }>;
+        proximo?: string;
+      };
+      for (const entry of page.entries ?? []) all.set(entry.id, entry.lyrics);
+      onPage?.(all.size);
+      after = page.proximo ?? null;
+    }
+
+    return all;
+  }
+
+  /**
    * Cria ou atualiza a música (upsert pelo id).
    * Os metadados são sempre **derivados** do `.cho`, nunca informados à parte:
    * o arquivo é a fonte da verdade, o resto existe para listar e buscar.

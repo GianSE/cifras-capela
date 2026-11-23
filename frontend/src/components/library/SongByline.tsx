@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 export function SongByline({ song, className }: { song: SongIndexEntry; className?: string }) {
   const category = song.categories?.[0];
   // Só a foto, ainda sem cifra: o tom e a transposição não valem para ela.
-  const onlyScan = Boolean(song.scan) && !song.lyrics;
+  const onlyScan = Boolean(song.scan) && !song.hasLyrics;
   if (!song.artist && !category && !onlyScan) return null;
 
   return (

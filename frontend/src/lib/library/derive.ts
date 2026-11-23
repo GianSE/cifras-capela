@@ -8,7 +8,7 @@
  */
 
 import { parse } from '@/lib/parser';
-import type { SongIndexEntry } from '@/types/library';
+import type { SongWithLyrics } from '@/types/library';
 import type { Song } from '@/types/song';
 
 /**
@@ -38,8 +38,12 @@ export function filenameFromId(id: string): string {
 /**
  * Monta a entrada de índice (usada na biblioteca e na busca) a partir do
  * `.cho`, opcionalmente reaproveitando uma AST já parseada.
+ *
+ * Sai **com** a letra: é o que vai para a coluna `lyrics` ao gravar, e é dela
+ * que o índice FTS5 do servidor se alimenta. O índice que o app carrega de
+ * volta não a traz.
  */
-export function deriveIndexEntry(id: string, source: string, parsed?: Song): SongIndexEntry {
+export function deriveIndexEntry(id: string, source: string, parsed?: Song): SongWithLyrics {
   const song = parsed ?? parse(source).song;
   const m = song.metadata;
   const lyrics = extractLyricsText(source);
@@ -56,7 +60,7 @@ export function deriveIndexEntry(id: string, source: string, parsed?: Song): Son
     ...(m.tempo !== undefined && { tempo: m.tempo }),
     ...(m.youtube && { youtube: m.youtube }),
     ...(m.scan && { scan: m.scan }),
-    ...(lyrics && { lyrics }),
+    ...(lyrics && { lyrics, hasLyrics: true }),
   };
 }
 

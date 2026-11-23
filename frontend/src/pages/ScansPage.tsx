@@ -110,13 +110,13 @@ export function ScansPage() {
     // Sem texto, a foto é a música inteira: apagar uma apaga a outra, e é bom avisar.
     const message = !song
       ? 'Excluir esta folha? Ela ainda não foi transcrita.'
-      : song.lyrics
+      : song.hasLyrics
         ? `Apagar a foto de "${song.title}"? A música continua na biblioteca, com o texto.`
         : `"${song.title}" só existe como esta foto. Excluir apaga a música também, inclusive das playlists.`;
     if (!confirm(message)) return;
     try {
       if (!song) await deleteScan(scan.id);
-      else if (song.lyrics) await deleteScanKeepingSong(scan);
+      else if (song.hasLyrics) await deleteScanKeepingSong(scan);
       else await deleteScanAndSong(scan);
       setScans((s) => (s ?? []).filter((x) => x.id !== scan.id));
     } catch (e) {
@@ -125,7 +125,7 @@ export function ScansPage() {
   };
 
   // Quem digitou a cifra direto no Editor também já transcreveu.
-  const isDone = (scan: Scan) => scan.status === 'validada' || Boolean(songOf(scan)?.lyrics);
+  const isDone = (scan: Scan) => scan.status === 'validada' || Boolean(songOf(scan)?.hasLyrics);
   const pending = (scans ?? []).filter((s) => !isDone(s));
   const validated = (scans ?? []).filter(isDone);
   const songTitle = (id: string | null) => songs.find((s) => s.id === id)?.title;

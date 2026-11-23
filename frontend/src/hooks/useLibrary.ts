@@ -1,7 +1,13 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSongLibrary } from './useSongLibrary';
 import { searchEngine } from '@/lib/search/search-engine';
+import { songService } from '@/services/song-service';
 import type { SongIndexEntry } from '@/types/library';
+
+/** Abaixo disso, a busca por letra casaria meia biblioteca. */
+const MIN_SERVER_QUERY = 3;
+/** Espera o dedo parar antes de ir à rede — a busca local já respondeu. */
+const SERVER_SEARCH_DEBOUNCE_MS = 250;
 
 export interface LibraryFilter {
   /** Texto de busca (nome, artista, categoria, tag, trechos da letra). */
@@ -29,11 +35,38 @@ function byTitle(a: SongIndexEntry, b: SongIndexEntry): number {
 
 /**
  * Biblioteca de músicas com filtragem combinada (busca + categorias + ids).
- * A busca textual usa o MiniSearch; os demais filtros são aplicados por cima.
+ *
+ * A busca textual vem de dois lugares e os resultados são juntados: o
+ * MiniSearch local responde na hora por título, artista, categoria e tag
+ * (funciona offline), e o servidor acrescenta quem casou **pela letra**, pelo
+ * índice FTS5. Os demais filtros são aplicados por cima dos dois.
  */
 export function useLibrary(filter: LibraryFilter = {}) {
   const { songs, isLoading, error, source, staleSince } = useSongLibrary();
   const { query = '', categories = [], ids, keepIdOrder = false, maxIds } = filter;
+  const trimmed = query.trim();
+
+  /** Ids que o servidor achou pela letra; vazio enquanto não respondeu. */
+  const [lyricHits, setLyricHits] = useState<readonly string[]>([]);
+
+  useEffect(() => {
+    if (trimmed.length < MIN_SERVER_QUERY) {
+      setLyricHits([]);
+      return;
+    }
+
+    let active = true;
+    const timer = setTimeout(() => {
+      void songService.searchIds(trimmed).then((found) => {
+        if (active) setLyricHits(found);
+      });
+    }, SERVER_SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [trimmed]);
 
   const allCategories = useMemo(() => {
     const set = new Set<string>();
@@ -44,8 +77,24 @@ export function useLibrary(filter: LibraryFilter = {}) {
   }, [songs]);
 
   const results = useMemo(() => {
-    const trimmed = query.trim();
-    let list = trimmed ? searchEngine.search(trimmed) : [...songs].sort(byTitle);
+    let list: SongIndexEntry[] = trimmed
+      ? searchEngine.search(trimmed)
+      : [...songs].sort(byTitle);
+
+    // Os ids do servidor entram no fim. Os que a busca local já achou (título,
+    // artista) saem fora, e o que sobra é o "achei pelo trecho que eu
+    // lembrava" — sinal mais fraco que um título batendo, então vem depois.
+    if (trimmed && lyricHits.length > 0) {
+      const seen = new Set(list.map((song) => song.id));
+      const byId = new Map(songs.map((song) => [song.id, song] as const));
+      const extra: SongIndexEntry[] = [];
+      for (const id of lyricHits) {
+        if (seen.has(id)) continue;
+        const song = byId.get(id);
+        if (song) extra.push(song);
+      }
+      if (extra.length > 0) list = [...list, ...extra];
+    }
 
     if (categories.length > 0) {
       list = list.filter((song) =>
@@ -65,7 +114,7 @@ export function useLibrary(filter: LibraryFilter = {}) {
     }
 
     return list;
-  }, [songs, query, categories, ids, keepIdOrder, maxIds]);
+  }, [songs, trimmed, lyricHits, categories, ids, keepIdOrder, maxIds]);
 
   return { songs, results, allCategories, isLoading, error, source, staleSince };
 }

@@ -20,15 +20,27 @@ function foldTerm(term: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+/**
+ * Busca local: título, artista, categorias e tags.
+ *
+ * A **letra** não entra aqui. Ela saía no índice da biblioteca só para este
+ * MiniSearch, e com a biblioteca perto de 15 mil cifras isso virou 12MB por
+ * abertura do app e uma reindexação que travava o celular. Quem procura por um
+ * trecho de letra agora é o banco, pelo FTS5 (`/api/songs/busca`), e o
+ * `useLibrary` junta os dois resultados.
+ *
+ * Esta parte continua local de propósito: responde a cada tecla, sem rede, e é
+ * o que ainda funciona com o app offline.
+ */
 export class SearchEngine {
   private miniSearch: MiniSearch<SongIndexEntry>;
-  /** Evita reindexar (caro, com a letra inteira de milhares de músicas) quando
-   * a lista é a mesma de antes — toda vez que uma tela monta, por exemplo. */
+  /** Evita reindexar quando a lista é a mesma de antes — toda vez que uma tela
+   * monta, por exemplo. */
   private indexed: SongIndexEntry[] | null = null;
 
   constructor() {
     this.miniSearch = new MiniSearch({
-      fields: ['title', 'artist', 'tags', 'categories', 'lyrics'],
+      fields: ['title', 'artist', 'tags', 'categories'],
       storeFields: [
         'id',
         'title',

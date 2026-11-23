@@ -76,6 +76,24 @@ class SongService {
     return this.getSongIndex();
   }
 
+  /**
+   * Ids que casam com o texto no servidor, onde a letra está. Complementa a
+   * busca local (título e artista), que continua respondendo a cada tecla.
+   */
+  async searchIds(query: string): Promise<readonly string[]> {
+    return repository.searchIds(query);
+  }
+
+  /** A letra destas músicas, por id — para comparar texto, não para exibir. */
+  async getLyrics(ids: readonly string[]): Promise<ReadonlyMap<string, string>> {
+    return repository.getLyrics(ids);
+  }
+
+  /** A letra da biblioteca inteira, em páginas. Só a auditoria usa. */
+  async getAllLyrics(onPage?: (loaded: number) => void): Promise<ReadonlyMap<string, string>> {
+    return repository.getAllLyrics(onPage);
+  }
+
   /** O `.cho` completo de uma música (com cache em memória por sessão). */
   async getSongContent(id: string): Promise<string> {
     const cached = this.sourceCache.get(id);
